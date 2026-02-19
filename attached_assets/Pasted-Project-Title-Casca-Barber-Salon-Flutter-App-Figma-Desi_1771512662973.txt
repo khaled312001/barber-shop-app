@@ -1,0 +1,151 @@
+Project Title: Casca Barber & Salon Flutter App
+
+Figma Design Link:
+https://www.figma.com/design/149AMOn83cshk9Cm8pzsyZ/Casca---Barber---Salon-App-UI-Kit--Preview-?node-id=1027-18840&t=wt0roSsJXBMVjhDH-1
+
+📌 Instructions for AI / Developer:
+
+You are to generate a full production-ready Flutter mobile application based exactly on the Figma design provided above.
+
+🧩 Requirements
+1. All Pages & Screens
+
+Download and implement every screen in the Figma design. Respect:
+
+Layouts
+
+Spacing
+
+Typography
+
+Colors
+
+Icons & illustrations
+
+Make sure responsive layouts adapt to different mobile sizes.
+
+2. App Architecture
+
+Use Clean Flutter Architecture, including:
+
+MVC or MVVM structure
+
+Provider or Bloc state management
+
+Separation of UI, business logic, and services
+
+3. Navigation
+
+Implement routing with:
+
+Named routes
+
+Custom transitions where needed
+
+Back stack handling
+
+4. Features to Implement
+
+Based on design screens (interpret and build logic):
+
+✔ Authentication
+• Login
+• Signup
+• OTP / Verification
+
+✔ User Profile
+✔ Home Dashboard
+✔ Services List
+✔ Service Details
+✔ Booking / Scheduling system
+✔ Calendar / Date picker
+✔ Cart / Checkout flow
+✔ Payment Integration placeholder
+✔ Notifications
+✔ Bottom Navigation Bar
+✔ Drawer or Side Menu if shown
+✔ Settings Screen
+
+5. UI & UX Accuracy
+
+Match padding, margin, fonts, icons, and colors as per the Figma file
+
+Use the exact fonts from design (include Google Fonts if used)
+
+Use custom widgets for reusable components (buttons, cards, forms, etc.)
+
+6. Asset Handling
+
+Export all assets from Figma (SVG, PNG)
+
+Organize into assets/images, assets/icons, etc.
+
+Reference them properly in pubspec.yaml
+
+7. Code Quality
+
+Well-structured code with comments
+
+No hard-coded values (use constants & themes)
+
+Modular: separate widgets, screens, services
+
+Responsive layout (MediaQuery or similar)
+
+8. Theming
+
+Implement:
+
+Centralized theme file
+
+Light / Dark theme if included
+
+Custom color & text style constants
+
+9. State Management
+
+Use Provider or Bloc patterns for:
+
+Auth state
+
+UI states
+
+Booking & cart
+
+10. Backend Integration
+
+Stub functions for:
+
+API calls
+
+Authentication
+
+Booking
+
+Payments
+
+You can simulate with local JSON or placeholder services.
+
+📦 Deliverables
+
+Full Flutter project
+
+Clean folder structure
+
+Screens matching Figma exactly
+
+Navigation fully implemented
+
+State management implemented
+
+Placeholder backend integration
+
+Documentation file:
+
+How to run
+
+How to connect backend
+
+API specs (if simulated)
+
+Exported assets
