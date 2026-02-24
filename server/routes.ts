@@ -19,8 +19,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       saveUninitialized: false,
       cookie: {
         maxAge: 30 * 24 * 60 * 60 * 1000,
-        secure: false,
-        sameSite: "lax",
+        secure: true,
+        sameSite: "none",
+        httpOnly: true,
       },
     })
   );
