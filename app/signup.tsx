@@ -14,7 +14,7 @@ export default function SignUpScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { signup } = useApp();
-  const { handleGooglePress, handleFacebookPress, handleApplePress } = useSocialAuth();
+  const { handleGooglePress } = useSocialAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -98,14 +98,8 @@ export default function SignUpScreen() {
         </View>
 
         <View style={styles.socialRow}>
-          <Pressable onPress={handleFacebookPress} style={({ pressed }) => [styles.socialBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
-            <Ionicons name="logo-facebook" size={24} color="#1877F2" />
-          </Pressable>
           <Pressable onPress={handleGooglePress} style={({ pressed }) => [styles.socialBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
             <Ionicons name="logo-google" size={24} color="#EA4335" />
-          </Pressable>
-          <Pressable onPress={handleApplePress} style={({ pressed }) => [styles.socialBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
-            <Ionicons name="logo-apple" size={24} color={theme.text} />
           </Pressable>
         </View>
 

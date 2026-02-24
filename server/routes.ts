@@ -213,9 +213,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/salons", async (_req: Request, res: Response) => {
+  app.get("/api/salons", async (req: Request, res: Response) => {
     try {
-      const allSalons = await storage.getAllSalons();
+      const category = req.query.category as string | undefined;
+      let allSalons;
+      if (category && category !== 'all') {
+        allSalons = await storage.getSalonsByCategory(category);
+      } else {
+        allSalons = await storage.getAllSalons();
+      }
       res.json(allSalons);
     } catch (err: any) {
       res.status(500).json({ message: err.message });

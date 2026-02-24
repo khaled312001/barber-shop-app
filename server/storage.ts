@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, ilike, or, desc } from "drizzle-orm";
+import { eq, and, ilike, or, desc, inArray } from "drizzle-orm";
 import {
   users, salons, services, packages, specialists, reviews,
   bookings, bookmarkTable, messages, notifications,
@@ -51,6 +51,13 @@ export async function searchSalons(query: string): Promise<Salon[]> {
 
 export async function getSalonServices(salonId: string): Promise<Service[]> {
   return db.select().from(services).where(eq(services.salonId, salonId));
+}
+
+export async function getSalonsByCategory(category: string): Promise<Salon[]> {
+  const matchingServices = await db.select({ salonId: services.salonId }).from(services).where(ilike(services.category, category));
+  const salonIds = [...new Set(matchingServices.map(s => s.salonId))];
+  if (salonIds.length === 0) return [];
+  return db.select().from(salons).where(inArray(salons.id, salonIds));
 }
 
 export async function getSalonPackages(salonId: string): Promise<Package[]> {

@@ -113,8 +113,13 @@ export default function HomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user, toggleBookmark, isBookmarked } = useApp();
-  const { data: salons = [] } = useQuery<Salon[]>({ queryKey: ['/api/salons'], queryFn: getQueryFn({ on401: 'throw' }) });
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const categoryName = selectedCategory === 'all' ? 'all' : categories.find(c => c.id === selectedCategory)?.name || 'all';
+  const salonUrl = `/api/salons${categoryName !== 'all' ? `?category=${encodeURIComponent(categoryName)}` : ''}`;
+  const { data: salons = [] } = useQuery<Salon[]>({
+    queryKey: [salonUrl],
+    queryFn: getQueryFn({ on401: 'throw' }),
+  });
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
 
