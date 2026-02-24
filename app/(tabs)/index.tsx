@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, TextInput, Dimensions, Platform, FlatList,
+  View, Text, StyleSheet, ScrollView, Pressable, TextInput, Dimensions, Platform, FlatList, ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -8,9 +8,29 @@ import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-ic
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
+import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
-import { salons, categories } from '@/constants/data';
+import { categories } from '@/constants/data';
+
+interface Salon {
+  id: string;
+  name: string;
+  image: string;
+  address: string;
+  distance: string;
+  rating: number;
+  reviewCount: number;
+  isOpen: boolean;
+  openHours: string;
+  phone: string;
+  about: string;
+  website: string;
+  latitude: number;
+  longitude: number;
+  gallery: string[];
+}
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -22,7 +42,7 @@ function CategoryIcon({ iconName, iconSet, color, size }: { iconName: string; ic
   return <MaterialIcons name={iconName as any} size={size} color={color} />;
 }
 
-function SalonCard({ salon, onBookmark, isBookmarked }: { salon: typeof salons[0]; onBookmark: () => void; isBookmarked: boolean }) {
+function SalonCard({ salon, onBookmark, isBookmarked }: { salon: Salon; onBookmark: () => void; isBookmarked: boolean }) {
   const theme = useTheme();
   return (
     <Pressable
@@ -57,7 +77,7 @@ function SalonCard({ salon, onBookmark, isBookmarked }: { salon: typeof salons[0
   );
 }
 
-function NearbySalonRow({ salon, onBookmark, isBookmarked }: { salon: typeof salons[0]; onBookmark: () => void; isBookmarked: boolean }) {
+function NearbySalonRow({ salon, onBookmark, isBookmarked }: { salon: Salon; onBookmark: () => void; isBookmarked: boolean }) {
   const theme = useTheme();
   return (
     <Pressable
@@ -92,6 +112,7 @@ export default function HomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user, toggleBookmark, isBookmarked } = useApp();
+  const { data: salons = [] } = useQuery<Salon[]>({ queryKey: ['/api/salons'], queryFn: getQueryFn({ on401: 'throw' }) });
   const [selectedCategory, setSelectedCategory] = useState('all');
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
@@ -101,10 +122,10 @@ export default function HomeScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={[styles.header, { paddingTop: topPad + 12 }]}>
           <View style={styles.headerLeft}>
-            <Image source={{ uri: user.avatar }} style={styles.avatar} contentFit="cover" />
+            <Image source={{ uri: user?.avatar }} style={styles.avatar} contentFit="cover" />
             <View>
               <Text style={[styles.greeting, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Good Morning</Text>
-              <Text style={[styles.userName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{user.fullName}</Text>
+              <Text style={[styles.userName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{user?.fullName}</Text>
             </View>
           </View>
           <View style={styles.headerRight}>

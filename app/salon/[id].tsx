@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, Platform, Dimensions, FlatList,
+  View, Text, StyleSheet, ScrollView, Pressable, Platform, Dimensions, FlatList, ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -8,14 +8,72 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
+import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
-import { salons, type Service } from '@/constants/data';
 
 const { width } = Dimensions.get('window');
 type DetailTab = 'about' | 'services' | 'package' | 'gallery' | 'review';
 
-function ReviewItem({ review }: { review: typeof salons[0]['reviews'][0] }) {
+interface Service {
+  id: string;
+  name: string;
+  price: number;
+  duration: string;
+  image: string;
+  category: string;
+}
+
+interface Package {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice: number;
+  services: string[];
+  image: string;
+}
+
+interface Review {
+  id: string;
+  userName: string;
+  userImage: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
+
+interface Specialist {
+  id: string;
+  name: string;
+  role: string;
+  image: string;
+  rating: number;
+}
+
+interface Salon {
+  id: string;
+  name: string;
+  image: string;
+  address: string;
+  distance: string;
+  rating: number;
+  reviewCount: number;
+  isOpen: boolean;
+  openHours: string;
+  phone: string;
+  about: string;
+  website: string;
+  latitude: number;
+  longitude: number;
+  gallery: string[];
+  services: Service[];
+  packages: Package[];
+  reviews: Review[];
+  specialists: Specialist[];
+}
+
+function ReviewItem({ review }: { review: Review }) {
   const theme = useTheme();
   return (
     <View style={rstyles.reviewCard}>
@@ -36,7 +94,7 @@ function ReviewItem({ review }: { review: typeof salons[0]['reviews'][0] }) {
   );
 }
 
-function SpecialistItem({ specialist }: { specialist: typeof salons[0]['specialists'][0] }) {
+function SpecialistItem({ specialist }: { specialist: Specialist }) {
   const theme = useTheme();
   return (
     <View style={rstyles.specialistCard}>
@@ -53,13 +111,21 @@ export default function SalonDetailScreen() {
   const insets = useSafeAreaInsets();
   const { toggleBookmark, isBookmarked } = useApp();
   const [activeTab, setActiveTab] = useState<DetailTab>('about');
-  const salon = salons.find(s => s.id === id) || salons[0];
+  const { data: salon, isLoading } = useQuery<Salon>({ queryKey: ['/api/salons', id], queryFn: getQueryFn({ on401: 'throw' }) });
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
 
   const tabs: DetailTab[] = ['about', 'services', 'package', 'gallery', 'review'];
+
+  if (isLoading || !salon) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   const renderAbout = () => (
     <View style={dstyles.section}>
@@ -78,14 +144,14 @@ export default function SalonDetailScreen() {
       </View>
       <Text style={[dstyles.subHeader, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Our Specialists</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
-        {salon.specialists.map(sp => <SpecialistItem key={sp.id} specialist={sp} />)}
+        {(salon.specialists || []).map(sp => <SpecialistItem key={sp.id} specialist={sp} />)}
       </ScrollView>
     </View>
   );
 
   const renderServices = () => (
     <View style={dstyles.section}>
-      {salon.services.map(service => (
+      {(salon.services || []).map(service => (
         <View key={service.id} style={[dstyles.serviceRow, { borderBottomColor: theme.divider }]}>
           <Image source={{ uri: service.image }} style={dstyles.serviceImage} contentFit="cover" />
           <View style={dstyles.serviceInfo}>
@@ -100,7 +166,7 @@ export default function SalonDetailScreen() {
 
   const renderPackages = () => (
     <View style={dstyles.section}>
-      {salon.packages.map(pkg => (
+      {(salon.packages || []).map(pkg => (
         <View key={pkg.id} style={[dstyles.packageCard, { backgroundColor: theme.surface }]}>
           <Image source={{ uri: pkg.image }} style={dstyles.packageImage} contentFit="cover" />
           <View style={dstyles.packageInfo}>
@@ -120,7 +186,7 @@ export default function SalonDetailScreen() {
 
   const renderGallery = () => (
     <View style={dstyles.galleryGrid}>
-      {salon.gallery.map((img, i) => (
+      {(salon.gallery || []).map((img, i) => (
         <Image key={i} source={{ uri: img }} style={dstyles.galleryImage} contentFit="cover" />
       ))}
     </View>
@@ -137,7 +203,7 @@ export default function SalonDetailScreen() {
           ({salon.reviewCount} reviews)
         </Text>
       </View>
-      {salon.reviews.map(r => <ReviewItem key={r.id} review={r} />)}
+      {(salon.reviews || []).map(r => <ReviewItem key={r.id} review={r} />)}
     </View>
   );
 

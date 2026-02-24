@@ -58,8 +58,7 @@ export default function BookingScreen() {
     else if (step === 'datetime' && selectedTime) setStep('payment');
     else if (step === 'payment') setStep('review');
     else if (step === 'review') {
-      const booking = {
-        id: Crypto.randomUUID(),
+      const bookingData = {
         salonId: salon.id,
         salonName: salon.name,
         salonImage: salon.image,
@@ -67,11 +66,10 @@ export default function BookingScreen() {
         date: days[selectedDate].full,
         time: selectedTime,
         totalPrice: total,
-        status: 'upcoming' as const,
+        status: 'upcoming',
         paymentMethod: paymentMethods.find(p => p.id === selectedPayment)?.name || 'Credit Card',
       };
-      addBooking(booking);
-      setStep('success');
+      addBooking(bookingData).then(() => setStep('success')).catch(() => {});
     }
   };
 

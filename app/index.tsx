@@ -5,10 +5,11 @@ import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/constants/theme';
 
 export default function IndexScreen() {
-  const { isOnboarded, isLoggedIn } = useApp();
+  const { isOnboarded, isLoggedIn, authLoading } = useApp();
   const theme = useTheme();
 
   useEffect(() => {
+    if (authLoading) return;
     const timer = setTimeout(() => {
       if (!isOnboarded) {
         router.replace('/onboarding');
@@ -19,7 +20,7 @@ export default function IndexScreen() {
       }
     }, 100);
     return () => clearTimeout(timer);
-  }, [isOnboarded, isLoggedIn]);
+  }, [isOnboarded, isLoggedIn, authLoading]);
 
   return <View style={[styles.container, { backgroundColor: theme.background }]} />;
 }

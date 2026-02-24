@@ -14,11 +14,11 @@ export default function EditProfileScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user, setUser } = useApp();
-  const [fullName, setFullName] = useState(user.fullName);
-  const [nickname, setNickname] = useState(user.nickname);
-  const [email, setEmail] = useState(user.email);
-  const [phone, setPhone] = useState(user.phone);
-  const [gender, setGender] = useState(user.gender);
+  const [fullName, setFullName] = useState(user?.fullName ?? '');
+  const [nickname, setNickname] = useState(user?.nickname ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [gender, setGender] = useState(user?.gender ?? '');
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
@@ -26,7 +26,7 @@ export default function EditProfileScreen() {
 
   const handleSave = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setUser({ ...user, fullName, nickname, email, phone, gender });
+    setUser({ ...user!, fullName, nickname, email, phone, gender });
     Alert.alert('Success', 'Profile updated successfully!');
     router.back();
   };
@@ -43,7 +43,7 @@ export default function EditProfileScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 100 }]}>
         <View style={styles.avatarSection}>
-          <Image source={{ uri: user.avatar }} style={styles.avatar} contentFit="cover" />
+          <Image source={{ uri: user?.avatar }} style={styles.avatar} contentFit="cover" />
           <Pressable style={[styles.editAvatarBtn, { backgroundColor: theme.primary }]}>
             <Ionicons name="camera" size={18} color="#fff" />
           </Pressable>

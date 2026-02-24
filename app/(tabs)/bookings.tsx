@@ -5,8 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
-import { useApp } from '@/contexts/AppContext';
-import { type Booking } from '@/constants/data';
+import { useApp, type Booking } from '@/contexts/AppContext';
 
 type TabType = 'upcoming' | 'completed' | 'cancelled';
 

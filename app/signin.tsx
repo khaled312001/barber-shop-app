@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, TextInput, Platform, ScrollView,
+  View, Text, StyleSheet, Pressable, TextInput, Platform, ScrollView, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,20 +12,29 @@ import { useApp } from '@/contexts/AppContext';
 export default function SignInScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { setIsLoggedIn } = useApp();
+  const { login } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
 
-  const handleSignIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsLoggedIn(true);
-    router.replace('/(tabs)');
+  const handleSignIn = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await login(email, password);
+      router.replace('/(tabs)');
+    } catch (e: any) {
+      Alert.alert('Sign In Failed', e?.message || 'Please check your credentials and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

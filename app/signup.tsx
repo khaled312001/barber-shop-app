@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, TextInput, Platform, ScrollView,
+  View, Text, StyleSheet, Pressable, TextInput, Platform, ScrollView, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,19 +12,29 @@ import { useApp } from '@/contexts/AppContext';
 export default function SignUpScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { setIsLoggedIn } = useApp();
+  const { signup } = useApp();
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
 
-  const handleSignUp = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setIsLoggedIn(true);
-    router.replace('/(tabs)');
+  const handleSignUp = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await signup(fullName, email, password);
+      router.replace('/(tabs)');
+    } catch (e: any) {
+      Alert.alert('Sign Up Failed', e?.message || 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,6 +45,17 @@ export default function SignUpScreen() {
         </Pressable>
 
         <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Create your{'\n'}Account</Text>
+
+        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+          <Ionicons name="person-outline" size={20} color={theme.textTertiary} />
+          <TextInput
+            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]}
+            placeholder="Full Name"
+            placeholderTextColor={theme.textTertiary}
+            value={fullName}
+            onChangeText={setFullName}
+          />
+        </View>
 
         <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
           <Ionicons name="mail-outline" size={20} color={theme.textTertiary} />

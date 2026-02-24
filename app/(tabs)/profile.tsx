@@ -22,7 +22,7 @@ const menuItems = [
 export default function ProfileScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, setIsLoggedIn } = useApp();
+  const { user, logout } = useApp();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
 
@@ -32,9 +32,9 @@ export default function ProfileScreen() {
       {
         text: 'Yes, Logout',
         style: 'destructive',
-        onPress: () => {
+        onPress: async () => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          setIsLoggedIn(false);
+          await logout();
           router.replace('/welcome');
         },
       },
@@ -49,9 +49,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.profileSection}>
-          <Image source={{ uri: user.avatar }} style={styles.avatar} contentFit="cover" />
-          <Text style={[styles.profileName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{user.fullName}</Text>
-          <Text style={[styles.profileEmail, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{user.email}</Text>
+          <Image source={{ uri: user?.avatar }} style={styles.avatar} contentFit="cover" />
+          <Text style={[styles.profileName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{user?.fullName}</Text>
+          <Text style={[styles.profileEmail, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{user?.email}</Text>
         </View>
 
         <View style={[styles.divider, { backgroundColor: theme.divider }]} />
