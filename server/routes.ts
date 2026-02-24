@@ -4,6 +4,7 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { seedDatabase } from "./seed";
 import * as storage from "./storage";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 
 const PgSession = connectPgSimple(session);
 
@@ -415,6 +416,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userImage: user?.avatar || "", rating, comment,
       });
       res.status(201).json(review);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/stripe/publishable-key", async (_req: Request, res: Response) => {
+    try {
+      const key = await getStripePublishableKey();
+      res.json({ publishableKey: key });
+    } catch (err: any) {
+      res.status(500).json({ message: "Stripe not configured" });
+    }
+  });
+
+  app.post("/api/stripe/create-payment-intent", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { amount, currency, bookingData } = req.body;
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+      const stripe = await getUncachableStripeClient();
+      const userId = (req.session as any).userId;
+      const user = await storage.getUserById(userId);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100),
+        currency: currency || 'usd',
+        metadata: {
+          userId,
+          userEmail: user?.email || '',
+          salonId: bookingData?.salonId || '',
+          salonName: bookingData?.salonName || '',
+          services: JSON.stringify(bookingData?.services || []),
+          date: bookingData?.date || '',
+          time: bookingData?.time || '',
+        },
+      });
+
+      res.json({
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+      });
+    } catch (err: any) {
+      console.error('Payment intent error:', err);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/stripe/confirm-payment", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { paymentIntentId } = req.body;
+      const stripe = await getUncachableStripeClient();
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      res.json({
+        status: paymentIntent.status,
+        amount: paymentIntent.amount,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/auth/change-password", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current and new password required" });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "New password must be at least 8 characters" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.password.startsWith("__google_oauth__") || user.password.startsWith("__facebook_oauth__") || user.password.startsWith("__apple_oauth__")) {
+        return res.status(400).json({ message: "Password change not available for social login accounts" });
+      }
+
+      const valid = await storage.verifyPassword(currentPassword, user.password);
+      if (!valid) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      const bcrypt = await import("bcryptjs");
+      const hashed = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(userId, { password: hashed });
+
+      res.json({ message: "Password changed successfully" });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

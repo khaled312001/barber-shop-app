@@ -11,13 +11,13 @@ import { DEFAULT_AVATAR } from '@/constants/images';
 
 const menuItems = [
   { icon: 'person-outline' as const, label: 'Edit Profile', route: '/edit-profile' },
-  { icon: 'notifications-outline' as const, label: 'Notification', route: '/settings' },
-  { icon: 'card-outline' as const, label: 'Payment', route: '/settings' },
-  { icon: 'shield-checkmark-outline' as const, label: 'Security', route: '/settings' },
+  { icon: 'notifications-outline' as const, label: 'Notification', route: '/notification-settings' },
+  { icon: 'card-outline' as const, label: 'Payment', route: '/payment-methods' },
+  { icon: 'shield-checkmark-outline' as const, label: 'Security', route: '/security' },
   { icon: 'language-outline' as const, label: 'Language', route: '/settings' },
-  { icon: 'eye-outline' as const, label: 'Privacy Policy', route: '/settings' },
-  { icon: 'people-outline' as const, label: 'Invite Friends', route: '/settings' },
-  { icon: 'help-circle-outline' as const, label: 'Help Center', route: '/settings' },
+  { icon: 'eye-outline' as const, label: 'Privacy Policy', route: '/privacy-policy' },
+  { icon: 'people-outline' as const, label: 'Invite Friends', route: '/invite-friends' },
+  { icon: 'help-circle-outline' as const, label: 'Help Center', route: '/help-center' },
 ];
 
 export default function ProfileScreen() {

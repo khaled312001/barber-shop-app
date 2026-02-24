@@ -34,6 +34,13 @@ function RootLayoutNav() {
       <Stack.Screen name="search" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="edit-profile" />
+      <Stack.Screen name="notification-settings" />
+      <Stack.Screen name="payment-methods" />
+      <Stack.Screen name="security" />
+      <Stack.Screen name="change-password" />
+      <Stack.Screen name="privacy-policy" />
+      <Stack.Screen name="invite-friends" />
+      <Stack.Screen name="help-center" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
