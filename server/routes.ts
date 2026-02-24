@@ -117,6 +117,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/auth/facebook", async (req: Request, res: Response) => {
+    try {
+      const { email, fullName, avatar } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      let user = await storage.getUserByEmail(email);
+      if (!user) {
+        user = await storage.createUser({
+          fullName: fullName || email.split("@")[0],
+          email,
+          password: "__facebook_oauth__" + Date.now(),
+        });
+        if (avatar) {
+          user = await storage.updateUser(user.id, { avatar });
+        }
+        await storage.createNotification({
+          userId: user.id,
+          title: "Welcome to Casca!",
+          message: "Your account has been created with Facebook. Start exploring salons near you!",
+          type: "system",
+        });
+      } else if (avatar && !user.avatar) {
+        user = await storage.updateUser(user.id, { avatar });
+      }
+      (req.session as any).userId = user.id;
+      const { password: _, ...safeUser } = user;
+      res.json({ user: safeUser });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/auth/apple", async (req: Request, res: Response) => {
+    try {
+      const { email, fullName } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      let user = await storage.getUserByEmail(email);
+      if (!user) {
+        user = await storage.createUser({
+          fullName: fullName || "Apple User",
+          email,
+          password: "__apple_oauth__" + Date.now(),
+        });
+        await storage.createNotification({
+          userId: user.id,
+          title: "Welcome to Casca!",
+          message: "Your account has been created with Apple. Start exploring salons near you!",
+          type: "system",
+        });
+      }
+      (req.session as any).userId = user.id;
+      const { password: _, ...safeUser } = user;
+      res.json({ user: safeUser });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/auth/logout", (req: Request, res: Response) => {
     req.session.destroy(() => {
       res.json({ message: "Logged out" });
