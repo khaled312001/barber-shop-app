@@ -219,7 +219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.save((err) => {
         if (err) console.error("Session save error:", err);
 
-        if (returnUrl.startsWith("exp://") || returnUrl.startsWith("casca://")) {
+        if (returnUrl && returnUrl !== "/") {
           const separator = returnUrl.includes("?") ? "&" : "?";
           res.redirect(`${returnUrl}${separator}auth=success`);
         } else {

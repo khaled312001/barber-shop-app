@@ -20,26 +20,35 @@ export function useSocialAuth() {
   const handleGooglePress = useCallback(async () => {
     try {
       const apiBase = getApiBase();
-      const returnUrl = makeRedirectUri({ scheme: 'casca', path: 'auth' });
+      const returnUrl = makeRedirectUri();
+
+      if (Platform.OS === 'android') {
+        await WebBrowser.warmUpAsync();
+      }
 
       const authUrl = `${apiBase}/api/auth/google/start?returnUrl=${encodeURIComponent(returnUrl)}`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl);
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
+        showInRecents: false,
+        preferEphemeralSession: true,
+      });
 
-      if (result.type === 'success' || result.type === 'dismiss') {
-        const meRes = await apiRequest('GET', '/api/auth/me');
-        if (meRes.ok) {
-          const data = await meRes.json();
-          if (data.user) {
-            setUser(data.user);
-            router.replace('/(tabs)');
-            return;
-          }
-        }
+      if (Platform.OS === 'android') {
+        await WebBrowser.coolDownAsync();
       }
 
-      if (result.type === 'cancel') {
-        return;
+      if (result.type === 'success' || result.type === 'dismiss') {
+        try {
+          const meRes = await apiRequest('GET', '/api/auth/me');
+          if (meRes.ok) {
+            const data = await meRes.json();
+            if (data.user) {
+              setUser(data.user);
+              router.replace('/(tabs)');
+              return;
+            }
+          }
+        } catch {}
       }
     } catch (e: any) {
       console.error('Google Sign-In error:', e);
