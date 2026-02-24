@@ -13,7 +13,7 @@ interface Salon {
   longitude: number;
 }
 
-export default function SalonMap({ salons }: { salons: Salon[] }) {
+export default function SalonMap({ salons, onSalonPress }: { salons: Salon[]; onSalonPress?: (id: string) => void }) {
   return (
     <MapView
       style={styles.map}
