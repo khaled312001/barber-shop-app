@@ -118,6 +118,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/auth/google/start", (req: Request, res: Response) => {
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      return res.status(500).send("Google OAuth not configured");
+    }
+
+    const returnUrl = (req.query.returnUrl as string) || "/";
+    const domains = process.env.REPLIT_DOMAINS?.split(",") || [];
+    const primaryDomain = domains[0] || process.env.REPLIT_DEV_DOMAIN || "localhost:5000";
+    const callbackUrl = `https://${primaryDomain}/api/auth/google/callback`;
+
+    const state = Buffer.from(JSON.stringify({ returnUrl })).toString("base64url");
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: callbackUrl,
+      response_type: "code",
+      scope: "openid email profile",
+      access_type: "offline",
+      state,
+      prompt: "consent",
+    });
+
+    res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+  });
+
+  app.get("/api/auth/google/callback", async (req: Request, res: Response) => {
+    const { code, state, error } = req.query;
+
+    let returnUrl = "/";
+    try {
+      if (state) {
+        const parsed = JSON.parse(Buffer.from(state as string, "base64url").toString());
+        returnUrl = parsed.returnUrl || "/";
+      }
+    } catch {}
+
+    if (error || !code) {
+      const errorPage = `<!DOCTYPE html><html><body style="background:#1F222A;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h2>Sign-in Failed</h2><p>${error || "No authorization code received"}</p><p>You can close this window and try again.</p></div></body></html>`;
+      return res.status(400).send(errorPage);
+    }
+
+    try {
+      const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID!;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
+      const domains = process.env.REPLIT_DOMAINS?.split(",") || [];
+      const primaryDomain = domains[0] || process.env.REPLIT_DEV_DOMAIN || "localhost:5000";
+      const callbackUrl = `https://${primaryDomain}/api/auth/google/callback`;
+
+      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code: code as string,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: callbackUrl,
+          grant_type: "authorization_code",
+        }),
+      });
+      const tokenData = await tokenRes.json() as any;
+
+      if (!tokenData.access_token) {
+        throw new Error(tokenData.error_description || "Failed to exchange code for token");
+      }
+
+      const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      const userInfo = await userInfoRes.json() as any;
+
+      if (!userInfo.email) {
+        throw new Error("Could not retrieve email from Google");
+      }
+
+      let user = await storage.getUserByEmail(userInfo.email);
+      if (!user) {
+        user = await storage.createUser({
+          fullName: userInfo.name || userInfo.email.split("@")[0],
+          email: userInfo.email,
+          password: "__google_oauth__" + Date.now(),
+        });
+        if (userInfo.picture) {
+          user = await storage.updateUser(user.id, { avatar: userInfo.picture });
+        }
+        await storage.createNotification({
+          userId: user.id,
+          title: "Welcome to Casca!",
+          message: "Your account has been created with Google. Start exploring salons near you!",
+          type: "system",
+        });
+      } else if (userInfo.picture && !user.avatar) {
+        user = await storage.updateUser(user.id, { avatar: userInfo.picture });
+      }
+
+      (req.session as any).userId = user.id;
+
+      req.session.save((err) => {
+        if (err) console.error("Session save error:", err);
+
+        if (returnUrl.startsWith("exp://") || returnUrl.startsWith("casca://")) {
+          const separator = returnUrl.includes("?") ? "&" : "?";
+          res.redirect(`${returnUrl}${separator}auth=success`);
+        } else {
+          const successPage = `<!DOCTYPE html><html><head><script>window.close();setTimeout(function(){window.location.href="/";},2000);</script></head><body style="background:#1F222A;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><div style="width:80px;height:80px;border-radius:50%;background:#F4A460;display:flex;align-items:center;justify-content:center;margin:0 auto 20px"><svg width="40" height="40" fill="none" stroke="#fff" stroke-width="3"><polyline points="10,22 18,30 32,14"/></svg></div><h2>Signed in successfully!</h2><p>You can close this window and return to the app.</p></div></body></html>`;
+          res.send(successPage);
+        }
+      });
+    } catch (err: any) {
+      console.error("Google OAuth callback error:", err);
+      const errorPage = `<!DOCTYPE html><html><body style="background:#1F222A;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h2>Sign-in Failed</h2><p>${err.message}</p><p>You can close this window and try again.</p></div></body></html>`;
+      res.status(500).send(errorPage);
+    }
+  });
+
   app.post("/api/auth/facebook", async (req: Request, res: Response) => {
     try {
       const { email, fullName, avatar } = req.body;
