@@ -6,13 +6,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/theme';
+import { useSocialAuth } from '@/hooks/useSocialAuth';
 
 export default function WelcomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const webTopInset = Platform.OS === 'web' ? 67 : 0;
+  const { handleGooglePress, handleFacebookPress, handleApplePress } = useSocialAuth();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
-  const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
 
   return (
@@ -33,13 +33,13 @@ export default function WelcomeScreen() {
         </Text>
 
         <View style={styles.socialContainer}>
-          <Pressable style={({ pressed }) => [styles.socialBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
+          <Pressable onPress={handleFacebookPress} style={({ pressed }) => [styles.socialBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
             <Ionicons name="logo-facebook" size={24} color="#1877F2" />
           </Pressable>
-          <Pressable style={({ pressed }) => [styles.socialBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
+          <Pressable onPress={handleGooglePress} style={({ pressed }) => [styles.socialBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
             <Ionicons name="logo-google" size={24} color="#EA4335" />
           </Pressable>
-          <Pressable style={({ pressed }) => [styles.socialBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
+          <Pressable onPress={handleApplePress} style={({ pressed }) => [styles.socialBtn, { borderColor: theme.border, opacity: pressed ? 0.7 : 1 }]}>
             <Ionicons name="logo-apple" size={24} color={theme.text} />
           </Pressable>
         </View>

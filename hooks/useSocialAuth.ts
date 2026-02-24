@@ -3,7 +3,6 @@ import { Platform, Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as Facebook from 'expo-auth-session/providers/facebook';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { useApp } from '@/contexts/AppContext';
 import { router } from 'expo-router';
 
@@ -77,20 +76,21 @@ export function useSocialAuth() {
   }, [facebookAppId, fbPromptAsync]);
 
   const handleApplePress = useCallback(async () => {
-    if (Platform.OS === 'web') {
-      Alert.alert('Not Available', 'Apple Sign-In is only available on iOS devices.');
+    if (Platform.OS !== 'ios') {
+      Alert.alert('Not Available', 'Apple Sign-In is only available on iOS devices. Please use Google or Facebook to sign in on this platform.');
       return;
     }
     try {
-      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      const AppleAuth = require('expo-apple-authentication');
+      const isAvailable = await AppleAuth.isAvailableAsync();
       if (!isAvailable) {
         Alert.alert('Not Available', 'Apple Sign-In is not available on this device. It requires iOS 13 or later.');
         return;
       }
-      const credential = await AppleAuthentication.signInAsync({
+      const credential = await AppleAuth.signInAsync({
         requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          AppleAuth.AppleAuthenticationScope.FULL_NAME,
+          AppleAuth.AppleAuthenticationScope.EMAIL,
         ],
       });
       const email = credential.email || `apple_${credential.user}@privaterelay.appleid.com`;
