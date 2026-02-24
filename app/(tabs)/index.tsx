@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import { DEFAULT_AVATAR } from '@/constants/images';
 import { categories } from '@/constants/data';
 
 interface Salon {
@@ -122,7 +123,7 @@ export default function HomeScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={[styles.header, { paddingTop: topPad + 12 }]}>
           <View style={styles.headerLeft}>
-            <Image source={{ uri: user?.avatar }} style={styles.avatar} contentFit="cover" />
+            <Image source={user?.avatar ? { uri: user.avatar } : DEFAULT_AVATAR} style={styles.avatar} contentFit="cover" />
             <View>
               <Text style={[styles.greeting, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Good Morning</Text>
               <Text style={[styles.userName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{user?.fullName}</Text>

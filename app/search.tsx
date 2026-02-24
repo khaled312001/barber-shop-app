@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import MapView, { Marker, Callout } from 'react-native-maps';
 
 interface Salon {
   id: string;
@@ -20,6 +21,8 @@ interface Salon {
   rating: number;
   reviewCount: number;
   isOpen: boolean;
+  latitude: number;
+  longitude: number;
 }
 
 export default function SearchScreen() {
@@ -33,6 +36,7 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [filterRating, setFilterRating] = useState(0);
   const [showFilter, setShowFilter] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
 
@@ -70,6 +74,9 @@ export default function SearchScreen() {
             </Pressable>
           )}
         </View>
+        <Pressable onPress={() => setViewMode(viewMode === 'list' ? 'map' : 'list')} style={({ pressed }) => [styles.filterButton, { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, opacity: pressed ? 0.8 : 1 }]}>
+          <Ionicons name={viewMode === 'list' ? 'map' : 'list'} size={20} color={theme.text} />
+        </Pressable>
         <Pressable onPress={() => setShowFilter(!showFilter)} style={({ pressed }) => [styles.filterButton, { backgroundColor: theme.primary, opacity: pressed ? 0.8 : 1 }]}>
           <Ionicons name="options" size={20} color="#fff" />
         </Pressable>
@@ -92,39 +99,67 @@ export default function SearchScreen() {
         </View>
       )}
 
-      <FlatList
-        data={filtered}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={filtered.length > 0}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="search" size={48} color={theme.textTertiary} />
-            <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>No results found</Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push({ pathname: '/salon/[id]', params: { id: item.id } })}
-            style={({ pressed }) => [styles.resultCard, { backgroundColor: theme.card, opacity: pressed ? 0.95 : 1 }]}
-          >
-            <Image source={{ uri: item.image }} style={styles.resultImage} contentFit="cover" />
-            <View style={styles.resultInfo}>
-              <Text style={[styles.resultName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{item.name}</Text>
-              <Text style={[styles.resultAddr, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]} numberOfLines={1}>{item.address}</Text>
-              <View style={styles.resultMeta}>
-                <Ionicons name="star" size={14} color={theme.star} />
-                <Text style={[styles.resultRating, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{item.rating}</Text>
-                <Text style={[styles.resultDistance, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{item.distance}</Text>
-              </View>
+      {viewMode === 'list' ? (
+        <FlatList
+          data={filtered}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={filtered.length > 0}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="search" size={48} color={theme.textTertiary} />
+              <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>No results found</Text>
             </View>
-            <Pressable onPress={() => toggleBookmark(item.id)}>
-              <Ionicons name={isBookmarked(item.id) ? 'bookmark' : 'bookmark-outline'} size={22} color={isBookmarked(item.id) ? theme.primary : theme.textTertiary} />
+          }
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => router.push({ pathname: '/salon/[id]', params: { id: item.id } })}
+              style={({ pressed }) => [styles.resultCard, { backgroundColor: theme.card, opacity: pressed ? 0.95 : 1 }]}
+            >
+              <Image source={{ uri: item.image }} style={styles.resultImage} contentFit="cover" />
+              <View style={styles.resultInfo}>
+                <Text style={[styles.resultName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{item.name}</Text>
+                <Text style={[styles.resultAddr, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]} numberOfLines={1}>{item.address}</Text>
+                <View style={styles.resultMeta}>
+                  <Ionicons name="star" size={14} color={theme.star} />
+                  <Text style={[styles.resultRating, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{item.rating}</Text>
+                  <Text style={[styles.resultDistance, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{item.distance}</Text>
+                </View>
+              </View>
+              <Pressable onPress={() => toggleBookmark(item.id)}>
+                <Ionicons name={isBookmarked(item.id) ? 'bookmark' : 'bookmark-outline'} size={22} color={isBookmarked(item.id) ? theme.primary : theme.textTertiary} />
+              </Pressable>
             </Pressable>
-          </Pressable>
-        )}
-      />
+          )}
+        />
+      ) : (
+        <MapView
+          style={styles.map}
+          initialRegion={{
+            latitude: 40.7128,
+            longitude: -74.006,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          }}
+        >
+          {filtered.map(salon => (
+            <Marker
+              key={salon.id}
+              coordinate={{ latitude: salon.latitude, longitude: salon.longitude }}
+              title={salon.name}
+              description={`${salon.rating}\u2605 - ${salon.address}`}
+            >
+              <Callout onPress={() => router.push({ pathname: '/salon/[id]', params: { id: salon.id } })}>
+                <View style={styles.callout}>
+                  <Text style={styles.calloutTitle}>{salon.name}</Text>
+                  <Text style={styles.calloutSub}>{salon.rating}\u2605 \u00b7 {salon.distance}</Text>
+                </View>
+              </Callout>
+            </Marker>
+          ))}
+        </MapView>
+      )}
     </View>
   );
 }
@@ -151,4 +186,8 @@ const styles = StyleSheet.create({
   resultDistance: { fontSize: 12 },
   emptyContainer: { alignItems: 'center', paddingTop: 80, gap: 12 },
   emptyText: { fontSize: 16 },
+  map: { flex: 1 },
+  callout: { padding: 8, minWidth: 150 },
+  calloutTitle: { fontSize: 14, fontWeight: '700' as const, marginBottom: 2 },
+  calloutSub: { fontSize: 12, color: '#666' },
 });

@@ -49,6 +49,7 @@ interface AppContextValue {
   setUser: (u: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
   signup: (fullName: string, email: string, password: string) => Promise<void>;
+  googleLogin: (email: string, fullName: string, avatar: string) => Promise<void>;
   logout: () => Promise<void>;
   bookmarks: string[];
   toggleBookmark: (salonId: string) => void;
@@ -149,6 +150,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await fetchUserData();
   }, [fetchUserData]);
 
+  const googleLogin = useCallback(async (email: string, fullName: string, avatar: string) => {
+    const res = await apiRequest('POST', '/api/auth/google', { email, fullName, avatar });
+    const data = await res.json();
+    setUser(data.user || data);
+    setIsLoggedIn(true);
+    await fetchUserData();
+  }, [fetchUserData]);
+
   const logout = useCallback(async () => {
     try {
       await apiRequest('POST', '/api/auth/logout');
@@ -208,11 +217,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isOnboarded, setIsOnboarded,
     isLoggedIn, authLoading,
     user, setUser,
-    login, signup, logout,
+    login, signup, googleLogin, logout,
     bookmarks, toggleBookmark, isBookmarked,
     bookings, refreshBookings, addBooking, cancelBooking,
     notifications, refreshNotifications,
-  }), [isOnboarded, setIsOnboarded, isLoggedIn, authLoading, user, login, signup, logout, bookmarks, toggleBookmark, isBookmarked, bookings, refreshBookings, addBooking, cancelBooking, notifications, refreshNotifications]);
+  }), [isOnboarded, setIsOnboarded, isLoggedIn, authLoading, user, login, signup, googleLogin, logout, bookmarks, toggleBookmark, isBookmarked, bookings, refreshBookings, addBooking, cancelBooking, notifications, refreshNotifications]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Pressable, TextInput, Platform, ScrollView, Alert,
 } from 'react-native';
@@ -6,13 +6,17 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { login } = useApp();
+  const { login, googleLogin } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -22,6 +26,31 @@ export default function SignInScreen() {
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
+
+  const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: clientId || 'placeholder',
+    redirectUri: undefined,
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success' && response.authentication?.accessToken) {
+      const fetchUserInfo = async () => {
+        try {
+          const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${response.authentication!.accessToken}` },
+          });
+          const userInfo = await res.json();
+          await googleLogin(userInfo.email, userInfo.name, userInfo.picture);
+          router.replace('/(tabs)');
+        } catch (e: any) {
+          Alert.alert('Google Sign-In Failed', e?.message || 'Please try again.');
+        }
+      };
+      fetchUserInfo();
+    }
+  }, [response]);
 
   const handleSignIn = async () => {
     if (loading) return;
@@ -35,6 +64,14 @@ export default function SignInScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGooglePress = () => {
+    if (!clientId) {
+      Alert.alert('Google Sign-In requires configuration. Please set up a Google OAuth Client ID.');
+      return;
+    }
+    promptAsync();
   };
 
   return (
@@ -105,7 +142,15 @@ export default function SignInScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.bottomRow}>
+        <Pressable
+          onPress={handleGooglePress}
+          style={({ pressed }) => [styles.googleBtn, { borderColor: theme.border, opacity: pressed ? 0.8 : 1 }]}
+        >
+          <Ionicons name="logo-google" size={22} color={theme.text} />
+          <Text style={[styles.googleBtnText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>Continue with Google</Text>
+        </Pressable>
+
+        <View style={[styles.bottomRow, { marginTop: 16 }]}>
           <Text style={[styles.bottomText, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Don't have an account? </Text>
           <Pressable onPress={() => router.push('/signup')}>
             <Text style={[styles.linkText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>Sign up</Text>
@@ -133,6 +178,8 @@ const styles = StyleSheet.create({
   dividerText: { marginHorizontal: 16, fontSize: 14 },
   socialRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginBottom: 24 },
   socialBtn: { width: 80, height: 56, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 58, borderRadius: 29, borderWidth: 2, gap: 12, marginTop: 12 },
+  googleBtnText: { fontSize: 16 },
   bottomRow: { flexDirection: 'row', justifyContent: 'center' },
   bottomText: { fontSize: 14 },
   linkText: { fontSize: 14 },

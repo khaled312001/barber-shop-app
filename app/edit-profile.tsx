@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import { DEFAULT_AVATAR } from '@/constants/images';
 import { apiRequest } from '@/lib/query-client';
 
 export default function EditProfileScreen() {
@@ -55,7 +56,7 @@ export default function EditProfileScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: bottomPad + 100 }]}>
         <View style={styles.avatarSection}>
-          <Image source={{ uri: user?.avatar }} style={styles.avatar} contentFit="cover" />
+          <Image source={user?.avatar ? { uri: user.avatar } : DEFAULT_AVATAR} style={styles.avatar} contentFit="cover" />
           <Pressable style={[styles.editAvatarBtn, { backgroundColor: theme.primary }]}>
             <Ionicons name="camera" size={18} color="#fff" />
           </Pressable>

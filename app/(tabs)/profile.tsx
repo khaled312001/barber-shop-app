@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import { DEFAULT_AVATAR } from '@/constants/images';
 
 const menuItems = [
   { icon: 'person-outline' as const, label: 'Edit Profile', route: '/edit-profile' },
@@ -49,7 +50,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.profileSection}>
-          <Image source={{ uri: user?.avatar }} style={styles.avatar} contentFit="cover" />
+          <Image source={user?.avatar ? { uri: user.avatar } : DEFAULT_AVATAR} style={styles.avatar} contentFit="cover" />
           <Text style={[styles.profileName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{user?.fullName}</Text>
           <Text style={[styles.profileEmail, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{user?.email}</Text>
         </View>
