@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, TextInput, Platform, Alert,
+  View, Text, StyleSheet, ScrollView, Pressable, TextInput, Platform, Alert, ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import { apiRequest } from '@/lib/query-client';
 
 export default function EditProfileScreen() {
   const theme = useTheme();
@@ -19,16 +20,27 @@ export default function EditProfileScreen() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [gender, setGender] = useState(user?.gender ?? '');
+  const [saving, setSaving] = useState(false);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
 
-  const handleSave = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setUser({ ...user!, fullName, nickname, email, phone, gender });
-    Alert.alert('Success', 'Profile updated successfully!');
-    router.back();
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const res = await apiRequest('PUT', '/api/auth/profile', { fullName, nickname, phone, gender });
+      const data = await res.json();
+      setUser(data.user || data);
+      Alert.alert('Success', 'Profile updated successfully!');
+      router.back();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -86,8 +98,12 @@ export default function EditProfileScreen() {
       </ScrollView>
 
       <View style={[styles.bottomBar, { paddingBottom: bottomPad + 12, backgroundColor: theme.background }]}>
-        <Pressable onPress={handleSave} style={({ pressed }) => [styles.saveBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }]}>
-          <Text style={[styles.saveBtnText, { fontFamily: 'Urbanist_700Bold' }]}>Update</Text>
+        <Pressable onPress={handleSave} disabled={saving} style={({ pressed }) => [styles.saveBtn, { backgroundColor: theme.primary, opacity: saving ? 0.7 : pressed ? 0.9 : 1 }]}>
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={[styles.saveBtnText, { fontFamily: 'Urbanist_700Bold' }]}>Update</Text>
+          )}
         </Pressable>
       </View>
     </View>

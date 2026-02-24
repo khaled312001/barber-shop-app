@@ -120,8 +120,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       try {
         const res = await apiRequest('GET', '/api/auth/me');
-        const userData = await res.json();
-        setUser(userData);
+        const data = await res.json();
+        setUser(data.user || data);
         setIsLoggedIn(true);
         await fetchUserData();
       } catch {
@@ -135,16 +135,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await apiRequest('POST', '/api/auth/signin', { email, password });
-    const userData = await res.json();
-    setUser(userData);
+    const data = await res.json();
+    setUser(data.user || data);
     setIsLoggedIn(true);
     await fetchUserData();
   }, [fetchUserData]);
 
   const signup = useCallback(async (fullName: string, email: string, password: string) => {
     const res = await apiRequest('POST', '/api/auth/signup', { fullName, email, password });
-    const userData = await res.json();
-    setUser(userData);
+    const data = await res.json();
+    setUser(data.user || data);
     setIsLoggedIn(true);
     await fetchUserData();
   }, [fetchUserData]);

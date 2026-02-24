@@ -1,11 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
-import { mockChats, mockCalls, type ChatItem, type CallItem } from '@/constants/data';
+import { apiRequest } from '@/lib/query-client';
+
+interface ChatItem {
+  salonId: string;
+  salonName: string;
+  salonImage: string;
+  lastMessage: string;
+  time: string | null;
+  unread: number;
+}
+
+interface CallItem {
+  id: string;
+  salonName: string;
+  salonImage: string;
+  type: 'incoming' | 'outgoing' | 'missed';
+  date: string;
+  duration: string;
+}
 
 function ChatRow({ item }: { item: ChatItem }) {
   const theme = useTheme();
@@ -17,7 +35,7 @@ function ChatRow({ item }: { item: ChatItem }) {
         <Text style={[styles.chatMessage, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]} numberOfLines={1}>{item.lastMessage}</Text>
       </View>
       <View style={styles.chatMeta}>
-        <Text style={[styles.chatTime, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{item.time}</Text>
+        <Text style={[styles.chatTime, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{item.time ? new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</Text>
         {item.unread > 0 && (
           <View style={[styles.unreadBadge, { backgroundColor: theme.primary }]}>
             <Text style={[styles.unreadText, { fontFamily: 'Urbanist_700Bold' }]}>{item.unread}</Text>
@@ -54,8 +72,22 @@ export default function InboxScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'chats' | 'calls'>('chats');
+  const [chats, setChats] = useState<ChatItem[]>([]);
+  const [calls] = useState<CallItem[]>([]);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiRequest('GET', '/api/messages');
+        const data = await res.json();
+        setChats(data);
+      } catch (e) {
+        console.warn('Failed to fetch messages:', e);
+      }
+    })();
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -82,20 +114,20 @@ export default function InboxScreen() {
 
       {activeTab === 'chats' ? (
         <FlatList
-          data={mockChats}
-          keyExtractor={item => item.id}
+          data={chats}
+          keyExtractor={(item, index) => item.salonId || index.toString()}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={mockChats.length > 0}
+          scrollEnabled={!!chats.length}
           renderItem={({ item }) => <ChatRow item={item} />}
         />
       ) : (
         <FlatList
-          data={mockCalls}
+          data={calls}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={mockCalls.length > 0}
+          scrollEnabled={!!calls.length}
           renderItem={({ item }) => <CallRow item={item} />}
         />
       )}

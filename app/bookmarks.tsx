@@ -5,18 +5,34 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
+import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
-import { salons } from '@/constants/data';
+
+interface Salon {
+  id: string;
+  name: string;
+  image: string;
+  address: string;
+  distance: string;
+  rating: number;
+  reviewCount: number;
+  isOpen: boolean;
+}
 
 export default function BookmarksScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { bookmarks, toggleBookmark } = useApp();
+  const { data: allSalons = [] } = useQuery<Salon[]>({
+    queryKey: ['/api/salons'],
+    queryFn: getQueryFn({ on401: 'throw' }),
+  });
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
 
-  const bookmarkedSalons = salons.filter(s => bookmarks.includes(s.id));
+  const bookmarkedSalons = allSalons.filter(s => bookmarks.includes(s.id));
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

@@ -1,25 +1,26 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/theme';
-import { mockNotifications, type Notification } from '@/constants/data';
+import { useApp, type NotificationItem } from '@/contexts/AppContext';
 
-function NotificationItem({ item }: { item: Notification }) {
+function NotificationRow({ item }: { item: NotificationItem }) {
   const theme = useTheme();
-  const iconMap = { booking: 'calendar' as const, promo: 'pricetag' as const, system: 'settings' as const };
-  const colorMap = { booking: theme.primary, promo: theme.warning, system: theme.textSecondary };
+  const iconMap: Record<string, any> = { booking: 'calendar', promo: 'pricetag', system: 'settings' };
+  const colorMap: Record<string, string> = { booking: theme.primary, promo: theme.warning, system: theme.textSecondary };
+  const timeStr = item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '';
 
   return (
     <View style={[styles.notifItem, { backgroundColor: item.read ? 'transparent' : theme.primary + '08' }]}>
-      <View style={[styles.notifIcon, { backgroundColor: colorMap[item.type] + '20' }]}>
-        <Ionicons name={iconMap[item.type]} size={22} color={colorMap[item.type]} />
+      <View style={[styles.notifIcon, { backgroundColor: (colorMap[item.type] || theme.textSecondary) + '20' }]}>
+        <Ionicons name={iconMap[item.type] || 'notifications'} size={22} color={colorMap[item.type] || theme.textSecondary} />
       </View>
       <View style={styles.notifContent}>
         <Text style={[styles.notifTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{item.title}</Text>
         <Text style={[styles.notifMessage, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]} numberOfLines={2}>{item.message}</Text>
-        <Text style={[styles.notifTime, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{item.time}</Text>
+        <Text style={[styles.notifTime, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{timeStr}</Text>
       </View>
       {!item.read && <View style={[styles.unreadDot, { backgroundColor: theme.primary }]} />}
     </View>
@@ -29,8 +30,13 @@ function NotificationItem({ item }: { item: Notification }) {
 export default function NotificationsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { notifications, refreshNotifications } = useApp();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
+
+  useEffect(() => {
+    refreshNotifications();
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -42,12 +48,12 @@ export default function NotificationsScreen() {
         <View style={{ width: 40 }} />
       </View>
       <FlatList
-        data={mockNotifications}
+        data={notifications}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={mockNotifications.length > 0}
-        renderItem={({ item }) => <NotificationItem item={item} />}
+        scrollEnabled={!!notifications.length}
+        renderItem={({ item }) => <NotificationRow item={item} />}
       />
     </View>
   );

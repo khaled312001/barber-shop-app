@@ -1,15 +1,33 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, Platform,
+  View, Text, StyleSheet, ScrollView, Pressable, Platform, ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as Crypto from 'expo-crypto';
+import { useQuery } from '@tanstack/react-query';
+import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
-import { salons, paymentMethods, type Service } from '@/constants/data';
+
+interface Service {
+  id: string;
+  name: string;
+  price: number;
+  duration: string;
+  image: string;
+  category: string;
+  salonId: string;
+}
+
+const paymentMethods = [
+  { id: 'pm1', name: 'Credit Card', icon: 'card-outline' },
+  { id: 'pm2', name: 'PayPal', icon: 'logo-paypal' },
+  { id: 'pm3', name: 'Apple Pay', icon: 'logo-apple' },
+  { id: 'pm4', name: 'Google Pay', icon: 'logo-google' },
+];
 
 const timeSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'];
 
@@ -30,7 +48,10 @@ export default function BookingScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { addBooking } = useApp();
-  const salon = salons.find(s => s.id === id) || salons[0];
+  const { data: salon, isLoading } = useQuery<any>({
+    queryKey: ['/api/salons', id],
+    queryFn: getQueryFn({ on401: 'throw' }),
+  });
   const [step, setStep] = useState<'services' | 'datetime' | 'payment' | 'review' | 'success'>('services');
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedDate, setSelectedDate] = useState(0);
@@ -85,6 +106,14 @@ export default function BookingScreen() {
     || (step === 'datetime' && !!selectedTime)
     || step === 'payment'
     || step === 'review';
+
+  if (step !== 'success' && (isLoading || !salon)) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   if (step === 'success') {
     return (
