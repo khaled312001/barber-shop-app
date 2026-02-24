@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
-import MapView, { Marker, Callout } from 'react-native-maps';
+import SalonMap from '@/components/SalonMap';
 
 interface Salon {
   id: string;
@@ -134,31 +134,7 @@ export default function SearchScreen() {
           )}
         />
       ) : (
-        <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: 40.7128,
-            longitude: -74.006,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          }}
-        >
-          {filtered.map(salon => (
-            <Marker
-              key={salon.id}
-              coordinate={{ latitude: salon.latitude, longitude: salon.longitude }}
-              title={salon.name}
-              description={`${salon.rating}\u2605 - ${salon.address}`}
-            >
-              <Callout onPress={() => router.push({ pathname: '/salon/[id]', params: { id: salon.id } })}>
-                <View style={styles.callout}>
-                  <Text style={styles.calloutTitle}>{salon.name}</Text>
-                  <Text style={styles.calloutSub}>{salon.rating}\u2605 \u00b7 {salon.distance}</Text>
-                </View>
-              </Callout>
-            </Marker>
-          ))}
-        </MapView>
+        <SalonMap salons={filtered} />
       )}
     </View>
   );
@@ -186,8 +162,4 @@ const styles = StyleSheet.create({
   resultDistance: { fontSize: 12 },
   emptyContainer: { alignItems: 'center', paddingTop: 80, gap: 12 },
   emptyText: { fontSize: 16 },
-  map: { flex: 1 },
-  callout: { padding: 8, minWidth: 150 },
-  calloutTitle: { fontSize: 14, fontWeight: '700' as const, marginBottom: 2 },
-  calloutSub: { fontSize: 12, color: '#666' },
 });
