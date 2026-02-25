@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import api from '../lib/api';
 
@@ -12,18 +12,25 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState<User | null>(null);
     const location = useLocation();
+    const checkedRef = useRef(false);
 
     useEffect(() => {
+        // Only check auth once, not on every route change
+        if (checkedRef.current && user) return;
+
         const checkAuth = async () => {
             try {
                 const response = await api.get('/auth/me');
-                if (response.data && response.data.user && response.data.user.role === 'admin') {
+                console.log('Auth check response:', response.status, response.data);
+                if (response.data?.user?.role === 'admin') {
                     setUser(response.data.user);
+                    checkedRef.current = true;
                 } else {
+                    console.warn('User is not admin:', response.data);
                     setUser(null);
                 }
-            } catch (error) {
-                console.error('Auth check failed:', error);
+            } catch (error: any) {
+                console.error('Auth check failed:', error?.response?.status, error?.message);
                 setUser(null);
             } finally {
                 setIsLoading(false);
@@ -31,7 +38,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
         };
 
         checkAuth();
-    }, [location.pathname]);
+    }, []); // Only run once on mount
 
     if (isLoading) {
         return (

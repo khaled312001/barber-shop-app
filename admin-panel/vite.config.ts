@@ -5,6 +5,11 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  base: '/admin_dashboard/',
+  build: {
+    outDir: '../admin-dist',
+    emptyOutDir: true,
+  },
   server: {
     proxy: {
       '/api': {

@@ -288,6 +288,19 @@ async function initStripe() {
 
   app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v2' }));
 
+  // Serve admin dashboard (built Vite app)
+  const adminDistPath = path.join(process.cwd(), 'admin-dist');
+  if (fs.existsSync(adminDistPath)) {
+    app.use('/admin_dashboard', express.static(adminDistPath));
+    // SPA fallback: serve index.html for all /admin_dashboard/* routes
+    app.get('/admin_dashboard/*', (req, res) => {
+      res.sendFile(path.join(adminDistPath, 'index.html'));
+    });
+    log("Admin dashboard serving from /admin_dashboard");
+  } else {
+    log("Admin dashboard build not found at admin-dist/, skipping. Run: cd admin-panel && npm run build");
+  }
+
   app.post(
     '/api/stripe/webhook',
     express.raw({ type: 'application/json' }),

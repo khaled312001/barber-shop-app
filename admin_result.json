@@ -1,0 +1,14 @@
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "email": "admin@barber.com",
+    "fullName": "Admin User",
+    "role": "admin"
+  },
+  {
+    "id": "742da703-807c-4a05-a1ce-830556db7b12",
+    "email": "khaledahmedhaggagy@gmail.com",
+    "fullName": "khaled",
+    "role": "admin"
+  }
+]

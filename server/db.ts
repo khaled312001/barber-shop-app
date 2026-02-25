@@ -1,3 +1,9 @@
+import * as dotenv from "dotenv";
+import path from "path";
+console.log("--- DB.TS DEBUG START ---");
+console.log("CWD:", process.cwd());
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+console.log("DB_TS_ENV_LOADED. DATABASE_URL present:", !!process.env.DATABASE_URL);
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import ws from "ws";

@@ -16,10 +16,23 @@ export default function Login() {
         setLoading(true);
 
         try {
-            await api.post('/auth/signin', { email, password });
+            const res = await api.post('/auth/signin', { email, password });
+            const user = res.data?.user;
 
-            // Simulate a successful login redirect
-            navigate('/');
+            // Check if user is admin
+            if (!user || user.role !== 'admin') {
+                setError('Access denied. Admin privileges required.');
+                setLoading(false);
+                return;
+            }
+
+            // Verify session is established before navigating
+            const meRes = await api.get('/auth/me');
+            if (meRes.data?.user?.role === 'admin') {
+                navigate('/');
+            } else {
+                setError('Session could not be established. Please try again.');
+            }
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'Login failed');
         } finally {
