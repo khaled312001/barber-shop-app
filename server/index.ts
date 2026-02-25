@@ -293,7 +293,7 @@ async function initStripe() {
   if (fs.existsSync(adminDistPath)) {
     app.use('/admin_dashboard', express.static(adminDistPath));
     // SPA fallback: serve index.html for all /admin_dashboard/* routes
-    app.get('/admin_dashboard/*', (req, res) => {
+    app.get('/admin_dashboard/{*path}', (req, res) => {
       res.sendFile(path.join(adminDistPath, 'index.html'));
     });
     log("Admin dashboard serving from /admin_dashboard");
