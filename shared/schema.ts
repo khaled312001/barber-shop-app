@@ -13,6 +13,8 @@ export const users = pgTable("users", {
   nickname: text("nickname").default(""),
   gender: text("gender").default(""),
   dob: text("dob").default(""),
+  role: text("role").default("user"),
+  loyaltyPoints: integer("loyalty_points").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -135,3 +137,31 @@ export type Booking = typeof bookings.$inferSelect;
 export type Bookmark = typeof bookmarkTable.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
+export type Coupon = typeof coupons.$inferSelect;
+export type AppSetting = typeof appSettings.$inferSelect;
+
+export const session = pgTable("session", {
+  sid: varchar("sid").primaryKey(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire").notNull(),
+});
+
+export const coupons = pgTable("coupons", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  discount: doublePrecision("discount").notNull(),
+  type: text("type").notNull().default("percentage"), // percentage or fixed
+  expiryDate: text("expiry_date").notNull(),
+  usageLimit: integer("usage_limit").default(0), // 0 for unlimited
+  usedCount: integer("used_count").default(0),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const appSettings = pgTable("app_settings", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description").default(""),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});

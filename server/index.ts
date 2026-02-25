@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
@@ -8,6 +9,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 const app = express();
+app.set("trust proxy", 1);
 const log = console.log;
 
 declare module "http" {
@@ -226,6 +228,7 @@ function setupErrorHandler(app: express.Application) {
 
     return res.status(status).json({ message });
   });
+
 }
 
 async function initStripe() {
@@ -235,9 +238,18 @@ async function initStripe() {
     return;
   }
 
+  // Check if we have local credentials or are in Replit
+  const hasLocalKeys = process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY;
+  const isReplit = process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL;
+
+  if (!hasLocalKeys && !isReplit) {
+    log('Stripe credentials not found in .env, skipping Stripe initialization for local development.');
+    return;
+  }
+
   try {
     log('Initializing Stripe schema...');
-    await runMigrations({ databaseUrl, schema: 'stripe' });
+    await (runMigrations as any)({ databaseUrl, schema: 'stripe' });
     log('Stripe schema ready');
 
     const stripeSync = await getStripeSync();
@@ -268,7 +280,13 @@ async function initStripe() {
 }
 
 (async () => {
+  log("Starting server initialization...");
   setupCors(app);
+
+  // Serve the public directory for static file uploads
+  app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+
+  app.get('/health', (req, res) => res.json({ status: 'ok', version: 'v2' }));
 
   app.post(
     '/api/stripe/webhook',
@@ -292,12 +310,16 @@ async function initStripe() {
   setupBodyParsing(app);
   setupRequestLogging(app);
 
+  log("Configuring Expo and Landing...");
   configureExpoAndLanding(app);
 
+  log("Initializing Stripe...");
   await initStripe();
 
+  log("Registering routes...");
   const server = await registerRoutes(app);
 
+  log("Setting up error handler...");
   setupErrorHandler(app);
 
   const port = parseInt(process.env.PORT || "5000", 10);
@@ -305,7 +327,6 @@ async function initStripe() {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
     },
     () => {
       log(`express server serving on port ${port}`);

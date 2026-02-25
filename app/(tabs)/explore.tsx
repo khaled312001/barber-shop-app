@@ -58,7 +58,7 @@ export default function ExploreScreen() {
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: salons = [] } = useQuery<Salon[]>({
@@ -78,39 +78,23 @@ export default function ExploreScreen() {
 
   const ListHeader = () => (
     <>
-      {viewMode === 'list' && (
-        <View style={[styles.mapSection, { backgroundColor: theme.surface }]}>
-          <Pressable
-            onPress={() => setViewMode('map')}
-            style={styles.mapPreview}
-          >
-            <View style={styles.mapIconContainer}>
-              <View style={[styles.mapIconOuter, { backgroundColor: theme.primary + '20' }]}>
-                <Ionicons name="map" size={28} color={theme.primary} />
-              </View>
-            </View>
-            <Text style={[styles.mapText, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>
-              Nearby salons in your area
-            </Text>
-            <View style={styles.locationPills}>
-              {salons.slice(0, 3).map(s => (
-                <Pressable
-                  key={s.id}
-                  onPress={() => router.push({ pathname: '/salon/[id]', params: { id: s.id } })}
-                  style={[styles.locationPill, { backgroundColor: theme.primary + '15', borderColor: theme.primary + '30' }]}
-                >
-                  <Ionicons name="location" size={12} color={theme.primary} />
-                  <Text style={[styles.pillText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{s.name}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={[styles.viewMapBtn, { backgroundColor: theme.primary }]}>
-              <Text style={[styles.viewMapText, { fontFamily: 'Urbanist_600SemiBold' }]}>View on Map</Text>
-              <Ionicons name="arrow-forward" size={16} color="#fff" />
-            </View>
-          </Pressable>
+      <View style={[styles.hybridMapSection, { height: isMapExpanded ? 350 : 150 }]}>
+        <View style={styles.inlineMapContainer}>
+          <SalonMap
+            salons={filtered}
+            onSalonPress={(id: string) => router.push({ pathname: '/salon/[id]', params: { id } })}
+          />
         </View>
-      )}
+        <Pressable
+          onPress={() => setIsMapExpanded(!isMapExpanded)}
+          style={[styles.toggleMapBtn, { backgroundColor: theme.surface + 'E6' }]}
+        >
+          <Ionicons name={isMapExpanded ? "chevron-up" : "chevron-down"} size={20} color={theme.text} />
+          <Text style={[styles.toggleMapText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>
+            {isMapExpanded ? 'Collapse' : 'Expand'} Map
+          </Text>
+        </Pressable>
+      </View>
 
       <View style={styles.listHeader}>
         <Text style={[styles.listTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Nearby Salons</Text>
@@ -126,12 +110,6 @@ export default function ExploreScreen() {
       <View style={[styles.header, { paddingTop: topPad + 12 }]}>
         <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Explore Nearby</Text>
         <View style={styles.headerActions}>
-          <Pressable
-            onPress={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
-            style={({ pressed }) => [styles.headerBtn, { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Ionicons name={viewMode === 'list' ? 'map-outline' : 'list-outline'} size={20} color={theme.text} />
-          </Pressable>
           <Pressable
             onPress={() => router.push('/search')}
             style={({ pressed }) => [styles.headerBtn, { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 }]}
@@ -159,32 +137,23 @@ export default function ExploreScreen() {
         </View>
       </View>
 
-      {viewMode === 'map' ? (
-        <View style={styles.mapFullContainer}>
-          <SalonMap
-            salons={filtered}
-            onSalonPress={(id: string) => router.push({ pathname: '/salon/[id]', params: { id } })}
-          />
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={item => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.gridRow}
-          contentContainerStyle={[styles.gridContent, { paddingBottom: bottomPad + 100 }]}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={!!filtered.length}
-          ListHeaderComponent={ListHeader}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="search" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>No salons found</Text>
-            </View>
-          }
-          renderItem={renderGridItem}
-        />
-      )}
+      <FlatList
+        data={filtered}
+        keyExtractor={item => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
+        contentContainerStyle={[styles.gridContent, { paddingBottom: bottomPad + 100 }]}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={!!filtered.length}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search" size={48} color={theme.textTertiary} />
+            <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>No salons found</Text>
+          </View>
+        }
+        renderItem={renderGridItem}
+      />
     </View>
   );
 }
@@ -208,11 +177,15 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 12 },
   viewMapBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginTop: 8 },
   viewMapText: { fontSize: 13, color: '#fff' },
+  hybridMapSection: { marginHorizontal: 24, borderRadius: 20, overflow: 'hidden', marginBottom: 20, position: 'relative' },
+  inlineMapContainer: { flex: 1 },
+  toggleMapBtn: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
+  toggleMapText: { fontSize: 12 },
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 12 },
   listTitle: { fontSize: 20 },
   listCount: { fontSize: 14 },
   gridRow: { paddingHorizontal: 24, gap: 12, marginBottom: 12 },
-  gridContent: { },
+  gridContent: {},
   card: { flex: 1, height: 180, borderRadius: 16, overflow: 'hidden' },
   cardLarge: { height: 220 },
   cardImage: { width: '100%', height: '100%' },

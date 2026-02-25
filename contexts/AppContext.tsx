@@ -12,6 +12,8 @@ interface User {
   nickname: string;
   gender: string;
   dob: string;
+  role: string;
+  loyaltyPoints: number;
   createdAt: string;
 }
 
@@ -119,7 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         const ob = await AsyncStorage.getItem('onboarded');
         if (ob === 'true') setIsOnboardedState(true);
-      } catch {}
+      } catch { }
 
       try {
         const res = await apiRequest('GET', '/api/auth/me');

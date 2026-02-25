@@ -7,6 +7,8 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AppProvider } from "@/contexts/AppContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
+
 import {
   useFonts,
   Urbanist_400Regular,
@@ -68,8 +70,11 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
             <AppProvider>
-              <RootLayoutNav />
+              <LanguageProvider>
+                <RootLayoutNav />
+              </LanguageProvider>
             </AppProvider>
+
           </KeyboardProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>

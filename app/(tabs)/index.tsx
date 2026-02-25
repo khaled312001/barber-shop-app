@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
-import { getQueryFn } from '@/lib/query-client';
+import { getQueryFn, getImageUrl } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
 import { DEFAULT_AVATAR } from '@/constants/images';
@@ -51,7 +51,7 @@ function SalonCard({ salon, onBookmark, isBookmarked }: { salon: Salon; onBookma
       style={({ pressed }) => [styles.salonCard, { backgroundColor: theme.card, opacity: pressed ? 0.95 : 1 }]}
     >
       <View style={styles.salonImageContainer}>
-        <Image source={{ uri: salon.image }} style={styles.salonImage} contentFit="cover" />
+        <Image source={{ uri: getImageUrl(salon.image) }} style={styles.salonImage} contentFit="cover" />
         <Pressable
           onPress={(e) => { e.stopPropagation(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onBookmark(); }}
           style={[styles.bookmarkBtn, { backgroundColor: theme.primary }]}
@@ -85,7 +85,7 @@ function NearbySalonRow({ salon, onBookmark, isBookmarked }: { salon: Salon; onB
       onPress={() => router.push({ pathname: '/salon/[id]', params: { id: salon.id } })}
       style={({ pressed }) => [styles.nearbyCard, { backgroundColor: theme.card, opacity: pressed ? 0.95 : 1 }]}
     >
-      <Image source={{ uri: salon.image }} style={styles.nearbyImage} contentFit="cover" />
+      <Image source={{ uri: getImageUrl(salon.image) }} style={styles.nearbyImage} contentFit="cover" />
       <View style={styles.nearbyInfo}>
         <Text style={[styles.nearbyName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]} numberOfLines={1}>{salon.name}</Text>
         <Text style={[styles.nearbyAddr, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]} numberOfLines={1}>{salon.address}</Text>
@@ -170,9 +170,23 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
 
+        <Pressable
+          onPress={() => router.push('/offers')}
+          style={({ pressed }) => [
+            styles.promoBanner,
+            { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }
+          ]}
+        >
+          <View style={styles.promoContent}>
+            <Text style={[styles.promoTitle, { fontFamily: 'Urbanist_700Bold' }]}>Special Offers %</Text>
+            <Text style={[styles.promoDesc, { fontFamily: 'Urbanist_500Medium' }]}>Check out our latest deals</Text>
+          </View>
+          <Ionicons name="pricetag" size={40} color="#ffffff30" style={styles.promoIcon} />
+        </Pressable>
+
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Popular Salons</Text>
-          <Pressable onPress={() => router.push('/search')}>
+          <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Top Specialists</Text>
+          <Pressable onPress={() => router.push('/top-barbers')}>
             <Text style={[styles.seeAll, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>See All</Text>
           </Pressable>
         </View>
@@ -245,4 +259,9 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 11 },
+  promoBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, marginHorizontal: 24, borderRadius: 20, marginBottom: 24, overflow: 'hidden' },
+  promoContent: { flex: 1 },
+  promoTitle: { color: '#fff', fontSize: 20, marginBottom: 4 },
+  promoDesc: { color: '#ffffffcc', fontSize: 14 },
+  promoIcon: { position: 'absolute', right: -10, bottom: -10, transform: [{ rotate: '-15deg' }] },
 });

@@ -3,6 +3,14 @@ import Stripe from 'stripe';
 let connectionSettings: any;
 
 async function getCredentials() {
+  // Support local environment variables first
+  if (process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY) {
+    return {
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      secretKey: process.env.STRIPE_SECRET_KEY,
+    };
+  }
+
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY
     ? 'repl ' + process.env.REPL_IDENTITY
@@ -11,7 +19,9 @@ async function getCredentials() {
       : null;
 
   if (!xReplitToken) {
-    throw new Error('X-Replit-Token not found for repl/depl');
+    // If we're not in Replit and keys aren't set, we can't initialize Stripe fully.
+    // Instead of crashing, we'll throw a clear error that we can catch.
+    throw new Error('Stripe credentials not found. Set STRIPE_PUBLISHABLE_KEY and STRIPE_SECRET_KEY in .env for local development.');
   }
 
   const connectorName = 'stripe';

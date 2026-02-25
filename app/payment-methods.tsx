@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/theme';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const paymentMethods = [
   { id: '1', type: 'mastercard', name: 'Mastercard', last4: '4679', icon: 'card' as const },
@@ -14,6 +15,8 @@ const paymentMethods = [
 export default function PaymentMethodsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { t, isRTL } = useLanguage();
+
   const [selectedId, setSelectedId] = useState('1');
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
@@ -21,11 +24,11 @@ export default function PaymentMethodsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 8 }]}>
+      <View style={[styles.header, { paddingTop: topPad + 8, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Payment Methods</Text>
+        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('payment_methods')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -36,16 +39,21 @@ export default function PaymentMethodsScreen() {
             onPress={() => setSelectedId(method.id)}
             style={({ pressed }) => [
               styles.methodCard,
-              { backgroundColor: theme.surface, borderColor: selectedId === method.id ? theme.primary : theme.border, opacity: pressed ? 0.8 : 1 },
+              {
+                backgroundColor: theme.surface,
+                borderColor: selectedId === method.id ? theme.primary : theme.border,
+                opacity: pressed ? 0.8 : 1,
+                flexDirection: isRTL ? 'row-reverse' : 'row'
+              },
             ]}
           >
-            <View style={[styles.iconContainer, { backgroundColor: theme.surfaceAlt }]}>
+            <View style={[styles.iconContainer, { backgroundColor: theme.surfaceAlt, marginRight: isRTL ? 0 : 14, marginLeft: isRTL ? 14 : 0 }]}>
               <Ionicons name={method.icon} size={24} color={theme.primary} />
             </View>
-            <View style={styles.methodInfo}>
-              <Text style={[styles.methodName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{method.name}</Text>
-              <Text style={[styles.methodDetail, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
-                {method.last4 === 'Linked' ? 'Linked' : `•••• •••• •••• ${method.last4}`}
+            <View style={[styles.methodInfo, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+              <Text style={[styles.methodName, { color: theme.text, fontFamily: 'Urbanist_700Bold', textAlign: isRTL ? 'right' : 'left' }]}>{method.name}</Text>
+              <Text style={[styles.methodDetail, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left' }]}>
+                {method.last4 === 'Linked' ? t('linked') : `•••• •••• •••• ${method.last4}`}
               </Text>
             </View>
             <Ionicons
@@ -57,14 +65,14 @@ export default function PaymentMethodsScreen() {
         ))}
 
         <Pressable
-          onPress={() => {}}
+          onPress={() => { }}
           style={({ pressed }) => [
             styles.addCard,
-            { borderColor: theme.primary, opacity: pressed ? 0.7 : 1 },
+            { borderColor: theme.primary, opacity: pressed ? 0.7 : 1, flexDirection: isRTL ? 'row-reverse' : 'row' },
           ]}
         >
           <Ionicons name="add" size={24} color={theme.primary} />
-          <Text style={[styles.addCardText, { color: theme.primary, fontFamily: 'Urbanist_700Bold' }]}>Add New Card</Text>
+          <Text style={[styles.addCardText, { color: theme.primary, fontFamily: 'Urbanist_700Bold' }]}>{t('add_new_card')}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -76,11 +84,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
   backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { flex: 1, fontSize: 20, textAlign: 'center' },
-  methodCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 24, marginBottom: 16, padding: 16, borderRadius: 16, borderWidth: 1.5 },
-  iconContainer: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
+  methodCard: { alignItems: 'center', marginHorizontal: 24, marginBottom: 16, padding: 16, borderRadius: 16, borderWidth: 1.5 },
+  iconContainer: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   methodInfo: { flex: 1 },
   methodName: { fontSize: 16, marginBottom: 2 },
   methodDetail: { fontSize: 13 },
-  addCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginHorizontal: 24, marginTop: 8, paddingVertical: 16, borderRadius: 16, borderWidth: 2, borderStyle: 'dashed', gap: 8 },
+  addCard: { alignItems: 'center', justifyContent: 'center', marginHorizontal: 24, marginTop: 8, paddingVertical: 16, borderRadius: 16, borderWidth: 2, borderStyle: 'dashed', gap: 8 },
   addCardText: { fontSize: 16 },
 });

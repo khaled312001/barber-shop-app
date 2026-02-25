@@ -5,6 +5,7 @@ import connectPgSimple from "connect-pg-simple";
 import { seedDatabase } from "./seed";
 import * as storage from "./storage";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { registerAdminRoutes } from "./adminRoutes";
 
 const PgSession = connectPgSimple(session);
 
@@ -20,8 +21,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       saveUninitialized: false,
       cookie: {
         maxAge: 30 * 24 * 60 * 60 * 1000,
-        secure: true,
-        sameSite: "none",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         httpOnly: true,
       },
     })
@@ -154,7 +155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const parsed = JSON.parse(Buffer.from(state as string, "base64url").toString());
         returnUrl = parsed.returnUrl || "/";
       }
-    } catch {}
+    } catch { }
 
     if (error || !code) {
       const errorPage = `<!DOCTYPE html><html><body style="background:#1F222A;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h2>Sign-in Failed</h2><p>${error || "No authorization code received"}</p><p>You can close this window and try again.</p></div></body></html>`;
@@ -386,11 +387,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bookings", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      const { salonId, salonName, salonImage, services, date, time, totalPrice, paymentMethod } = req.body;
+      const { salonId, salonName, salonImage, services, date, time, totalPrice, paymentMethod, couponId } = req.body;
       const booking = await storage.createBooking({
         userId, salonId, salonName, salonImage: salonImage || "",
         services: services || [], date, time, totalPrice, paymentMethod: paymentMethod || "",
       });
+
+      if (couponId) {
+        await storage.updateCouponUsage(couponId);
+      }
 
       await storage.createNotification({
         userId,
@@ -493,7 +498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             content: "Thanks for your message! We'll get back to you shortly.",
             sender: "salon",
           });
-        } catch {}
+        } catch { }
       }, 2000);
 
       res.status(201).json(msg);
@@ -629,6 +634,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: err.message });
     }
   });
+
+  app.get("/api/coupons", async (req: Request, res: Response) => {
+    try {
+      const activeCoupons = await storage.getActiveCoupons();
+      res.json(activeCoupons);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/coupons/validate", async (req: Request, res: Response) => {
+    try {
+      const { code } = req.body;
+      if (!code) {
+        return res.status(400).json({ message: "Coupon code is required" });
+      }
+
+      const coupon = await storage.getCouponByCode(code);
+      if (!coupon) {
+        return res.status(404).json({ message: "Invalid coupon code" });
+      }
+
+      if (!coupon.active) {
+        return res.status(400).json({ message: "This coupon is no longer active" });
+      }
+
+      const now = new Date().toISOString().split('T')[0];
+      if (coupon.expiryDate < now) {
+        return res.status(400).json({ message: "This coupon has expired" });
+      }
+
+      if (coupon.usageLimit && coupon.usageLimit > 0 && coupon.usedCount !== null && coupon.usedCount >= coupon.usageLimit) {
+        return res.status(400).json({ message: "This coupon has reached its usage limit" });
+      }
+
+      res.json({
+        id: coupon.id,
+        code: coupon.code,
+        discount: coupon.discount,
+        type: coupon.type,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  registerAdminRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;
