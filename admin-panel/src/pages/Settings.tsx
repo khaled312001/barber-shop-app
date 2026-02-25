@@ -51,8 +51,8 @@ export default function Settings() {
     ];
 
     return (
-        <div className="p-8 max-w-5xl mx-auto">
-            <h1 className="text-3xl font-bold tracking-tight text-white mb-8">System Settings</h1>
+        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-6 sm:mb-8">System Settings</h1>
 
             <div className="flex flex-col md:flex-row gap-8">
                 {/* Sidebar Tabs */}

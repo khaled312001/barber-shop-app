@@ -108,9 +108,9 @@ export default function Coupons() {
     }
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-                <h1 className="text-3xl font-bold tracking-tight">Coupons & Discounts</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Coupons & Discounts</h1>
 
                 <div className="flex gap-4 w-full sm:w-auto">
                     <div className="relative w-full sm:w-72">

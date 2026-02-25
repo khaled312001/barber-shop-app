@@ -52,10 +52,10 @@ export default function Overview() {
     ];
 
     return (
-        <div className="p-8">
-            <h1 className="text-3xl font-bold mb-8 tracking-tight text-white">Dashboard Overview</h1>
+        <div className="p-4 sm:p-6 lg:p-8">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 tracking-tight text-white">Dashboard Overview</h1>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
                 {statCards.map((card, idx) => {
                     const Icon = card.icon;
                     return (
@@ -74,8 +74,8 @@ export default function Overview() {
                 })}
             </div>
 
-            <div className="bg-bg-card border border-border rounded-2xl p-6 shadow-xl w-full h-[400px]">
-                <h2 className="text-xl font-bold mb-6 tracking-tight">Weekly Bookings Activity</h2>
+            <div className="bg-bg-card border border-border rounded-2xl p-4 sm:p-6 shadow-xl w-full h-[280px] sm:h-[350px] lg:h-[400px]">
+                <h2 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 tracking-tight">Weekly Bookings Activity</h2>
                 <ResponsiveContainer width="100%" height="80%">
                     <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <defs>
