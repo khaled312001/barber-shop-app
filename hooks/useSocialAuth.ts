@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { Platform, Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
 import { useApp } from '@/contexts/AppContext';
 import { router } from 'expo-router';
 import { apiRequest } from '@/lib/query-client';
@@ -20,15 +19,15 @@ export function useSocialAuth() {
   const handleGooglePress = useCallback(async () => {
     try {
       const apiBase = getApiBase();
-      const returnUrl = makeRedirectUri();
+      const completeUrl = `${apiBase}/api/auth/google/complete`;
 
       if (Platform.OS === 'android') {
         await WebBrowser.warmUpAsync();
       }
 
-      const authUrl = `${apiBase}/api/auth/google/start?returnUrl=${encodeURIComponent(returnUrl)}`;
+      const authUrl = `${apiBase}/api/auth/google/start`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl, {
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, completeUrl, {
         showInRecents: false,
         preferEphemeralSession: true,
       });

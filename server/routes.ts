@@ -219,19 +219,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.save((err) => {
         if (err) console.error("Session save error:", err);
 
-        if (returnUrl && returnUrl !== "/") {
-          const separator = returnUrl.includes("?") ? "&" : "?";
-          res.redirect(`${returnUrl}${separator}auth=success`);
-        } else {
-          const successPage = `<!DOCTYPE html><html><head><script>window.close();setTimeout(function(){window.location.href="/";},2000);</script></head><body style="background:#1F222A;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><div style="width:80px;height:80px;border-radius:50%;background:#F4A460;display:flex;align-items:center;justify-content:center;margin:0 auto 20px"><svg width="40" height="40" fill="none" stroke="#fff" stroke-width="3"><polyline points="10,22 18,30 32,14"/></svg></div><h2>Signed in successfully!</h2><p>You can close this window and return to the app.</p></div></body></html>`;
-          res.send(successPage);
-        }
+        const domains = process.env.REPLIT_DOMAINS?.split(",") || [];
+        const completeDomain = domains[0] || process.env.REPLIT_DEV_DOMAIN || "localhost:5000";
+        const completeUrl = `https://${completeDomain}/api/auth/google/complete?status=success`;
+        res.redirect(completeUrl);
       });
     } catch (err: any) {
       console.error("Google OAuth callback error:", err);
       const errorPage = `<!DOCTYPE html><html><body style="background:#1F222A;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h2>Sign-in Failed</h2><p>${err.message}</p><p>You can close this window and try again.</p></div></body></html>`;
       res.status(500).send(errorPage);
     }
+  });
+
+  app.get("/api/auth/google/complete", (_req: Request, res: Response) => {
+    res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sign-in Complete</title></head><body style="background:#1F222A;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><div style="width:80px;height:80px;border-radius:50%;background:#F4A460;display:flex;align-items:center;justify-content:center;margin:0 auto 20px"><svg width="40" height="40" fill="none" stroke="#fff" stroke-width="3"><polyline points="10,22 18,30 32,14"/></svg></div><h2>Signed in successfully!</h2><p>Returning to app...</p></div></body></html>`);
   });
 
   app.post("/api/auth/facebook", async (req: Request, res: Response) => {
