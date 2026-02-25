@@ -3,14 +3,17 @@ import {
   View, Text, StyleSheet, Pressable, TextInput, Platform, ScrollView, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function ForgotPasswordScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { t, isRTL } = useLanguage();
   const [method, setMethod] = useState<'sms' | 'email'>('sms');
   const [step, setStep] = useState<'method' | 'otp' | 'newpass' | 'success'>('method');
   const [otp, setOtp] = useState(['', '', '', '']);
@@ -32,31 +35,31 @@ export default function ForgotPasswordScreen() {
 
   const renderMethod = () => (
     <>
-      <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
-        Select which contact details should we use to reset your password
+      <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left' }]}>
+        {t('select_contact')}
       </Text>
       <Pressable
         onPress={() => setMethod('sms')}
-        style={[styles.methodCard, { borderColor: method === 'sms' ? theme.primary : theme.border, backgroundColor: theme.surface }]}
+        style={[styles.methodCard, { borderColor: method === 'sms' ? theme.primary : theme.border, backgroundColor: theme.surface, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
       >
         <View style={[styles.methodIcon, { backgroundColor: theme.primary + '20' }]}>
           <MaterialIcons name="chat" size={28} color={theme.primary} />
         </View>
         <View style={styles.methodInfo}>
-          <Text style={[styles.methodLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>via SMS:</Text>
-          <Text style={[styles.methodValue, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>+1 *** *** 890</Text>
+          <Text style={[styles.methodLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium', textAlign: isRTL ? 'right' : 'left' }]}>{t('via_sms')}</Text>
+          <Text style={[styles.methodValue, { color: theme.text, fontFamily: 'Urbanist_700Bold', textAlign: isRTL ? 'right' : 'left' }]}>+1 *** *** 890</Text>
         </View>
       </Pressable>
       <Pressable
         onPress={() => setMethod('email')}
-        style={[styles.methodCard, { borderColor: method === 'email' ? theme.primary : theme.border, backgroundColor: theme.surface }]}
+        style={[styles.methodCard, { borderColor: method === 'email' ? theme.primary : theme.border, backgroundColor: theme.surface, flexDirection: isRTL ? 'row-reverse' : 'row' }]}
       >
         <View style={[styles.methodIcon, { backgroundColor: theme.primary + '20' }]}>
           <MaterialIcons name="email" size={28} color={theme.primary} />
         </View>
         <View style={styles.methodInfo}>
-          <Text style={[styles.methodLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>via Email:</Text>
-          <Text style={[styles.methodValue, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>an***@example.com</Text>
+          <Text style={[styles.methodLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium', textAlign: isRTL ? 'right' : 'left' }]}>{t('via_email')}</Text>
+          <Text style={[styles.methodValue, { color: theme.text, fontFamily: 'Urbanist_700Bold', textAlign: isRTL ? 'right' : 'left' }]}>an***@example.com</Text>
         </View>
       </Pressable>
     </>
@@ -64,8 +67,8 @@ export default function ForgotPasswordScreen() {
 
   const renderOtp = () => (
     <>
-      <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
-        Code has been sent to {method === 'sms' ? '+1 *** *** 890' : 'an***@example.com'}
+      <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left' }]}>
+        {t('code_sent')} {method === 'sms' ? '+1 *** *** 890' : 'an***@example.com'}
       </Text>
       <View style={styles.otpRow}>
         {otp.map((digit, i) => (
@@ -85,26 +88,26 @@ export default function ForgotPasswordScreen() {
         ))}
       </View>
       <Text style={[styles.resendText, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
-        Resend code in <Text style={{ color: theme.primary }}>55</Text> s
+        {t('resend_code')} <Text style={{ color: theme.primary }}>55</Text> s
       </Text>
     </>
   );
 
   const renderNewPassword = () => (
     <>
-      <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
-        Create your new password
+      <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left' }]}>
+        {t('create_new_password')}
       </Text>
-      <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+      <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <Ionicons name="lock-closed-outline" size={20} color={theme.textTertiary} />
-        <TextInput style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]} placeholder="New Password" placeholderTextColor={theme.textTertiary} value={newPassword} onChangeText={setNewPassword} secureTextEntry={!showNew} />
+        <TextInput style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left', marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }]} placeholder={t('new_password')} placeholderTextColor={theme.textTertiary} value={newPassword} onChangeText={setNewPassword} secureTextEntry={!showNew} />
         <Pressable onPress={() => setShowNew(!showNew)}>
           <Ionicons name={showNew ? 'eye-outline' : 'eye-off-outline'} size={20} color={theme.textTertiary} />
         </Pressable>
       </View>
-      <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+      <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
         <Ionicons name="lock-closed-outline" size={20} color={theme.textTertiary} />
-        <TextInput style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]} placeholder="Confirm Password" placeholderTextColor={theme.textTertiary} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showConfirm} />
+        <TextInput style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left', marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }]} placeholder={t('confirm_password')} placeholderTextColor={theme.textTertiary} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showConfirm} />
         <Pressable onPress={() => setShowConfirm(!showConfirm)}>
           <Ionicons name={showConfirm ? 'eye-outline' : 'eye-off-outline'} size={20} color={theme.textTertiary} />
         </Pressable>
@@ -117,20 +120,20 @@ export default function ForgotPasswordScreen() {
       <View style={[styles.successIcon, { backgroundColor: theme.primary }]}>
         <Ionicons name="checkmark" size={60} color="#fff" />
       </View>
-      <Text style={[styles.successTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Password Changed!</Text>
+      <Text style={[styles.successTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('password_changed')}</Text>
       <Text style={[styles.successSub, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
-        Your password has been changed successfully.
+        {t('password_changed_success')}
       </Text>
       <Pressable onPress={() => router.replace('/signin')} style={({ pressed }) => [styles.continueBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }]}>
-        <Text style={[styles.continueBtnText, { fontFamily: 'Urbanist_700Bold' }]}>Back to Sign In</Text>
+        <Text style={[styles.continueBtnText, { fontFamily: 'Urbanist_700Bold' }]}>{t('back_to_signin')}</Text>
       </Pressable>
     </View>
   );
 
   const titles: Record<string, string> = {
-    method: 'Forgot Password',
-    otp: 'Forgot Password',
-    newpass: 'Create New\nPassword',
+    method: t('forgot_password_title'),
+    otp: t('forgot_password_title'),
+    newpass: t('create_new_password'),
     success: '',
   };
 
@@ -139,10 +142,10 @@ export default function ForgotPasswordScreen() {
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: topPad + 16, paddingBottom: bottomPad + 20 }]} showsVerticalScrollIndicator={false}>
         {step !== 'success' && (
           <>
-            <Pressable onPress={() => step === 'method' ? router.back() : setStep(step === 'otp' ? 'method' : 'otp')} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+            <Pressable onPress={() => step === 'method' ? goBack() : setStep(step === 'otp' ? 'method' : 'otp')} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
               <Ionicons name="arrow-back" size={24} color={theme.text} />
             </Pressable>
-            <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{titles[step]}</Text>
+            <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold', textAlign: isRTL ? 'right' : 'left' }]}>{titles[step]}</Text>
           </>
         )}
         {step === 'method' && renderMethod()}
@@ -153,7 +156,7 @@ export default function ForgotPasswordScreen() {
       {step !== 'success' && (
         <View style={[styles.bottomBar, { paddingBottom: bottomPad + 12 }]}>
           <Pressable onPress={handleContinue} style={({ pressed }) => [styles.continueBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }]}>
-            <Text style={[styles.continueBtnText, { fontFamily: 'Urbanist_700Bold' }]}>Continue</Text>
+            <Text style={[styles.continueBtnText, { fontFamily: 'Urbanist_700Bold' }]}>{t('continue')}</Text>
           </Pressable>
         </View>
       )}
@@ -167,7 +170,7 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, justifyContent: 'center' },
   title: { fontSize: 36, lineHeight: 44, marginTop: 16, marginBottom: 20 },
   subtitle: { fontSize: 16, lineHeight: 24, marginBottom: 24 },
-  methodCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 20, borderWidth: 2, marginBottom: 16, gap: 16 },
+  methodCard: { alignItems: 'center', padding: 20, borderRadius: 20, borderWidth: 2, marginBottom: 16, gap: 16 },
   methodIcon: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
   methodInfo: { flex: 1 },
   methodLabel: { fontSize: 12, marginBottom: 4 },
@@ -176,8 +179,8 @@ const styles = StyleSheet.create({
   otpBox: { width: 64, height: 64, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   otpInput: { fontSize: 24, textAlign: 'center', width: '100%', height: '100%' },
   resendText: { fontSize: 16, textAlign: 'center' },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', height: 56, borderRadius: 16, paddingHorizontal: 16, marginBottom: 16, borderWidth: 1 },
-  input: { flex: 1, fontSize: 14, marginLeft: 12 },
+  inputContainer: { alignItems: 'center', height: 56, borderRadius: 16, paddingHorizontal: 16, marginBottom: 16, borderWidth: 1 },
+  input: { flex: 1, fontSize: 14 },
   bottomBar: { paddingHorizontal: 24, paddingTop: 12 },
   continueBtn: { height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   continueBtnText: { fontSize: 16, color: '#fff' },

@@ -1,11 +1,11 @@
 import { db } from "./db";
-import { eq, and, ilike, or, desc, inArray } from "drizzle-orm";
+import { eq, and, ilike, or, desc, inArray, sql } from "drizzle-orm";
 import {
   users, salons, services, packages, specialists, reviews,
-  bookings, bookmarkTable, messages, notifications,
+  bookings, bookmarkTable, messages, notifications, coupons, appSettings,
   type User, type InsertUser, type Salon, type Service,
   type Package, type Specialist, type Review, type Booking,
-  type Message, type Notification
+  type Message, type Notification, type Coupon, type AppSetting
 } from "@shared/schema";
 import bcrypt from "bcryptjs";
 
@@ -140,4 +140,29 @@ export async function markNotificationRead(id: string, userId: string): Promise<
 export async function createNotification(data: { userId: string; title: string; message: string; type: string }): Promise<Notification> {
   const [notif] = await db.insert(notifications).values(data).returning();
   return notif;
+}
+
+export async function getActiveCoupons(): Promise<Coupon[]> {
+  const now = new Date().toISOString().split('T')[0];
+  return db.select()
+    .from(coupons)
+    .where(
+      and(
+        eq(coupons.active, true),
+        sql`${coupons.expiryDate} >= ${now}`
+      )
+    );
+}
+
+export async function getCouponByCode(code: string): Promise<Coupon | undefined> {
+  const [coupon] = await db.select()
+    .from(coupons)
+    .where(eq(sql`upper(${coupons.code})`, code.toUpperCase()));
+  return coupon;
+}
+
+export async function updateCouponUsage(id: string): Promise<void> {
+  await db.update(coupons)
+    .set({ usedCount: sql`${coupons.usedCount} + 1` })
+    .where(eq(coupons.id, id));
 }

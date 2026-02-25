@@ -4,12 +4,13 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
-import { getQueryFn } from '@/lib/query-client';
+import { getQueryFn, getImageUrl } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
 
@@ -78,7 +79,7 @@ function ReviewItem({ review }: { review: Review }) {
   return (
     <View style={rstyles.reviewCard}>
       <View style={rstyles.reviewHeader}>
-        <Image source={{ uri: review.userImage }} style={rstyles.reviewAvatar} contentFit="cover" />
+        <Image source={{ uri: getImageUrl(review.userImage) }} style={rstyles.reviewAvatar} contentFit="cover" />
         <View style={rstyles.reviewInfo}>
           <Text style={[rstyles.reviewName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{review.userName}</Text>
           <View style={rstyles.starsRow}>
@@ -98,7 +99,7 @@ function SpecialistItem({ specialist }: { specialist: Specialist }) {
   const theme = useTheme();
   return (
     <View style={rstyles.specialistCard}>
-      <Image source={{ uri: specialist.image }} style={rstyles.specialistImage} contentFit="cover" />
+      <Image source={{ uri: getImageUrl(specialist.image) }} style={rstyles.specialistImage} contentFit="cover" />
       <Text style={[rstyles.specialistName, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]} numberOfLines={1}>{specialist.name}</Text>
       <Text style={[rstyles.specialistRole, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{specialist.role}</Text>
     </View>
@@ -153,7 +154,7 @@ export default function SalonDetailScreen() {
     <View style={dstyles.section}>
       {(salon.services || []).map(service => (
         <View key={service.id} style={[dstyles.serviceRow, { borderBottomColor: theme.divider }]}>
-          <Image source={{ uri: service.image }} style={dstyles.serviceImage} contentFit="cover" />
+          <Image source={{ uri: getImageUrl(service.image) }} style={dstyles.serviceImage} contentFit="cover" />
           <View style={dstyles.serviceInfo}>
             <Text style={[dstyles.serviceName, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{service.name}</Text>
             <Text style={[dstyles.serviceDuration, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{service.duration}</Text>
@@ -168,7 +169,7 @@ export default function SalonDetailScreen() {
     <View style={dstyles.section}>
       {(salon.packages || []).map(pkg => (
         <View key={pkg.id} style={[dstyles.packageCard, { backgroundColor: theme.surface }]}>
-          <Image source={{ uri: pkg.image }} style={dstyles.packageImage} contentFit="cover" />
+          <Image source={{ uri: getImageUrl(pkg.image) }} style={dstyles.packageImage} contentFit="cover" />
           <View style={dstyles.packageInfo}>
             <Text style={[dstyles.packageName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{pkg.name}</Text>
             <Text style={[dstyles.packageServices, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
@@ -187,7 +188,7 @@ export default function SalonDetailScreen() {
   const renderGallery = () => (
     <View style={dstyles.galleryGrid}>
       {(salon.gallery || []).map((img, i) => (
-        <Image key={i} source={{ uri: img }} style={dstyles.galleryImage} contentFit="cover" />
+        <Image key={i} source={{ uri: getImageUrl(img) }} style={dstyles.galleryImage} contentFit="cover" />
       ))}
     </View>
   );
@@ -202,6 +203,12 @@ export default function SalonDetailScreen() {
         <Text style={[dstyles.reviewTotal, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
           ({salon.reviewCount} reviews)
         </Text>
+        <Pressable
+          onPress={() => router.push({ pathname: '/salon/[id]/reviews', params: { id: salon.id } })}
+          style={{ marginLeft: 'auto' }}
+        >
+          <Text style={{ color: theme.primary, fontFamily: 'Urbanist_700Bold' }}>See All</Text>
+        </Pressable>
       </View>
       {(salon.reviews || []).map(r => <ReviewItem key={r.id} review={r} />)}
     </View>
@@ -211,10 +218,10 @@ export default function SalonDetailScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         <View style={styles.imageContainer}>
-          <Image source={{ uri: salon.image }} style={styles.heroImage} contentFit="cover" />
+          <Image source={{ uri: getImageUrl(salon.image) }} style={styles.heroImage} contentFit="cover" />
           <LinearGradient colors={['rgba(0,0,0,0.4)', 'transparent', 'transparent', theme.background]} style={styles.heroGradient} />
           <View style={[styles.topBar, { paddingTop: topPad + 8 }]}>
-            <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.topBtn, { backgroundColor: 'rgba(0,0,0,0.3)', opacity: pressed ? 0.6 : 1 }]}>
+            <Pressable onPress={() => goBack()} style={({ pressed }) => [styles.topBtn, { backgroundColor: 'rgba(0,0,0,0.3)', opacity: pressed ? 0.6 : 1 }]}>
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </Pressable>
             <View style={styles.topRight}>

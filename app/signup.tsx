@@ -3,18 +3,21 @@ import {
   View, Text, StyleSheet, Pressable, TextInput, Platform, ScrollView, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
 import { useSocialAuth } from '@/hooks/useSocialAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SignUpScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { signup } = useApp();
   const { handleGooglePress } = useSocialAuth();
+  const { t, isRTL } = useLanguage();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,7 +36,7 @@ export default function SignUpScreen() {
       await signup(fullName, email, password);
       router.replace('/(tabs)');
     } catch (e: any) {
-      Alert.alert('Sign Up Failed', e?.message || 'Please try again.');
+      Alert.alert(t('sign_up_failed'), e?.message || t('please_try_again'));
     } finally {
       setLoading(false);
     }
@@ -42,28 +45,28 @@ export default function SignUpScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: topPad + 16, paddingBottom: bottomPad + 20 }]} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+        <Pressable onPress={() => goBack()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
 
-        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Create your{'\n'}Account</Text>
+        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold', textAlign: isRTL ? 'right' : 'left' }]}>{t('create_account')}</Text>
 
-        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Ionicons name="person-outline" size={20} color={theme.textTertiary} />
           <TextInput
-            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]}
-            placeholder="Full Name"
+            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left', marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }]}
+            placeholder={t('full_name')}
             placeholderTextColor={theme.textTertiary}
             value={fullName}
             onChangeText={setFullName}
           />
         </View>
 
-        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Ionicons name="mail-outline" size={20} color={theme.textTertiary} />
           <TextInput
-            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]}
-            placeholder="Email"
+            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left', marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }]}
+            placeholder={t('email')}
             placeholderTextColor={theme.textTertiary}
             value={email}
             onChangeText={setEmail}
@@ -72,11 +75,11 @@ export default function SignUpScreen() {
           />
         </View>
 
-        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Ionicons name="lock-closed-outline" size={20} color={theme.textTertiary} />
           <TextInput
-            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]}
-            placeholder="Password"
+            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left', marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }]}
+            placeholder={t('password')}
             placeholderTextColor={theme.textTertiary}
             value={password}
             onChangeText={setPassword}
@@ -88,12 +91,12 @@ export default function SignUpScreen() {
         </View>
 
         <Pressable onPress={handleSignUp} style={({ pressed }) => [styles.signUpBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }]}>
-          <Text style={[styles.signUpText, { fontFamily: 'Urbanist_700Bold' }]}>Sign up</Text>
+          <Text style={[styles.signUpText, { fontFamily: 'Urbanist_700Bold' }]}>{t('sign_up')}</Text>
         </Pressable>
 
         <View style={styles.dividerRow}>
           <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-          <Text style={[styles.dividerText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>or continue with</Text>
+          <Text style={[styles.dividerText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('or_continue_with')}</Text>
           <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
         </View>
 
@@ -104,9 +107,9 @@ export default function SignUpScreen() {
         </View>
 
         <View style={[styles.bottomRow, { marginTop: 16 }]}>
-          <Text style={[styles.bottomText, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Already have an account? </Text>
+          <Text style={[styles.bottomText, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{t('already_have_account')} </Text>
           <Pressable onPress={() => router.push('/signin')}>
-            <Text style={[styles.linkText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>Sign in</Text>
+            <Text style={[styles.linkText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('sign_in')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -119,8 +122,8 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 24 },
   backBtn: { width: 40, height: 40, justifyContent: 'center' },
   title: { fontSize: 40, lineHeight: 50, marginTop: 16, marginBottom: 32 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', height: 56, borderRadius: 16, paddingHorizontal: 16, marginBottom: 16, borderWidth: 1 },
-  input: { flex: 1, fontSize: 14, marginLeft: 12 },
+  inputContainer: { alignItems: 'center', height: 56, borderRadius: 16, paddingHorizontal: 16, marginBottom: 16, borderWidth: 1 },
+  input: { flex: 1, fontSize: 14 },
   signUpBtn: { height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 24, marginTop: 8 },
   signUpText: { fontSize: 16, color: '#fff' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },

@@ -1,10 +1,12 @@
 import React, { useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, Platform } from 'react-native';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/theme';
 import { useApp, type NotificationItem } from '@/contexts/AppContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 function NotificationRow({ item }: { item: NotificationItem }) {
   const theme = useTheme();
@@ -31,6 +33,7 @@ export default function NotificationsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { notifications, refreshNotifications } = useApp();
+  const { t, isRTL } = useLanguage();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
 
@@ -41,10 +44,10 @@ export default function NotificationsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 8 }]}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+        <Pressable onPress={() => goBack()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('notifications')}</Text>
         <View style={{ width: 40 }} />
       </View>
       <FlatList

@@ -9,9 +9,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
-import { getQueryFn } from '@/lib/query-client';
+import { getQueryFn, getImageUrl } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { DEFAULT_AVATAR } from '@/constants/images';
 import { categories } from '@/constants/data';
 
@@ -51,7 +52,7 @@ function SalonCard({ salon, onBookmark, isBookmarked }: { salon: Salon; onBookma
       style={({ pressed }) => [styles.salonCard, { backgroundColor: theme.card, opacity: pressed ? 0.95 : 1 }]}
     >
       <View style={styles.salonImageContainer}>
-        <Image source={{ uri: salon.image }} style={styles.salonImage} contentFit="cover" />
+        <Image source={{ uri: getImageUrl(salon.image) }} style={styles.salonImage} contentFit="cover" />
         <Pressable
           onPress={(e) => { e.stopPropagation(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onBookmark(); }}
           style={[styles.bookmarkBtn, { backgroundColor: theme.primary }]}
@@ -78,14 +79,14 @@ function SalonCard({ salon, onBookmark, isBookmarked }: { salon: Salon; onBookma
   );
 }
 
-function NearbySalonRow({ salon, onBookmark, isBookmarked }: { salon: Salon; onBookmark: () => void; isBookmarked: boolean }) {
+function NearbySalonRow({ salon, onBookmark, isBookmarked, t }: { salon: Salon; onBookmark: () => void; isBookmarked: boolean; t: (key: string) => string }) {
   const theme = useTheme();
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/salon/[id]', params: { id: salon.id } })}
       style={({ pressed }) => [styles.nearbyCard, { backgroundColor: theme.card, opacity: pressed ? 0.95 : 1 }]}
     >
-      <Image source={{ uri: salon.image }} style={styles.nearbyImage} contentFit="cover" />
+      <Image source={{ uri: getImageUrl(salon.image) }} style={styles.nearbyImage} contentFit="cover" />
       <View style={styles.nearbyInfo}>
         <Text style={[styles.nearbyName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]} numberOfLines={1}>{salon.name}</Text>
         <Text style={[styles.nearbyAddr, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]} numberOfLines={1}>{salon.address}</Text>
@@ -97,7 +98,7 @@ function NearbySalonRow({ salon, onBookmark, isBookmarked }: { salon: Salon; onB
           <View style={[styles.statusBadge, { backgroundColor: salon.isOpen ? theme.success + '15' : theme.error + '15' }]}>
             <View style={[styles.statusDot, { backgroundColor: salon.isOpen ? theme.success : theme.error }]} />
             <Text style={[styles.statusText, { color: salon.isOpen ? theme.success : theme.error, fontFamily: 'Urbanist_500Medium' }]}>
-              {salon.isOpen ? 'Open' : 'Closed'}
+              {salon.isOpen ? t('open') : t('closed')}
             </Text>
           </View>
         </View>
@@ -113,6 +114,7 @@ export default function HomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user, toggleBookmark, isBookmarked } = useApp();
+  const { t, isRTL } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const categoryName = selectedCategory === 'all' ? 'all' : categories.find(c => c.id === selectedCategory)?.name || 'all';
   const salonUrl = `/api/salons${categoryName !== 'all' ? `?category=${encodeURIComponent(categoryName)}` : ''}`;
@@ -130,7 +132,7 @@ export default function HomeScreen() {
           <View style={styles.headerLeft}>
             <Image source={user?.avatar ? { uri: user.avatar } : DEFAULT_AVATAR} style={styles.avatar} contentFit="cover" />
             <View>
-              <Text style={[styles.greeting, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Good Morning</Text>
+              <Text style={[styles.greeting, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{t('good_morning')}</Text>
               <Text style={[styles.userName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{user?.fullName}</Text>
             </View>
           </View>
@@ -146,14 +148,14 @@ export default function HomeScreen() {
 
         <Pressable onPress={() => router.push('/search')} style={[styles.searchBar, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
           <Ionicons name="search" size={20} color={theme.textTertiary} />
-          <Text style={[styles.searchPlaceholder, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>Search</Text>
+          <Text style={[styles.searchPlaceholder, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{t('search')}</Text>
           <View style={[styles.filterBtn, { backgroundColor: theme.primary }]}>
             <Ionicons name="options" size={18} color="#fff" />
           </View>
         </Pressable>
 
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Categories</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('categories')}</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesRow}>
           {categories.map((cat) => (
@@ -170,10 +172,24 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
 
+        <Pressable
+          onPress={() => router.push('/offers')}
+          style={({ pressed }) => [
+            styles.promoBanner,
+            { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }
+          ]}
+        >
+          <View style={styles.promoContent}>
+            <Text style={[styles.promoTitle, { fontFamily: 'Urbanist_700Bold' }]}>{t('special_offers_banner')}</Text>
+            <Text style={[styles.promoDesc, { fontFamily: 'Urbanist_500Medium' }]}>{t('check_deals')}</Text>
+          </View>
+          <Ionicons name="pricetag" size={40} color="#ffffff30" style={styles.promoIcon} />
+        </Pressable>
+
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Popular Salons</Text>
-          <Pressable onPress={() => router.push('/search')}>
-            <Text style={[styles.seeAll, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>See All</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('top_specialists')}</Text>
+          <Pressable onPress={() => router.push('/top-barbers')}>
+            <Text style={[styles.seeAll, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('see_all')}</Text>
           </Pressable>
         </View>
         <FlatList
@@ -189,14 +205,14 @@ export default function HomeScreen() {
         />
 
         <View style={[styles.sectionHeader, { marginTop: 24 }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Nearby Your Location</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('nearby_location')}</Text>
           <Pressable onPress={() => router.push('/search')}>
-            <Text style={[styles.seeAll, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>See All</Text>
+            <Text style={[styles.seeAll, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('see_all')}</Text>
           </Pressable>
         </View>
         {salons.map((salon) => (
           <View key={salon.id} style={{ paddingHorizontal: 24, marginBottom: 12 }}>
-            <NearbySalonRow salon={salon} onBookmark={() => toggleBookmark(salon.id)} isBookmarked={isBookmarked(salon.id)} />
+            <NearbySalonRow salon={salon} onBookmark={() => toggleBookmark(salon.id)} isBookmarked={isBookmarked(salon.id)} t={t} />
           </View>
         ))}
       </ScrollView>
@@ -245,4 +261,9 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 11 },
+  promoBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, marginHorizontal: 24, borderRadius: 20, marginBottom: 24, overflow: 'hidden' },
+  promoContent: { flex: 1 },
+  promoTitle: { color: '#fff', fontSize: 20, marginBottom: 4 },
+  promoDesc: { color: '#ffffffcc', fontSize: 14 },
+  promoIcon: { position: 'absolute', right: -10, bottom: -10, transform: [{ rotate: '-15deg' }] },
 });

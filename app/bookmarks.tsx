@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -9,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Salon {
   id: string;
@@ -25,6 +27,7 @@ export default function BookmarksScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { bookmarks, toggleBookmark } = useApp();
+  const { t, isRTL } = useLanguage();
   const { data: allSalons = [] } = useQuery<Salon[]>({
     queryKey: ['/api/salons'],
     queryFn: getQueryFn({ on401: 'throw' }),
@@ -37,10 +40,10 @@ export default function BookmarksScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 8 }]}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+        <Pressable onPress={() => goBack()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>My Bookmarks</Text>
+        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('my_bookmarks')}</Text>
         <View style={{ width: 40 }} />
       </View>
       <FlatList
@@ -52,8 +55,8 @@ export default function BookmarksScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="bookmark-outline" size={64} color={theme.textTertiary} />
-            <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>No bookmarks yet</Text>
-            <Text style={[styles.emptySubText, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>Save your favorite salons here</Text>
+            <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('no_bookmarks')}</Text>
+            <Text style={[styles.emptySubText, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{t('save_favorites')}</Text>
           </View>
         }
         renderItem={({ item }) => (

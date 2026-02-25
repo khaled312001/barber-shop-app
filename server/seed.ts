@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { salons, services, packages, specialists, reviews, messages, notifications } from "@shared/schema";
+import { salons, services, packages, specialists, reviews, messages, notifications, users, coupons, bookings } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const salonHeroImages = [
@@ -464,13 +464,39 @@ const salonReviews: Record<string, { userName: string; userImage: string; rating
 };
 
 export async function seedDatabase() {
+  // Check if we should skip seeding
+  if (process.env.FORCE_SEED !== "true") {
+    const existingSalons = await db.select().from(salons).limit(1);
+    if (existingSalons.length > 0) {
+      console.log("Database already contains data, skipping seed. Use FORCE_SEED=true to override.");
+      return;
+    }
+  }
+
   console.log("Seeding database...");
 
+  await db.delete(bookings);
+  await db.delete(messages);
+  await db.delete(coupons);
   await db.delete(reviews);
   await db.delete(specialists);
   await db.delete(packages);
   await db.delete(services);
   await db.delete(salons);
+  await db.delete(users);
+
+  // Seed default Admin User
+  const bcrypt = require('bcryptjs');
+  const adminPassword = await bcrypt.hash('admin123', 10);
+  await db.insert(users).values({
+    id: '00000000-0000-0000-0000-000000000000',
+    fullName: 'Admin User',
+    email: 'admin@barber.com',
+    password: adminPassword,
+    role: 'admin',
+    loyaltyPoints: 1000,
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop'
+  });
 
   await db.insert(salons).values(salonData);
 
@@ -505,6 +531,49 @@ export async function seedDatabase() {
       );
     }
   }
+
+  // Seed Coupons
+  const couponData = [
+    { code: "WELCOME10", discount: 10, type: "percentage", expiryDate: "2025-12-31", usageLimit: 100, active: true },
+    { code: "SAVE5", discount: 5, type: "fixed", expiryDate: "2025-06-30", usageLimit: 50, active: true },
+  ];
+  await db.insert(coupons).values(couponData);
+
+  // Seed Messages
+  const messageData = [
+    { userId: "00000000-0000-0000-0000-000000000000", salonId: "1", salonName: "Belle Curls", content: "Hello, I have a question about my booking.", sender: "user" },
+    { userId: "00000000-0000-0000-0000-000000000000", salonId: "1", salonName: "Belle Curls", content: "Sure, how can we help you?", sender: "salon" },
+  ];
+  await db.insert(messages).values(messageData);
+
+  // Seed Bookings
+  const bookingData = [
+    {
+      userId: '00000000-0000-0000-0000-000000000000',
+      salonId: '1',
+      salonName: 'Belle Curls',
+      salonImage: '',
+      services: ['Precision Haircut'],
+      date: '2025-03-01',
+      time: '10:00 AM',
+      totalPrice: 35,
+      status: 'completed',
+      paymentMethod: 'cash'
+    },
+    {
+      userId: '00000000-0000-0000-0000-000000000000',
+      salonId: '2',
+      salonName: 'Pretty Parlour',
+      salonImage: '',
+      services: ['Women\'s Haircut'],
+      date: '2025-03-02',
+      time: '11:00 AM',
+      totalPrice: 40,
+      status: 'pending',
+      paymentMethod: 'card'
+    }
+  ];
+  await db.insert(bookings).values(bookingData);
 
   console.log("Database seeded successfully!");
 }

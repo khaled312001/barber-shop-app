@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #F4A460;
+  /* Sandy Brown */
+  --color-primary-dark: #E8924A;
+  --color-bg-dark: #181A20;
+  /* Dark Graphite */
+  --color-bg-card: #1F222A;
+  /* Surface */
+  --color-border: #35383F;
+  /* Border */
+  --color-text: #FFFFFF;
+  /* White */
+  --color-text-muted: #B0B0B0;
+  /* Text Secondary */
+}
+
+body {
+  background-color: var(--color-bg-dark);
+  color: var(--color-text);
+  font-family: 'Inter', system-ui, sans-serif;
+}

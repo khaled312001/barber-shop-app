@@ -4,12 +4,14 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import SalonMap from '@/components/SalonMap';
 
 interface Salon {
@@ -29,6 +31,7 @@ export default function SearchScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { toggleBookmark, isBookmarked } = useApp();
+  const { t, isRTL } = useLanguage();
   const { data: salons = [] } = useQuery<Salon[]>({
     queryKey: ['/api/salons'],
     queryFn: getQueryFn({ on401: 'throw' }),
@@ -55,14 +58,14 @@ export default function SearchScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 8 }]}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+        <Pressable onPress={() => goBack()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
         <View style={[styles.searchBar, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
           <Ionicons name="search" size={18} color={theme.textTertiary} />
           <TextInput
             style={[styles.searchInput, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]}
-            placeholder="Search salons..."
+            placeholder={t('search_salons')}
             placeholderTextColor={theme.textTertiary}
             value={query}
             onChangeText={setQuery}
@@ -84,7 +87,7 @@ export default function SearchScreen() {
 
       {showFilter && (
         <View style={[styles.filterBar, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.filterLabel, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>Min Rating:</Text>
+          <Text style={[styles.filterLabel, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{t('min_rating')}</Text>
           {[0, 4, 4.5, 4.8].map(r => (
             <Pressable
               key={r}
@@ -92,7 +95,7 @@ export default function SearchScreen() {
               style={[styles.filterChip, { backgroundColor: filterRating === r ? theme.primary : 'transparent', borderColor: filterRating === r ? theme.primary : theme.border }]}
             >
               <Text style={[styles.filterChipText, { color: filterRating === r ? '#fff' : theme.text, fontFamily: 'Urbanist_500Medium' }]}>
-                {r === 0 ? 'All' : `${r}+`}
+                {r === 0 ? t('all') : `${r}+`}
               </Text>
             </Pressable>
           ))}
@@ -109,7 +112,7 @@ export default function SearchScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="search" size={48} color={theme.textTertiary} />
-              <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>No results found</Text>
+              <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('no_results')}</Text>
             </View>
           }
           renderItem={({ item }) => (

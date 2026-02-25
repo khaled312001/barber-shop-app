@@ -5,11 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useApp, type Booking } from '@/contexts/AppContext';
 
 type TabType = 'upcoming' | 'completed' | 'cancelled';
 
-function BookingCard({ booking, onCancel }: { booking: Booking; onCancel?: () => void }) {
+function BookingCard({ booking, onCancel, t }: { booking: Booking; onCancel?: () => void; t: (key: string) => string }) {
   const theme = useTheme();
   const statusColors = {
     upcoming: theme.primary,
@@ -26,7 +27,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel?: () =>
           <Text style={[styles.cardServices, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{booking.services.join(', ')}</Text>
           <View style={[styles.statusPill, { backgroundColor: statusColors[booking.status] + '15' }]}>
             <Text style={[styles.statusPillText, { color: statusColors[booking.status], fontFamily: 'Urbanist_600SemiBold' }]}>
-              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+              {t(booking.status)}
             </Text>
           </View>
         </View>
@@ -46,10 +47,10 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel?: () =>
       {booking.status === 'upcoming' && onCancel && (
         <View style={styles.cardActions}>
           <Pressable onPress={onCancel} style={({ pressed }) => [styles.cancelBtn, { borderColor: theme.primary, opacity: pressed ? 0.7 : 1 }]}>
-            <Text style={[styles.cancelBtnText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>Cancel Booking</Text>
+            <Text style={[styles.cancelBtnText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('cancel_booking')}</Text>
           </Pressable>
           <Pressable style={({ pressed }) => [styles.viewBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }]}>
-            <Text style={[styles.viewBtnText, { fontFamily: 'Urbanist_600SemiBold' }]}>View E-Receipt</Text>
+            <Text style={[styles.viewBtnText, { fontFamily: 'Urbanist_600SemiBold' }]}>{t('view_receipt')}</Text>
           </Pressable>
         </View>
       )}
@@ -59,6 +60,7 @@ function BookingCard({ booking, onCancel }: { booking: Booking; onCancel?: () =>
 
 export default function BookingsScreen() {
   const theme = useTheme();
+  const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const { bookings, cancelBooking } = useApp();
   const [activeTab, setActiveTab] = useState<TabType>('upcoming');
@@ -69,16 +71,16 @@ export default function BookingsScreen() {
   const tabs: TabType[] = ['upcoming', 'completed', 'cancelled'];
 
   const handleCancel = (id: string) => {
-    Alert.alert('Cancel Booking', 'Are you sure you want to cancel this booking?', [
-      { text: 'No', style: 'cancel' },
-      { text: 'Yes, Cancel', style: 'destructive', onPress: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); cancelBooking(id); } },
+    Alert.alert(t('cancel_booking'), t('cancel_booking_confirm'), [
+      { text: t('no_cancel'), style: 'cancel' },
+      { text: t('yes_cancel'), style: 'destructive', onPress: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); cancelBooking(id); } },
     ]);
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>My Bookings</Text>
+        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('my_bookings')}</Text>
       </View>
 
       <View style={[styles.tabBar, { backgroundColor: theme.surface }]}>
@@ -89,7 +91,7 @@ export default function BookingsScreen() {
             style={[styles.tab, activeTab === tab && { backgroundColor: theme.primary }]}
           >
             <Text style={[styles.tabText, { color: activeTab === tab ? '#fff' : theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {t(tab).charAt(0).toUpperCase() + t(tab).slice(1)}
             </Text>
           </Pressable>
         ))}
@@ -105,12 +107,12 @@ export default function BookingsScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={64} color={theme.textTertiary} />
             <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>
-              No {activeTab} bookings
+              {t('no_bookings').replace('{status}', t(activeTab).toLowerCase())}
             </Text>
           </View>
         }
         renderItem={({ item }) => (
-          <BookingCard booking={item} onCancel={item.status === 'upcoming' ? () => handleCancel(item.id) : undefined} />
+          <BookingCard booking={item} onCancel={item.status === 'upcoming' ? () => handleCancel(item.id) : undefined} t={t} />
         )}
       />
     </View>

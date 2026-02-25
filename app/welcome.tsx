@@ -7,11 +7,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/theme';
 import { useSocialAuth } from '@/hooks/useSocialAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function WelcomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { handleGooglePress } = useSocialAuth();
+  const { t, isRTL } = useLanguage();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
 
@@ -28,8 +30,8 @@ export default function WelcomeScreen() {
       />
       <View style={[styles.content, { paddingBottom: bottomPad + 20 }]}>
         <Text style={[styles.welcomeText, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>
-          Welcome to Casca! {'\n'}
-          <Text style={{ color: theme.primary }}>Your beauty,</Text> our priority.
+          {t('welcome_to_casca')} {'\n'}
+          <Text style={{ color: theme.primary }}>{t('your_beauty')}</Text> {t('our_priority')}
         </Text>
 
         <View style={styles.socialContainer}>
@@ -40,7 +42,7 @@ export default function WelcomeScreen() {
 
         <View style={styles.dividerRow}>
           <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-          <Text style={[styles.dividerText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>or</Text>
+          <Text style={[styles.dividerText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('or')}</Text>
           <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
         </View>
 
@@ -48,15 +50,15 @@ export default function WelcomeScreen() {
           onPress={() => router.push('/signin')}
           style={({ pressed }) => [styles.signInBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }]}
         >
-          <Text style={[styles.signInText, { fontFamily: 'Urbanist_700Bold' }]}>Sign in with password</Text>
+          <Text style={[styles.signInText, { fontFamily: 'Urbanist_700Bold' }]}>{t('sign_in_password')}</Text>
         </Pressable>
 
         <View style={styles.bottomRow}>
           <Text style={[styles.bottomText, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
-            Don't have an account?{' '}
+            {t('no_account')}{' '}
           </Text>
           <Pressable onPress={() => router.push('/signup')}>
-            <Text style={[styles.linkText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>Sign up</Text>
+            <Text style={[styles.linkText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('sign_up')}</Text>
           </Pressable>
         </View>
       </View>

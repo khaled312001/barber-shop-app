@@ -3,12 +3,14 @@ import {
   View, Text, StyleSheet, Pressable, TextInput, Platform, ScrollView, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
 import { useSocialAuth } from '@/hooks/useSocialAuth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 
 export default function SignInScreen() {
@@ -16,6 +18,7 @@ export default function SignInScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useApp();
   const { handleGooglePress } = useSocialAuth();
+  const { t, isRTL } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,7 +37,16 @@ export default function SignInScreen() {
       await login(email, password);
       router.replace('/(tabs)');
     } catch (e: any) {
-      Alert.alert('Sign In Failed', e?.message || 'Please check your credentials and try again.');
+      const msg = e?.message || '';
+      let translated = t('check_credentials');
+      if (msg.includes('No account found')) {
+        translated = t('no_account_found');
+      } else if (msg.includes('Incorrect password')) {
+        translated = t('incorrect_password');
+      } else if (msg.includes('Email and password required')) {
+        translated = t('email_password_required');
+      }
+      Alert.alert(t('sign_in_failed'), translated);
     } finally {
       setLoading(false);
     }
@@ -43,17 +55,17 @@ export default function SignInScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: topPad + 16, paddingBottom: bottomPad + 20 }]} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+        <Pressable onPress={() => goBack()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
 
-        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Login to your{'\n'}Account</Text>
+        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold', textAlign: isRTL ? 'right' : 'left' }]}>{t('login_to_account')}</Text>
 
-        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Ionicons name="mail-outline" size={20} color={theme.textTertiary} />
           <TextInput
-            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]}
-            placeholder="Email"
+            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left', marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }]}
+            placeholder={t('email')}
             placeholderTextColor={theme.textTertiary}
             value={email}
             onChangeText={setEmail}
@@ -62,11 +74,11 @@ export default function SignInScreen() {
           />
         </View>
 
-        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+        <View style={[styles.inputContainer, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
           <Ionicons name="lock-closed-outline" size={20} color={theme.textTertiary} />
           <TextInput
-            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]}
-            placeholder="Password"
+            style={[styles.input, { color: theme.text, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left', marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 }]}
+            placeholder={t('password')}
             placeholderTextColor={theme.textTertiary}
             value={password}
             onChangeText={setPassword}
@@ -79,20 +91,20 @@ export default function SignInScreen() {
 
         <Pressable onPress={() => setRememberMe(!rememberMe)} style={styles.rememberRow}>
           <Ionicons name={rememberMe ? 'checkbox' : 'square-outline'} size={22} color={theme.primary} />
-          <Text style={[styles.rememberText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>Remember me</Text>
+          <Text style={[styles.rememberText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{t('remember_me')}</Text>
         </Pressable>
 
         <Pressable onPress={handleSignIn} style={({ pressed }) => [styles.signInBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }]}>
-          <Text style={[styles.signInText, { fontFamily: 'Urbanist_700Bold' }]}>Sign in</Text>
+          <Text style={[styles.signInText, { fontFamily: 'Urbanist_700Bold' }]}>{t('sign_in')}</Text>
         </Pressable>
 
         <Pressable onPress={() => router.push('/forgot-password')}>
-          <Text style={[styles.forgotText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>Forgot the password?</Text>
+          <Text style={[styles.forgotText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('forgot_password')}</Text>
         </Pressable>
 
         <View style={styles.dividerRow}>
           <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-          <Text style={[styles.dividerText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>or continue with</Text>
+          <Text style={[styles.dividerText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('or_continue_with')}</Text>
           <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
         </View>
 
@@ -103,9 +115,9 @@ export default function SignInScreen() {
         </View>
 
         <View style={[styles.bottomRow, { marginTop: 16 }]}>
-          <Text style={[styles.bottomText, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Don't have an account? </Text>
+          <Text style={[styles.bottomText, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{t('no_account')} </Text>
           <Pressable onPress={() => router.push('/signup')}>
-            <Text style={[styles.linkText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>Sign up</Text>
+            <Text style={[styles.linkText, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('sign_up')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -118,8 +130,8 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 24 },
   backBtn: { width: 40, height: 40, justifyContent: 'center' },
   title: { fontSize: 40, lineHeight: 50, marginTop: 16, marginBottom: 32 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', height: 56, borderRadius: 16, paddingHorizontal: 16, marginBottom: 16, borderWidth: 1 },
-  input: { flex: 1, fontSize: 14, marginLeft: 12 },
+  inputContainer: { alignItems: 'center', height: 56, borderRadius: 16, paddingHorizontal: 16, marginBottom: 16, borderWidth: 1 },
+  input: { flex: 1, fontSize: 14 },
   rememberRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 24 },
   rememberText: { fontSize: 14 },
   signInBtn: { height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },

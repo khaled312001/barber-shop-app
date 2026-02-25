@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { onboardingSlides } from '@/constants/data';
 
 const { width, height } = Dimensions.get('window');
@@ -16,6 +17,7 @@ export default function OnboardingScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { setIsOnboarded } = useApp();
+  const { t, isRTL } = useLanguage();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
@@ -78,11 +80,11 @@ export default function OnboardingScreen() {
         </View>
         <View style={styles.buttonsRow}>
           <Pressable onPress={handleSkip} style={({ pressed }) => [styles.skipBtn, { backgroundColor: theme.isDark ? theme.surfaceAlt : theme.surface, opacity: pressed ? 0.8 : 1 }]}>
-            <Text style={[styles.skipText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>Skip</Text>
+            <Text style={[styles.skipText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{t('skip')}</Text>
           </Pressable>
           <Pressable onPress={handleNext} style={({ pressed }) => [styles.nextBtn, { backgroundColor: theme.primary, opacity: pressed ? 0.9 : 1 }]}>
             <Text style={[styles.nextText, { fontFamily: 'Urbanist_600SemiBold' }]}>
-              {activeIndex === onboardingSlides.length - 1 ? 'Get Started' : 'Next'}
+              {activeIndex === onboardingSlides.length - 1 ? t('get_started') : t('next')}
             </Text>
           </Pressable>
         </View>

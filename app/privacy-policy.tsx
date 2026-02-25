@@ -1,63 +1,79 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
 import { router } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/theme';
-
-const sections = [
-  {
-    title: 'Information Collection',
-    body: 'We collect information you provide directly to us, such as when you create an account, make a booking, or contact us for support. This includes your name, email address, phone number, payment information, and any other information you choose to provide.\n\nWe also automatically collect certain information when you use our services, including your IP address, device type, operating system, and usage data.',
-  },
-  {
-    title: 'How We Use Your Information',
-    body: 'We use the information we collect to provide, maintain, and improve our services. This includes processing bookings, sending confirmations and reminders, personalizing your experience, and communicating with you about promotions and updates.\n\nWe may also use your information for analytics purposes to better understand how our users interact with our services and to detect and prevent fraud.',
-  },
-  {
-    title: 'Information Sharing',
-    body: 'We do not sell your personal information to third parties. We may share your information with service providers who assist us in operating our platform, processing payments, or delivering services.\n\nWe may also share information when required by law, to protect our rights, or in connection with a business transfer such as a merger or acquisition.',
-  },
-  {
-    title: 'Data Security',
-    body: 'We implement appropriate technical and organizational security measures to protect your personal data against unauthorized access, alteration, disclosure, or destruction.\n\nWhile we strive to protect your personal information, no method of transmission over the internet or electronic storage is completely secure. We cannot guarantee absolute security.',
-  },
-  {
-    title: 'Your Rights',
-    body: 'You have the right to access, update, or delete your personal information at any time through your account settings. You may also request a copy of your data or ask us to restrict certain processing activities.\n\nYou can opt out of marketing communications by following the unsubscribe instructions in our emails or adjusting your notification settings within the app.',
-  },
-  {
-    title: 'Contact Us',
-    body: 'If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at:\n\nEmail: privacy@casca.app\nPhone: +1 (800) 123-4567\nAddress: 123 Barber Street, Suite 100, New York, NY 10001',
-  },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function PrivacyPolicyScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { t, isRTL } = useLanguage();
+
+  const sections = useMemo(() => [
+    {
+      title: t('info_collection'),
+      body: isRTL
+        ? 'نقوم بجمع المعلومات التي تقدمها لنا مباشرة، مثل عندما تقوم بإنشاء حساب أو إجراء حجز أو الاتصال بنا للدعم. يتضمن ذلك اسمك وعنوان بريدك الإلكتروني ورقم هاتفك ومعلومات الدفع وأي معلومات أخرى تختار تقديمها.'
+        : 'We collect information you provide directly to us, such as when you create an account, make a booking, or contact us for support. This includes your name, email address, phone number, payment information, and any other information you choose to provide.',
+    },
+    {
+      title: t('how_we_use'),
+      body: isRTL
+        ? 'نستخدم المعلومات التي نجمعها لتوفير خدماتنا وصيانتها وتحسينها. يتضمن ذلك معالجة الحجوزات وإرسال التأكيدات والتذكيرات وتخصيص تجربتك والتواصل معك بشأن العروض الترويجية والتحديثات.'
+        : 'We use the information we collect to provide, maintain, and improve our services. This includes processing bookings, sending confirmations and reminders, personalizing your experience, and communicating with you about promotions and updates.',
+    },
+    {
+      title: t('info_sharing'),
+      body: isRTL
+        ? 'نحن لا نبيع معلوماتك الشخصية لأطراف ثالثة. قد نشارك معلوماتك مع مزودي الخدمة الذين يساعدوننا في تشغيل منصتنا أو معالجة المدفوعات أو تقديم الخدمات.'
+        : 'We do not sell your personal information to third parties. We may share your information with service providers who assist us in operating our platform, processing payments, or delivering services.',
+    },
+    {
+      title: t('data_security'),
+      body: isRTL
+        ? 'نحن ننفذ إجراءات أمنية فنية وتنظيمية مناسبة لحماية بياناتك الشخصية من الوصول غير المصرح به أو التعديل أو الإفصاح أو التدمير.'
+        : 'We implement appropriate technical and organizational security measures to protect your personal data against unauthorized access, alteration, disclosure, or destruction.',
+    },
+    {
+      title: t('your_rights'),
+      body: isRTL
+        ? 'لديك الحق في الوصول إلى معلوماتك الشخصية أو تحديثها أو حذفها في أي وقت من خلال إعدادات حسابك. يمكنك أيضًا طلب نسخة من بياناتك أو الطلب منا تقييد أنشطة معالجة معينة.'
+        : 'You have the right to access, update, or delete your personal information at any time through your account settings. You may also request a copy of your data or ask us to restrict certain processing activities.',
+    },
+    {
+      title: t('contact_us'),
+      body: isRTL
+        ? 'إذا كان لديك أي أسئلة أو مخاوف بشأن سياسة الخصوصية هذه أو ممارسات البيانات الخاصة بنا ، يرجى الاتصال بنا على:\n\nالبريد الإلكتروني: privacy@casca.app\nالهاتف: +1 (800) 123-4567'
+        : 'If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at:\n\nEmail: privacy@casca.app\nPhone: +1 (800) 123-4567',
+    },
+  ], [isRTL, t]);
+
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { paddingTop: topPad + 8 }]}>
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+      <View style={[styles.header, { paddingTop: topPad + 8, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+        <Pressable onPress={() => goBack()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Privacy Policy</Text>
+        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('privacy_policy')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: webBottomInset + 40, paddingHorizontal: 24 }}>
-        <Text style={[styles.lastUpdated, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>
-          Last updated: January 1, 2026
+        <Text style={[styles.lastUpdated, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left' }]}>
+          {t('last_updated')}: January 1, 2026
         </Text>
 
         {sections.map((section, i) => (
           <View key={i} style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{section.title}</Text>
-            <Text style={[styles.sectionBody, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{section.body}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold', textAlign: isRTL ? 'right' : 'left' }]}>{section.title}</Text>
+            <Text style={[styles.sectionBody, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular', textAlign: isRTL ? 'right' : 'left' }]}>{section.body}</Text>
           </View>
         ))}
       </ScrollView>

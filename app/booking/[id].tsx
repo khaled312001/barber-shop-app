@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Pressable, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -56,12 +57,36 @@ export default function BookingScreen() {
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedPayment, setSelectedPayment] = useState('stripe');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [isValidating, setIsValidating] = useState(false);
+
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
 
-  const total = selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const subtotal = selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const discountAmount = appliedCoupon
+    ? (appliedCoupon.type === 'percentage' ? (subtotal * appliedCoupon.discount / 100) : appliedCoupon.discount)
+    : 0;
+  const total = Math.max(0, subtotal - discountAmount);
+
+  const handleApplyCoupon = async () => {
+    if (!promoCode) return;
+    setIsValidating(true);
+    try {
+      const res = await apiRequest('POST', '/api/coupons/validate', { code: promoCode });
+      const coupon = await res.json();
+      setAppliedCoupon(coupon);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert('Invalid Code', err.message || 'The promo code you entered is invalid or expired.');
+      setAppliedCoupon(null);
+    } finally {
+      setIsValidating(false);
+    }
+  };
 
   const toggleService = (service: Service) => {
     Haptics.selectionAsync();
@@ -97,6 +122,7 @@ export default function BookingScreen() {
         status: 'upcoming',
         paymentMethod: 'Stripe (Card)',
         stripePaymentIntentId: paymentIntentId,
+        couponId: appliedCoupon?.id,
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -121,6 +147,7 @@ export default function BookingScreen() {
         totalPrice: total,
         status: 'upcoming',
         paymentMethod: 'Pay at Salon',
+        couponId: appliedCoupon?.id,
       };
 
       await addBooking(bookingData);
@@ -148,7 +175,7 @@ export default function BookingScreen() {
   };
 
   const handleBack = () => {
-    if (step === 'services') router.back();
+    if (step === 'services') goBack();
     else if (step === 'datetime') setStep('services');
     else if (step === 'payment') setStep('datetime');
     else if (step === 'review') setStep('payment');
@@ -312,13 +339,63 @@ export default function BookingScreen() {
                 <Text style={[styles.reviewValue, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{paymentMethods.find(p => p.id === selectedPayment)?.name}</Text>
               </View>
             </View>
-            <View style={[styles.totalCard, { backgroundColor: theme.surface }]}>
-              {selectedServices.map(s => (
-                <View key={s.id} style={styles.reviewRow}>
-                  <Text style={[styles.reviewLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{s.name}</Text>
-                  <Text style={[styles.reviewValue, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>${s.price}</Text>
+
+            <View style={[styles.promoCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <View style={styles.promoInputRow}>
+                <View style={[styles.promoInputContainer, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
+                  <Ionicons name="pricetag-outline" size={20} color={theme.textTertiary} />
+                  <input
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      color: theme.text,
+                      padding: '8px 12px',
+                      fontSize: '14px',
+                      fontFamily: 'Urbanist_600SemiBold',
+                      outline: 'none',
+                    }}
+                    placeholder="Enter Promo Code"
+                    value={promoCode}
+                    onChange={(e: any) => setPromoCode(e.target.value.toUpperCase())}
+                  />
                 </View>
-              ))}
+                <Pressable
+                  onPress={handleApplyCoupon}
+                  disabled={!promoCode || isValidating}
+                  style={[styles.applyBtn, { backgroundColor: theme.primary, opacity: (!promoCode || isValidating) ? 0.6 : 1 }]}
+                >
+                  {isValidating ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={[styles.applyBtnText, { fontFamily: 'Urbanist_700Bold' }]}>Apply</Text>
+                  )}
+                </Pressable>
+              </View>
+              {appliedCoupon && (
+                <View style={styles.appliedRow}>
+                  <Ionicons name="checkmark-circle" size={16} color={theme.success} />
+                  <Text style={[styles.appliedText, { color: theme.success, fontFamily: 'Urbanist_600SemiBold' }]}>
+                    Applied: {appliedCoupon.code} ({appliedCoupon.type === 'percentage' ? `${appliedCoupon.discount}% Off` : `$${appliedCoupon.discount} Off`})
+                  </Text>
+                  <Pressable onPress={() => { setAppliedCoupon(null); setPromoCode(''); }}>
+                    <Ionicons name="close-circle" size={18} color={theme.error} />
+                  </Pressable>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.totalCard, { backgroundColor: theme.surface }]}>
+              <View style={styles.reviewRow}>
+                <Text style={[styles.reviewLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Subtotal</Text>
+                <Text style={[styles.reviewValue, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>${subtotal.toFixed(2)}</Text>
+              </View>
+              {appliedCoupon && (
+                <View style={styles.reviewRow}>
+                  <Text style={[styles.reviewLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Discount</Text>
+                  <Text style={[styles.reviewValue, { color: theme.error, fontFamily: 'Urbanist_600SemiBold' }]}>-${discountAmount.toFixed(2)}</Text>
+                </View>
+              )}
               <View style={[styles.reviewDivider, { backgroundColor: theme.divider }]} />
               <View style={styles.reviewRow}>
                 <Text style={[styles.totalLabel, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Total</Text>
@@ -409,4 +486,11 @@ const styles = StyleSheet.create({
   successSub: { fontSize: 16, textAlign: 'center', marginBottom: 20, lineHeight: 24 },
   paymentConfirmCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, gap: 10, marginBottom: 24 },
   paymentConfirmText: { fontSize: 14 },
+  promoCard: { borderRadius: 20, padding: 20, marginTop: 12, borderWidth: 1 },
+  promoInputRow: { flexDirection: 'row', gap: 12 },
+  promoInputContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderRadius: 12, borderWidth: 1 },
+  applyBtn: { paddingHorizontal: 20, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  applyBtnText: { color: '#fff', fontSize: 14 },
+  appliedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  appliedText: { flex: 1, fontSize: 13 },
 });

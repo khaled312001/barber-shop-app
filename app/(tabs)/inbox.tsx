@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { apiRequest } from '@/lib/query-client';
 
 interface ChatItem {
@@ -70,6 +71,7 @@ function CallRow({ item }: { item: CallItem }) {
 
 export default function InboxScreen() {
   const theme = useTheme();
+  const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'chats' | 'calls'>('chats');
   const [chats, setChats] = useState<ChatItem[]>([]);
@@ -92,7 +94,7 @@ export default function InboxScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Inbox</Text>
+        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('inbox')}</Text>
         <Pressable style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
           <Ionicons name="search" size={24} color={theme.text} />
         </Pressable>
@@ -106,7 +108,7 @@ export default function InboxScreen() {
             style={[styles.tab, activeTab === tab && { backgroundColor: theme.primary }]}
           >
             <Text style={[styles.tabText, { color: activeTab === tab ? '#fff' : theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {t(tab)}
             </Text>
           </Pressable>
         ))}
