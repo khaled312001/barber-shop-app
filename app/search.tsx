@@ -59,7 +59,7 @@ export default function SearchScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 8 }]}>
         <Pressable onPress={() => goBack()} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
+          <Ionicons name="close" size={24} color={theme.text} />
         </Pressable>
         <View style={[styles.searchBar, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
           <Ionicons name="search" size={18} color={theme.textTertiary} />

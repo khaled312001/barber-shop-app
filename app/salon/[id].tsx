@@ -222,7 +222,7 @@ export default function SalonDetailScreen() {
           <LinearGradient colors={['rgba(0,0,0,0.4)', 'transparent', 'transparent', theme.background]} style={styles.heroGradient} />
           <View style={[styles.topBar, { paddingTop: topPad + 8 }]}>
             <Pressable onPress={() => goBack()} style={({ pressed }) => [styles.topBtn, { backgroundColor: 'rgba(0,0,0,0.3)', opacity: pressed ? 0.6 : 1 }]}>
-              <Ionicons name="arrow-back" size={22} color="#fff" />
+              <Ionicons name="close" size={22} color="#fff" />
             </Pressable>
             <View style={styles.topRight}>
               <Pressable

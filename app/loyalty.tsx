@@ -44,7 +44,7 @@ export default function LoyaltyScreen() {
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={[styles.header, { paddingTop: topPad, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Pressable onPress={() => goBack()} style={styles.backBtn}>
-                    <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={theme.text} />
+                    <Ionicons name="close" size={24} color={theme.text} />
                 </Pressable>
                 <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('loyalty_rewards')}</Text>
                 <View style={styles.placeholder} />
