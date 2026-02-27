@@ -174,11 +174,14 @@ export default function BookingScreen() {
     }
   };
 
-  const handleBack = () => {
-    if (step === 'services') goBack();
-    else if (step === 'datetime') setStep('services');
+  const handleStepBack = () => {
+    if (step === 'datetime') setStep('services');
     else if (step === 'payment') setStep('datetime');
     else if (step === 'review') setStep('payment');
+  };
+
+  const handleExit = () => {
+    goBack();
   };
 
   const titles: Record<string, string> = { services: 'Select Services', datetime: 'Select Date & Time', payment: 'Payment Method', review: 'Review Summary', processing: 'Processing Payment', success: '' };
@@ -230,11 +233,17 @@ export default function BookingScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: topPad + 8 }]}>
-        <Pressable onPress={handleBack} disabled={isProcessing} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+        {step !== 'services' ? (
+          <Pressable onPress={handleStepBack} disabled={isProcessing} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
+            <Ionicons name="arrow-back" size={24} color={theme.text} />
+          </Pressable>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
+        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{titles[step]}</Text>
+        <Pressable onPress={handleExit} disabled={isProcessing} style={({ pressed }) => [styles.backBtn, { opacity: pressed ? 0.6 : 1 }]}>
           <Ionicons name="close" size={24} color={theme.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{titles[step]}</Text>
-        <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.progressBar}>

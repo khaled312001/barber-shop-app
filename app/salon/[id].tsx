@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, Platform, Dimensions, FlatList, ActivityIndicator,
+  View, Text, StyleSheet, ScrollView, Pressable, Platform, Dimensions, FlatList, ActivityIndicator, Linking,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -137,11 +137,17 @@ export default function SalonDetailScreen() {
           <Text style={[dstyles.infoLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Working Hours</Text>
           <Text style={[dstyles.infoValue, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{salon.openHours}</Text>
         </View>
-        <View style={dstyles.infoItem}>
+        <Pressable
+          onPress={() => Linking.openURL(`tel:${salon.phone}`)}
+          style={({ pressed }) => [dstyles.infoItem, { opacity: pressed ? 0.6 : 1 }]}
+        >
           <Ionicons name="call-outline" size={18} color={theme.primary} />
           <Text style={[dstyles.infoLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Phone</Text>
-          <Text style={[dstyles.infoValue, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{salon.phone}</Text>
-        </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={[dstyles.infoValue, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold', textDecorationLine: 'underline' }]}>{salon.phone}</Text>
+            <Ionicons name="call" size={14} color={theme.primary} />
+          </View>
+        </Pressable>
       </View>
       <Text style={[dstyles.subHeader, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Our Specialists</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
@@ -244,10 +250,22 @@ export default function SalonDetailScreen() {
               </Text>
             </View>
           </View>
-          <View style={styles.metaRow}>
+          <Pressable
+            onPress={() => {
+              const query = encodeURIComponent(salon.address);
+              const url = Platform.select({
+                ios: `maps:0,0?q=${query}`,
+                android: `geo:0,0?q=${query}`,
+                web: `https://www.google.com/maps/search/?api=1&query=${query}`,
+              });
+              if (url) Linking.openURL(url);
+            }}
+            style={({ pressed }) => [styles.metaRow, { opacity: pressed ? 0.6 : 1 }]}
+          >
             <Ionicons name="location" size={16} color={theme.primary} />
-            <Text style={[styles.address, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{salon.address}</Text>
-          </View>
+            <Text style={[styles.address, { color: theme.primary, fontFamily: 'Urbanist_400Regular', textDecorationLine: 'underline' }]}>{salon.address}</Text>
+            <Ionicons name="open-outline" size={14} color={theme.primary} style={{ marginLeft: 4 }} />
+          </Pressable>
           <View style={styles.metaRow}>
             <Ionicons name="star" size={16} color={theme.star} />
             <Text style={[styles.rating, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{salon.rating}</Text>
