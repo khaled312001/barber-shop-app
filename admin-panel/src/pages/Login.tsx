@@ -19,21 +19,13 @@ export default function Login() {
             const res = await api.post('/auth/signin', { email, password });
             const user = res.data?.user;
 
-            const allowedRoles = ['super_admin', 'admin', 'salon_admin', 'staff'];
-            if (!user || !allowedRoles.includes(user.role)) {
-                setError('Access denied. This portal is for platform and salon staff only.');
+            if (!user || (user.role !== 'super_admin' && user.role !== 'admin')) {
+                setError('Access denied. This portal is for Super Admins only.');
                 setLoading(false);
                 return;
             }
 
-            // Route based on role
-            if (user.role === 'super_admin' || user.role === 'admin') {
-                navigate('/');
-            } else if (user.role === 'salon_admin') {
-                navigate('/salon');
-            } else if (user.role === 'staff') {
-                navigate('/staff');
-            }
+            navigate('/');
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'Login failed');
         } finally {
@@ -49,7 +41,11 @@ export default function Login() {
                         <Scissors className="text-[#181A20]" size={28} />
                     </div>
                     <h1 className="text-2xl font-bold text-zinc-100">Barmagly</h1>
-                    <p className="text-zinc-400 mt-2">Sign in to your dashboard</p>
+                    <p className="text-zinc-400 mt-2 text-sm">Super Admin Portal</p>
+                    <div className="mt-3 inline-flex items-center gap-2 bg-[#F4A460]/10 border border-[#F4A460]/20 rounded-full px-4 py-1.5">
+                        <div className="w-2 h-2 rounded-full bg-[#F4A460] animate-pulse"></div>
+                        <span className="text-[#F4A460] text-xs font-medium">Super Admin Access Only</span>
+                    </div>
                 </div>
 
                 {error && (
@@ -69,7 +65,7 @@ export default function Login() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full bg-[#09090b] border border-[#27272a] text-zinc-100 rounded-xl px-12 py-3.5 focus:outline-none focus:border-[#F4A460] focus:ring-1 focus:ring-[#F4A460] transition-all placeholder:text-zinc-600"
-                                placeholder="your@email.com"
+                                placeholder="admin@barmagly.com"
                             />
                         </div>
                     </div>
@@ -92,11 +88,15 @@ export default function Login() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-[#F4A460] hover:bg-[#e8935a] text-[#181A20] font-semibold rounded-xl py-3.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-lg shadow-[#F4A460]/20"
+                        className="w-full bg-[#F4A460] hover:bg-[#e8935a] text-[#181A20] font-bold rounded-xl py-3.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-lg shadow-[#F4A460]/20"
                     >
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
+
+                <p className="text-center text-xs text-zinc-600 mt-6">
+                    Barmagly Super Admin · All rights reserved
+                </p>
             </div>
         </div>
     );

@@ -10,7 +10,7 @@ const queryClient = new QueryClient();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename="/admin_dashboard">
+      <BrowserRouter basename="/super_admin">
         <App />
       </BrowserRouter>
     </QueryClientProvider>
