@@ -59,7 +59,7 @@ A Vite + React + TypeScript admin dashboard compiled to `admin-dist/` and served
 - Notification broadcaster
 - Backup & restore (config download + pg_dump instructions)
 - WhatsApp integration placeholder
-- Landing pages placeholder
+- **Landing Pages** — Full per-salon public landing page management (enable/disable, slug, theme dark/light, accent color, booking URL, view counter)
 
 **Salon Admin (`/admin_dashboard/salon`)** — Login with `salon_admin` role:
 - Dashboard with today's bookings, revenue, staff count
@@ -100,7 +100,7 @@ Activity logging on: login, logout, booking.created, salon CRUD, subscription ch
 - **ORM**: Drizzle ORM with `drizzle-orm/neon-serverless` adapter.
 - **Schema**: Defined in `shared/schema.ts` using Drizzle's `pgTable` helpers. Tables include:
   - `users` - User accounts with auth credentials, profile fields, and role
-  - `salons` - Salon listings with location, ratings, gallery, and status field
+  - `salons` - Salon listings with location, ratings, gallery, status, ownerId, and landing page fields (landingEnabled, landingSlug, landingViews, landingTheme, landingAccentColor, landingBookingUrl)
   - `services` - Individual services linked to salons
   - `packages` - Service bundles with discounted pricing
   - `specialists` - Staff members linked to salons
@@ -112,7 +112,8 @@ Activity logging on: login, logout, booking.created, salon CRUD, subscription ch
   - `salonStaff` - Links users (salon_admin/staff) to salons
   - `plans` - Subscription plans with pricing and commission rates
   - `subscriptions` - Salon subscription records
-  - `licenseKeys` - Platform access keys (format: BRMG-{timestamp}-{random})
+  - `licenseKeys` - Platform access keys (format: BRMG-{timestamp}-{random}) with `maxActivations` and `activationCount`
+  - `licenseActivations` - Device tracking for license key activations (licenseKeyId, deviceId, email)
   - `activityLogs` - Platform-wide event audit trail
   - `commissions` - Platform commissions per booking
   - `expenses` - Per-salon expense records
@@ -132,9 +133,13 @@ Activity logging on: login, logout, booking.created, salon CRUD, subscription ch
 ### Build & Deployment
 
 - **Development**: Two processes run concurrently — Expo dev server and Express server (`server:dev` script with `tsx`).
-- **Production build**: Expo static build via `scripts/build.js`, Express server bundled with esbuild to `server_dist/`.
+- **Production build**: Expo static build via `scripts/build.js`, Express server bundled with esbuild to `server_dist/`. Admin panel built with Vite to `admin-dist/`.
+- **Build order**: `npm run expo:static:build && npx expo export --platform web --output-dir static-build && cd admin-panel && npm run build && cd .. && npm run server:build`
+- **Admin panel**: Served at `/super_admin/` from `admin-dist/`. Vite base path is `/super_admin/`.
+- **Public landing pages**: Each salon can have a public page at `/salon/:slug` when `landingEnabled=true`.
 - **Environment**: Relies on Replit environment variables (`REPLIT_DEV_DOMAIN`, `DATABASE_URL`, `SESSION_SECRET`).
 - **Patches**: Uses `patch-package` (runs on `postinstall`).
+- **TypeScript**: Root tsconfig excludes `admin-panel/` (which has its own tsconfig with `allowImportingTsExtensions: true`). Session types declared in `server/session.d.ts`. Express v5 `req.params` must be cast with `String()` before use in drizzle `eq()` calls.
 
 ## External Dependencies
 
