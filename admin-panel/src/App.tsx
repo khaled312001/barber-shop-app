@@ -33,6 +33,8 @@ import WhatsApp from './pages/WhatsApp';
 import AdminExpenses from './pages/AdminExpenses';
 import AdminShifts from './pages/AdminShifts';
 import AdminReports from './pages/AdminReports';
+import Plans from './pages/Plans';
+import StoreAnalytics from './pages/StoreAnalytics';
 
 // Salon Admin Pages
 import SalonDashboard from './pages/salon/Dashboard';
@@ -82,6 +84,8 @@ function App() {
                 <Route path="expenses" element={<AdminExpenses />} />
                 <Route path="shifts" element={<AdminShifts />} />
                 <Route path="admin-reports" element={<AdminReports />} />
+                <Route path="plans" element={<Plans />} />
+                <Route path="store-analytics" element={<StoreAnalytics />} />
             </Route>
 
             {/* Salon Admin Dashboard */}

@@ -48,6 +48,8 @@ A Vite + React + TypeScript admin dashboard compiled to `admin-dist/` and served
 - Dashboard with platform-wide stats (salons, bookings, revenue, subscriptions, commissions)
 - Tenant management (activate/suspend/deactivate salons)
 - Subscription management (create, update, cancel)
+- **Plans Manager** — Full CRUD for Basic/Pro/Enterprise subscription plans with features, commission rates, and staff/booking limits
+- **Store Analytics** — Per-salon booking/revenue charts, top performing salons, monthly trends
 - License key generation and revocation
 - Activity log viewer (real-time event stream)
 - System health monitor (DB latency, uptime, memory)
@@ -115,6 +117,10 @@ Activity logging on: login, logout, booking.created, salon CRUD, subscription ch
   - `commissions` - Platform commissions per booking
   - `expenses` - Per-salon expense records
   - `shifts` - Staff shift schedules
+  - `inventory` - Per-salon inventory items with low-stock alerting
+  - `tips` - Staff tips per booking
+  - `customerNotes` - Salon-specific notes about customers
+  - `loyaltyTransactions` - Loyalty points earned/redeemed history
 - **Validation**: `drizzle-zod` for generating Zod schemas from Drizzle table definitions.
 - **Migrations**: Managed via `drizzle-kit push` (push-based, no migration files needed for development). Config in `drizzle.config.ts`.
 - **Seeding**: `server/seed.ts` populates the database with sample salon data, services, specialists, and reviews on startup.

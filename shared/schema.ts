@@ -232,6 +232,49 @@ export const coupons = pgTable("coupons", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Inventory items per salon
+export const inventory = pgTable("inventory", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  salonId: varchar("salon_id", { length: 255 }).notNull(),
+  name: text("name").notNull(),
+  category: text("category").default("general"), // tools | products | supplies
+  quantity: integer("quantity").default(0),
+  minQuantity: integer("min_quantity").default(5),
+  unit: text("unit").default("pcs"),
+  price: doublePrecision("price").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tips per booking
+export const tips = pgTable("tips", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id", { length: 255 }).notNull(),
+  staffId: varchar("staff_id", { length: 255 }).notNull(),
+  salonId: varchar("salon_id", { length: 255 }).notNull(),
+  amount: doublePrecision("amount").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Customer notes (per salon)
+export const customerNotes = pgTable("customer_notes", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  salonId: varchar("salon_id", { length: 255 }).notNull(),
+  customerId: varchar("customer_id", { length: 255 }).notNull(),
+  note: text("note").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Loyalty point transactions
+export const loyaltyTransactions = pgTable("loyalty_transactions", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  salonId: varchar("salon_id", { length: 255 }).default(""),
+  points: integer("points").notNull(), // positive = earned, negative = redeemed
+  type: text("type").notNull().default("earned"), // earned | redeemed
+  description: text("description").default(""),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const appSettings = pgTable("app_settings", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   key: text("key").notNull().unique(),
@@ -269,3 +312,7 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type Commission = typeof commissions.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
 export type Shift = typeof shifts.$inferSelect;
+export type Inventory = typeof inventory.$inferSelect;
+export type Tip = typeof tips.$inferSelect;
+export type CustomerNote = typeof customerNotes.$inferSelect;
+export type LoyaltyTransaction = typeof loyaltyTransactions.$inferSelect;

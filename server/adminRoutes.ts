@@ -3,6 +3,7 @@ import { db } from "./db";
 import {
   users, salons, bookings, reviews, coupons, appSettings, messages, services,
   salonStaff, plans, subscriptions, licenseKeys, activityLogs, commissions, expenses, shifts,
+  inventory, tips, customerNotes, loyaltyTransactions,
 } from "@shared/schema";
 import { eq, sql, and, desc, gte, lte } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -675,12 +676,15 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/salon/customers", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const rows = await db.select({ userId: bookings.userId, count: sql<number>`count(*)`, lastVisit: sql<string>`max(${bookings.date})` })
-        .from(bookings).where(eq(bookings.salonId, salonId))
-        .groupBy(bookings.userId);
+      const rows = await db.select({
+        userId: bookings.userId,
+        count: sql<number>`count(*)`,
+        lastVisit: sql<string>`max(${bookings.date})`,
+        totalSpent: sql<number>`sum(${bookings.totalPrice})`,
+      }).from(bookings).where(eq(bookings.salonId, salonId)).groupBy(bookings.userId);
       const customers = await Promise.all(rows.map(async r => {
-        const [u] = await db.select({ id: users.id, fullName: users.fullName, email: users.email, phone: users.phone, avatar: users.avatar }).from(users).where(eq(users.id, r.userId));
-        return u ? { ...u, bookingCount: r.count, lastVisit: r.lastVisit } : null;
+        const [u] = await db.select({ id: users.id, fullName: users.fullName, email: users.email, phone: users.phone, avatar: users.avatar, loyaltyPoints: users.loyaltyPoints }).from(users).where(eq(users.id, r.userId));
+        return u ? { ...u, bookingCount: r.count, lastVisit: r.lastVisit, totalSpent: r.totalSpent } : null;
       }));
       res.json(customers.filter(Boolean));
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -819,6 +823,269 @@ export function registerAdminRoutes(app: Express) {
       const userId = (req.session as any)?.userId;
       const salonId = (req as any).salonId;
       res.json(await db.select().from(shifts).where(and(eq(shifts.staffId, userId), eq(shifts.salonId, salonId))));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Staff: earnings breakdown
+  app.get("/api/staff/earnings", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const salonId = (req as any).salonId;
+      const period = (req.query.period as string) || 'month';
+      const now = new Date();
+      let start: Date;
+      if (period === 'day') {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (period === 'week') {
+        start = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      } else {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+      const myBookings = await db.select().from(bookings).where(
+        and(
+          eq(bookings.specialistId, userId),
+          eq(bookings.status, 'completed'),
+          gte(bookings.createdAt, start)
+        )
+      );
+      const myTips = await db.select().from(tips).where(
+        and(eq(tips.staffId, userId), gte(tips.createdAt, start))
+      );
+      const totalEarnings = myBookings.reduce((s: number, b: any) => s + (b.totalPrice || 0), 0);
+      const totalTips = myTips.reduce((s: number, t: any) => s + (t.amount || 0), 0);
+      const tipMap: Record<string, number> = {};
+      myTips.forEach((t: any) => { tipMap[t.bookingId] = (tipMap[t.bookingId] || 0) + t.amount; });
+      const recentBookings = myBookings.slice(0, 20).map((b: any) => ({
+        ...b, tip: tipMap[b.id] || 0,
+      }));
+      res.json({
+        totalEarnings,
+        totalTips,
+        completedBookings: myBookings.length,
+        avgPerBooking: myBookings.length > 0 ? totalEarnings / myBookings.length : 0,
+        recentBookings,
+      });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Verify License (public)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.post("/api/auth/verify-license", async (req: Request, res: Response) => {
+    try {
+      const { email, licenseKey } = req.body;
+      if (!email || !licenseKey) return res.status(400).json({ message: "Email and license key are required" });
+      const [lk] = await db.select().from(licenseKeys).where(eq(licenseKeys.key, licenseKey.toUpperCase()));
+      if (!lk) return res.status(404).json({ message: "Invalid license key" });
+      if (lk.status === 'revoked') return res.status(403).json({ message: "License key has been revoked" });
+      if (lk.status === 'suspended') return res.status(403).json({ message: "License key is suspended" });
+      if (lk.expiresAt && new Date(lk.expiresAt) < new Date()) {
+        return res.status(403).json({ message: "License key has expired" });
+      }
+      let salonName = '';
+      if (lk.salonId) {
+        const [salon] = await db.select().from(salons).where(eq(salons.id, lk.salonId));
+        if (salon) salonName = salon.name;
+      }
+      if (lk.status === 'unused') {
+        await db.update(licenseKeys).set({ status: 'active' }).where(eq(licenseKeys.id, lk.id));
+      }
+      res.json({ valid: true, salonId: lk.salonId, salonName, planId: lk.planId, status: lk.status || 'active' });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Super Admin: Store Analytics
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/store-analytics", requireSuperAdmin, async (_req: Request, res: Response) => {
+    try {
+      const allSalons = await db.select().from(salons);
+      const allBookings = await db.select().from(bookings);
+      const totalRevenue = allBookings.reduce((s: number, b: any) => s + (b.totalPrice || 0), 0);
+      const avgRating = allSalons.length > 0
+        ? allSalons.reduce((s: number, s2: any) => s + (s2.rating || 0), 0) / allSalons.length
+        : 0;
+      // Revenue by month (last 6 months)
+      const months: Record<string, number> = {};
+      const bookingsPerMonth: Record<string, number> = {};
+      allBookings.forEach((b: any) => {
+        if (b.createdAt) {
+          const d = new Date(b.createdAt);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          months[key] = (months[key] || 0) + (b.totalPrice || 0);
+          bookingsPerMonth[key] = (bookingsPerMonth[key] || 0) + 1;
+        }
+      });
+      const sortedKeys = Object.keys(months).sort().slice(-6);
+      const revenueByMonth = sortedKeys.map(k => ({ month: k, revenue: months[k] }));
+      const bookingsByMonth = sortedKeys.map(k => ({ month: k, bookings: bookingsPerMonth[k] || 0 }));
+      // Top salons by booking count
+      const salonBookings: Record<string, { count: number; revenue: number }> = {};
+      allBookings.forEach((b: any) => {
+        if (!salonBookings[b.salonId]) salonBookings[b.salonId] = { count: 0, revenue: 0 };
+        salonBookings[b.salonId].count++;
+        salonBookings[b.salonId].revenue += b.totalPrice || 0;
+      });
+      const topSalons = allSalons.map((s: any) => ({
+        ...s,
+        bookingCount: salonBookings[s.id]?.count || 0,
+        revenue: salonBookings[s.id]?.revenue || 0,
+      })).sort((a: any, b: any) => b.bookingCount - a.bookingCount).slice(0, 10);
+      res.json({ totalSalons: allSalons.length, totalBookings: allBookings.length, totalRevenue, avgRating, revenueByMonth, bookingsByMonth, topSalons });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Salon Analytics
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/salon/analytics", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const period = (req.query.period as string) || 'month';
+      const now = new Date();
+      let start: Date;
+      if (period === 'week') start = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+      else if (period === 'year') start = new Date(now.getFullYear(), 0, 1);
+      else start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const myBookings = await db.select().from(bookings).where(
+        and(eq(bookings.salonId, salonId), gte(bookings.createdAt, start))
+      );
+      const prevStart = new Date(start.getTime() - (now.getTime() - start.getTime()));
+      const prevBookings = await db.select().from(bookings).where(
+        and(eq(bookings.salonId, salonId), gte(bookings.createdAt, prevStart), lte(bookings.createdAt, start))
+      );
+      const totalRevenue = myBookings.reduce((s: number, b: any) => s + (b.totalPrice || 0), 0);
+      const avgBookingValue = myBookings.length > 0 ? totalRevenue / myBookings.length : 0;
+      // Group by period label
+      const grouped: Record<string, { count: number; revenue: number }> = {};
+      myBookings.forEach((b: any) => {
+        if (!b.date) return;
+        let key = b.date;
+        if (period === 'year') key = b.date.slice(0, 7);
+        else if (period === 'month') key = b.date.slice(5);
+        else key = b.date;
+        if (!grouped[key]) grouped[key] = { count: 0, revenue: 0 };
+        grouped[key].count++;
+        grouped[key].revenue += b.totalPrice || 0;
+      });
+      const bookingsByPeriod = Object.entries(grouped).sort().map(([label, v]) => ({ label, ...v }));
+      // Top services
+      const serviceCount: Record<string, number> = {};
+      myBookings.forEach((b: any) => {
+        (b.services || []).forEach((svc: string) => {
+          serviceCount[svc] = (serviceCount[svc] || 0) + 1;
+        });
+      });
+      const topServices = Object.entries(serviceCount).sort(([, a], [, b]) => b - a).slice(0, 5).map(([name, count]) => ({ name, count }));
+      // New customers this period
+      const customerIds = new Set(myBookings.map((b: any) => b.userId));
+      const prevIds = new Set(prevBookings.map((b: any) => b.userId));
+      const newCustomers = [...customerIds].filter(id => !prevIds.has(id)).length;
+      res.json({ totalBookings: myBookings.length, totalRevenue, avgBookingValue, newCustomers, bookingsByPeriod, topServices });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Customer Notes (Salon Admin)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/salon/customers/:customerId/notes", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const notes = await db.select().from(customerNotes).where(
+        and(eq(customerNotes.salonId, salonId), eq(customerNotes.customerId, req.params.customerId))
+      ).orderBy(desc(customerNotes.createdAt));
+      res.json(notes);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/salon/customers/:customerId/notes", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [note] = await db.insert(customerNotes).values({
+        salonId, customerId: req.params.customerId, note: req.body.note
+      }).returning();
+      res.json(note);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Inventory (Salon Admin)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/salon/inventory", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      res.json(await db.select().from(inventory).where(eq(inventory.salonId, salonId)).orderBy(desc(inventory.createdAt)));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/salon/inventory", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [item] = await db.insert(inventory).values({ ...req.body, salonId }).returning();
+      res.json(item);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/salon/inventory/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const [item] = await db.update(inventory).set(req.body).where(eq(inventory.id, req.params.id)).returning();
+      res.json(item);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/salon/inventory/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(inventory).where(eq(inventory.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Tips (Salon Admin adds tip per booking)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.post("/api/salon/tips", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [tip] = await db.insert(tips).values({ ...req.body, salonId }).returning();
+      res.json(tip);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/salon/tips", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      res.json(await db.select().from(tips).where(eq(tips.salonId, salonId)).orderBy(desc(tips.createdAt)));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Loyalty (Customer App)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/loyalty/my-transactions", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const txns = await db.select().from(loyaltyTransactions).where(eq(loyaltyTransactions.userId, userId)).orderBy(desc(loyaltyTransactions.createdAt));
+      const [user] = await db.select().from(users).where(eq(users.id, userId));
+      res.json({ points: user?.loyaltyPoints ?? 0, transactions: txns });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/loyalty/redeem", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const { points } = req.body;
+      if (!points || points <= 0) return res.status(400).json({ message: "Invalid points amount" });
+      const [user] = await db.select().from(users).where(eq(users.id, userId));
+      if (!user || (user.loyaltyPoints ?? 0) < points) {
+        return res.status(400).json({ message: "Insufficient loyalty points" });
+      }
+      await db.update(users).set({ loyaltyPoints: (user.loyaltyPoints ?? 0) - points }).where(eq(users.id, userId));
+      await db.insert(loyaltyTransactions).values({
+        userId, points: -points, type: 'redeemed', description: `Redeemed ${points} points`
+      });
+      res.json({ success: true, remainingPoints: (user.loyaltyPoints ?? 0) - points });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 }

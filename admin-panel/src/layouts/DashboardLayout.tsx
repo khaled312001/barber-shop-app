@@ -4,7 +4,8 @@ import {
     LayoutDashboard, Users, Scissors, CalendarCheck, LogOut, Ticket, CreditCard,
     BarChart3, MessageSquare, Settings as SettingsIcon, Menu, X, ChevronDown,
     Building2, Globe, UserCheck, Key, Activity,
-    DollarSign, FileText, Bell, ClipboardList, Database, MessageCircle, Wallet
+    DollarSign, FileText, Bell, ClipboardList, Database, MessageCircle, Wallet,
+    Zap, TrendingUp
 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -33,11 +34,13 @@ const navSections: NavSection[] = [
             { name: 'Tenants', path: '/tenants', icon: UserCheck },
             { name: 'Subscriptions', path: '/subscriptions', icon: CreditCard },
             { name: 'License Keys', path: '/license-keys', icon: Key },
+            { name: 'Plans Manager', path: '/plans', icon: Zap },
         ]
     },
     {
         label: 'ANALYTICS',
         items: [
+            { name: 'Store Analytics', path: '/store-analytics', icon: TrendingUp },
             { name: 'Analytics', path: '/reports', icon: BarChart3 },
             { name: 'Commissions', path: '/commissions', icon: DollarSign },
             { name: 'System Health', path: '/system-health', icon: Activity },
