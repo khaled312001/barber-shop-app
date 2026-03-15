@@ -216,7 +216,8 @@ function configureExpoAndLanding(app: express.Application) {
       req.path.startsWith("/api") ||
       req.path.startsWith("/super_admin") ||
       req.path.startsWith("/uploads") ||
-      req.path.startsWith("/assets")
+      req.path.startsWith("/assets") ||
+      req.path.startsWith("/salon/")
     ) {
       return next();
     }

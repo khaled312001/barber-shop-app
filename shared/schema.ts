@@ -36,6 +36,12 @@ export const salons = pgTable("salons", {
   gallery: jsonb("gallery").$type<string[]>().default([]),
   status: text("status").default("active"), // active | suspended | deactivated
   ownerId: varchar("owner_id", { length: 255 }).default(""), // salon_admin user id
+  landingEnabled: boolean("landing_enabled").default(false),
+  landingSlug: text("landing_slug").default(""),
+  landingViews: integer("landing_views").default(0),
+  landingTheme: text("landing_theme").default("dark"), // dark | light
+  landingAccentColor: text("landing_accent_color").default("#F4A460"),
+  landingBookingUrl: text("landing_booking_url").default(""),
 });
 
 // Links users to salons as salon_admin or staff

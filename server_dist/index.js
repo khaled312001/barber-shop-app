@@ -109,8 +109,15 @@ var salons = (0, import_pg_core.pgTable)("salons", {
   gallery: (0, import_pg_core.jsonb)("gallery").$type().default([]),
   status: (0, import_pg_core.text)("status").default("active"),
   // active | suspended | deactivated
-  ownerId: (0, import_pg_core.varchar)("owner_id", { length: 255 }).default("")
+  ownerId: (0, import_pg_core.varchar)("owner_id", { length: 255 }).default(""),
   // salon_admin user id
+  landingEnabled: (0, import_pg_core.boolean)("landing_enabled").default(false),
+  landingSlug: (0, import_pg_core.text)("landing_slug").default(""),
+  landingViews: (0, import_pg_core.integer)("landing_views").default(0),
+  landingTheme: (0, import_pg_core.text)("landing_theme").default("dark"),
+  // dark | light
+  landingAccentColor: (0, import_pg_core.text)("landing_accent_color").default("#F4A460"),
+  landingBookingUrl: (0, import_pg_core.text)("landing_booking_url").default("")
 });
 var salonStaff = (0, import_pg_core.pgTable)("salon_staff", {
   id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
@@ -2222,6 +2229,154 @@ function registerAdminRoutes(app2) {
       res.status(500).json({ message: err.message });
     }
   });
+  app2.get("/api/admin/landing-pages", async (req, res) => {
+    try {
+      const role = req.session?.role;
+      if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
+      const rows = await db.select().from(salons).orderBy(salons.name);
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+  app2.put("/api/admin/landing-pages/:salonId", async (req, res) => {
+    try {
+      const role = req.session?.role;
+      if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
+      const { salonId } = req.params;
+      const { landingEnabled, landingSlug, landingTheme, landingAccentColor, landingBookingUrl } = req.body;
+      if (landingSlug !== void 0) {
+        const slug = String(landingSlug).trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+        const [existing] = await db.select().from(salons).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salons.landingSlug, slug), import_drizzle_orm3.sql`id != ${salonId}`));
+        if (existing) return res.status(400).json({ message: "This slug is already in use by another salon." });
+        const updates = { landingSlug: slug };
+        if (landingEnabled !== void 0) updates.landingEnabled = landingEnabled;
+        if (landingTheme !== void 0) updates.landingTheme = landingTheme;
+        if (landingAccentColor !== void 0) updates.landingAccentColor = landingAccentColor;
+        if (landingBookingUrl !== void 0) updates.landingBookingUrl = landingBookingUrl;
+        await db.update(salons).set(updates).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+      } else {
+        const updates = {};
+        if (landingEnabled !== void 0) updates.landingEnabled = landingEnabled;
+        if (landingTheme !== void 0) updates.landingTheme = landingTheme;
+        if (landingAccentColor !== void 0) updates.landingAccentColor = landingAccentColor;
+        if (landingBookingUrl !== void 0) updates.landingBookingUrl = landingBookingUrl;
+        if (Object.keys(updates).length) await db.update(salons).set(updates).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+      }
+      const [updated] = await db.select().from(salons).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+  app2.post("/api/admin/landing-pages/:salonId/reset-views", async (req, res) => {
+    try {
+      const role = req.session?.role;
+      if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
+      await db.update(salons).set({ landingViews: 0 }).where((0, import_drizzle_orm3.eq)(salons.id, req.params.salonId));
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+  app2.get("/salon/:slug", async (req, res) => {
+    try {
+      const slug = req.params.slug.toLowerCase();
+      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salons.landingSlug, slug), (0, import_drizzle_orm3.eq)(salons.landingEnabled, true)));
+      if (!salon) {
+        return res.status(404).send(`<!DOCTYPE html><html><head><title>Not Found</title><style>body{background:#181A20;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column}</style></head><body><h1 style="font-size:3rem">404</h1><p>Salon page not found or not yet published.</p></body></html>`);
+      }
+      await db.update(salons).set({ landingViews: (salon.landingViews ?? 0) + 1 }).where((0, import_drizzle_orm3.eq)(salons.id, salon.id));
+      const isDark = (salon.landingTheme || "dark") === "dark";
+      const accent = salon.landingAccentColor || "#F4A460";
+      const bg = isDark ? "#181A20" : "#f5f5f5";
+      const card = isDark ? "#1F222A" : "#ffffff";
+      const border = isDark ? "#35383F" : "#e0e0e0";
+      const text2 = isDark ? "#ffffff" : "#111111";
+      const textSub = isDark ? "#9a9a9a" : "#555555";
+      const gallery = Array.isArray(salon.gallery) ? salon.gallery : [];
+      const rating = Number(salon.rating || 0).toFixed(1);
+      const stars = "\u2605".repeat(Math.round(Number(salon.rating || 0))) + "\u2606".repeat(5 - Math.round(Number(salon.rating || 0)));
+      const bookingUrl = salon.landingBookingUrl || "";
+      const galleryHtml = gallery.slice(0, 6).map((src) => `<img src="${src}" alt="Gallery" style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid ${border}">`).join("");
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>${salon.name} \u2014 Powered by Barmagly</title>
+  <meta name="description" content="${(salon.about || "").replace(/"/g, "&quot;")}">
+  <meta property="og:title" content="${salon.name}">
+  <meta property="og:image" content="${salon.image}">
+  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:${bg};color:${text2};font-family:'Urbanist',sans-serif;min-height:100vh}
+    .hero{position:relative;height:320px;overflow:hidden}
+    .hero img{width:100%;height:100%;object-fit:cover}
+    .hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.1),rgba(0,0,0,0.7))}
+    .hero-badge{position:absolute;top:20px;right:20px;background:${accent};color:#000;font-size:12px;font-weight:700;padding:6px 14px;border-radius:999px}
+    .container{max-width:760px;margin:0 auto;padding:0 20px 60px}
+    .card{background:${card};border:1px solid ${border};border-radius:20px;padding:24px;margin-top:20px}
+    .salon-name{font-size:28px;font-weight:800;margin-bottom:4px}
+    .rating-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+    .stars{color:${accent};font-size:18px;letter-spacing:1px}
+    .rating-num{font-weight:700;font-size:16px}
+    .review-count{color:${textSub};font-size:14px}
+    .open-badge{background:${salon.isOpen ? "#22c55e" : "#ef4444"};color:#fff;font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px}
+    .info-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid ${border};font-size:15px;color:${text2}}
+    .info-row:last-child{border-bottom:none}
+    .info-icon{font-size:18px;width:24px;flex-shrink:0;margin-top:1px}
+    .info-label{color:${textSub};font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+    .section-title{font-size:18px;font-weight:700;margin-bottom:16px}
+    .about-text{color:${textSub};line-height:1.7;font-size:15px}
+    .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+    .book-btn{display:block;width:100%;background:${accent};color:#000;font-family:'Urbanist',sans-serif;font-size:17px;font-weight:800;padding:17px;border-radius:14px;border:none;cursor:pointer;text-align:center;text-decoration:none;margin-top:20px;letter-spacing:.3px;transition:opacity .2s}
+    .book-btn:hover{opacity:.88}
+    .powered{text-align:center;color:${textSub};font-size:13px;margin-top:28px}
+    .powered span{color:${accent};font-weight:700}
+    @media(max-width:480px){.hero{height:220px}.salon-name{font-size:22px}}
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <img src="${salon.image}" alt="${salon.name}">
+    <div class="hero-overlay"></div>
+    <div class="hero-badge">${salon.isOpen ? "Open Now" : "Closed"}</div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h1 class="salon-name">${salon.name}</h1>
+      <div class="rating-row">
+        <span class="stars">${stars}</span>
+        <span class="rating-num">${rating}</span>
+        <span class="review-count">(${salon.reviewCount ?? 0} reviews)</span>
+        <span class="open-badge">${salon.isOpen ? "\u25CF Open" : "\u25CF Closed"}</span>
+      </div>
+
+      ${salon.address ? `<div class="info-row"><span class="info-icon">\u{1F4CD}</span><div><div class="info-label">Address</div>${salon.address}</div></div>` : ""}
+      ${salon.phone ? `<div class="info-row"><span class="info-icon">\u{1F4DE}</span><div><div class="info-label">Phone</div><a href="tel:${salon.phone}" style="color:${text2};text-decoration:none">${salon.phone}</a></div></div>` : ""}
+      ${salon.openHours ? `<div class="info-row"><span class="info-icon">\u{1F550}</span><div><div class="info-label">Hours</div>${salon.openHours}</div></div>` : ""}
+      ${salon.website ? `<div class="info-row"><span class="info-icon">\u{1F310}</span><div><div class="info-label">Website</div><a href="${salon.website}" target="_blank" style="color:${accent};text-decoration:none">${salon.website}</a></div></div>` : ""}
+    </div>
+
+    ${salon.about ? `<div class="card"><p class="section-title">About</p><p class="about-text">${salon.about}</p></div>` : ""}
+
+    ${gallery.length > 0 ? `<div class="card"><p class="section-title">Gallery</p><div class="gallery-grid">${galleryHtml}</div></div>` : ""}
+
+    ${bookingUrl ? `<a class="book-btn" href="${bookingUrl}" target="_blank">Book Appointment</a>` : ""}
+
+    <p class="powered">Powered by <span>Barmagly</span></p>
+  </div>
+</body>
+</html>`;
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(html);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
 }
 
 // server/routes.ts
@@ -3020,7 +3175,7 @@ function configureExpoAndLanding(app2) {
   app2.use(import_express.default.static(path3.resolve(process.cwd(), "static-build")));
   const staticBuildIndex = path3.resolve(process.cwd(), "static-build", "index.html");
   app2.use((req, res, next) => {
-    if (req.path.startsWith("/api") || req.path.startsWith("/super_admin") || req.path.startsWith("/uploads") || req.path.startsWith("/assets")) {
+    if (req.path.startsWith("/api") || req.path.startsWith("/super_admin") || req.path.startsWith("/uploads") || req.path.startsWith("/assets") || req.path.startsWith("/salon/")) {
       return next();
     }
     if (fs2.existsSync(staticBuildIndex)) {
