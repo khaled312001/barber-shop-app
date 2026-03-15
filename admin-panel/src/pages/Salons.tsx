@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Activity, Trash2, Search, Star, Edit2, Plus, X, Copy, Check, Mail } from 'lucide-react';
+import { Activity, Trash2, Search, Star, Edit2, Plus, X, Copy, Check, Mail, UserPlus, KeyRound } from 'lucide-react';
 import api from '../lib/api';
 
 interface Salon {
@@ -22,6 +22,8 @@ export default function Salons() {
     const [isUploading, setIsUploading] = React.useState(false);
     const [uploadError, setUploadError] = React.useState('');
     const [copiedId, setCopiedId] = useState<string>('');
+    const [credsModal, setCredsModal] = useState<{ email: string; password: string; salonName: string } | null>(null);
+    const [copiedCred, setCopiedCred] = useState('');
 
     const copyEmail = (email: string, id: string) => {
         if (!email) return;
@@ -60,6 +62,24 @@ export default function Salons() {
         },
         onError: (err: any) => alert(err.response?.data?.message || err.message),
     });
+
+    const createAccountMutation = useMutation({
+        mutationFn: async (salon: Salon) => {
+            const { data } = await api.post(`/admin/salons/${salon.id}/create-default-account`);
+            return { ...data, salonName: salon.name };
+        },
+        onSuccess: (data) => {
+            qc.invalidateQueries({ queryKey: ['admin-salons'] });
+            setCredsModal(data);
+        },
+        onError: (err: any) => alert(err.response?.data?.message || err.message),
+    });
+
+    const copyCred = (text: string, key: string) => {
+        navigator.clipboard.writeText(text);
+        setCopiedCred(key);
+        setTimeout(() => setCopiedCred(''), 2000);
+    };
 
     const handleDelete = (id: string, name: string) => {
         if (window.confirm(`Delete salon "${name}"?`)) deleteMutation.mutate(id);
@@ -208,16 +228,36 @@ export default function Salons() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+                                            {!s.ownerEmail && (
+                                                <button
+                                                    onClick={() => createAccountMutation.mutate(s)}
+                                                    disabled={createAccountMutation.isPending}
+                                                    title="Create default account"
+                                                    className="p-2 text-zinc-400 hover:text-[#F4A460] hover:bg-[#F4A46015] rounded-lg transition-colors"
+                                                >
+                                                    <UserPlus size={16} />
+                                                </button>
+                                            )}
+                                            {s.ownerEmail && (
+                                                <button
+                                                    onClick={() => createAccountMutation.mutate(s)}
+                                                    disabled={createAccountMutation.isPending}
+                                                    title="Show / regenerate account credentials"
+                                                    className="p-2 text-zinc-400 hover:text-[#F4A460] hover:bg-[#F4A46015] rounded-lg transition-colors"
+                                                >
+                                                    <KeyRound size={16} />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => openModal(s)}
-                                                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-colors focus:opacity-100"
+                                                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-colors"
                                             >
                                                 <Edit2 size={16} />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(s.id, s.name)}
-                                                className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors focus:opacity-100"
+                                                className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -340,6 +380,63 @@ export default function Salons() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Credentials Modal */}
+            {credsModal && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-bg-card border border-border rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+                        <div className="flex justify-between items-center p-6 border-b border-border">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-[#F4A46020] flex items-center justify-center">
+                                    <KeyRound size={18} className="text-[#F4A460]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-base font-bold text-white">Account Created</h2>
+                                    <p className="text-xs text-zinc-500">{credsModal.salonName}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setCredsModal(null)} className="text-text-muted hover:text-white transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-xs text-zinc-400">Share these login credentials with the salon owner. The password is <span className="text-yellow-400">salon123</span> — remind them to change it after first login.</p>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 block">Email</label>
+                                    <div className="flex items-center gap-2 bg-[#181A20] border border-[#35383F] rounded-xl px-3 py-2.5">
+                                        <Mail size={14} className="text-[#F4A460] shrink-0" />
+                                        <span className="flex-1 text-sm text-white font-mono">{credsModal.email}</span>
+                                        <button onClick={() => copyCred(credsModal.email, 'email')} className="text-zinc-500 hover:text-[#F4A460] transition-colors">
+                                            {copiedCred === 'email' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 block">Password</label>
+                                    <div className="flex items-center gap-2 bg-[#181A20] border border-[#35383F] rounded-xl px-3 py-2.5">
+                                        <KeyRound size={14} className="text-[#F4A460] shrink-0" />
+                                        <span className="flex-1 text-sm text-white font-mono">{credsModal.password}</span>
+                                        <button onClick={() => copyCred(credsModal.password, 'pass')} className="text-zinc-500 hover:text-[#F4A460] transition-colors">
+                                            {copiedCred === 'pass' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    copyCred(`Email: ${credsModal.email}\nPassword: ${credsModal.password}`, 'all');
+                                }}
+                                className="w-full bg-[#F4A460] hover:opacity-90 text-black font-bold py-2.5 rounded-xl text-sm transition-opacity flex items-center justify-center gap-2"
+                            >
+                                {copiedCred === 'all' ? <><Check size={15} /> Copied!</> : <><Copy size={15} /> Copy Both</>}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

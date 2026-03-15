@@ -245,6 +245,55 @@ export function registerAdminRoutes(app: Express) {
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
+  // ── Create Default Salon Admin Account ──────────────────────────────────────
+  app.post("/api/admin/salons/:id/create-default-account", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = String(req.params.id);
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
+      if (!salon) return res.status(404).json({ message: "Salon not found" });
+
+      // Build a clean slug from salon name
+      const slug = salon.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 30);
+      const email = `${slug}@barmagly.com`;
+      const defaultPassword = "salon123";
+
+      // Check if account already exists
+      const existing = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      let user = existing[0];
+
+      if (!user) {
+        const hashed = await bcrypt.hash(defaultPassword, 10);
+        const [created] = await db.insert(users).values({
+          fullName: salon.name,
+          email,
+          password: hashed,
+          role: "salon_admin",
+          phone: "",
+          avatar: "",
+        }).returning();
+        user = created;
+      }
+
+      // Link to salon via salonStaff (upsert)
+      const staffExisting = await db.select().from(salonStaff).where(eq(salonStaff.salonId, salonId)).limit(1);
+      if (staffExisting.length === 0) {
+        await db.insert(salonStaff).values({ salonId, userId: user.id, role: "salon_admin" });
+      } else {
+        await db.update(salonStaff).set({ userId: user.id, role: "salon_admin" }).where(eq(salonStaff.salonId, salonId));
+      }
+      // Set ownerId on salon
+      await db.update(salons).set({ ownerId: user.id }).where(eq(salons.id, salonId));
+
+      await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "salon.owner.created", entityType: "salon", entityId: salonId, metadata: { email } });
+
+      res.json({ email, password: defaultPassword, userId: user.id });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   // ── Tenants (alias for salons with staff info) ──────────────────────────────
   app.get("/api/admin/tenants", requireSuperAdmin, async (_req, res) => {
     try {
