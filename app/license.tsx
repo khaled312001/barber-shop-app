@@ -20,6 +20,14 @@ const LANGUAGES: { code: Language; label: string; flag: string }[] = [
   { code: 'de', label: 'Deutsch', flag: 'DE' },
 ];
 
+async function getOrCreateDeviceId(): Promise<string> {
+  const stored = await AsyncStorage.getItem('device_id');
+  if (stored) return stored;
+  const id = `device-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  await AsyncStorage.setItem('device_id', id);
+  return id;
+}
+
 export default function LicenseScreen() {
   const { t, language, setLanguage, isRTL } = useLanguage();
   const [email, setEmail] = useState('');
@@ -33,9 +41,11 @@ export default function LicenseScreen() {
     }
     setLoading(true);
     try {
+      const deviceId = await getOrCreateDeviceId();
       const res = await apiRequest('POST', '/api/auth/verify-license', {
         email: email.trim(),
         licenseKey: licenseKey.trim().toUpperCase(),
+        deviceId,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Invalid license');
@@ -48,7 +58,12 @@ export default function LicenseScreen() {
       router.replace('/role-select');
     } catch (e: any) {
       const msg = e?.message || '';
-      if (msg.includes('expired')) {
+      if (msg.includes('Activation limit reached') || msg.includes('activation limit')) {
+        Alert.alert(
+          t('license_limit_alert') || 'Activation Limit Reached',
+          t('license_limit_msg') || msg,
+        );
+      } else if (msg.includes('expired')) {
         Alert.alert(t('license_expired_alert'), t('license_expired_msg'));
       } else if (msg.includes('suspended')) {
         Alert.alert(t('license_suspended_alert'), t('license_suspended_msg'));

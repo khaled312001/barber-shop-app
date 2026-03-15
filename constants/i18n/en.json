@@ -237,6 +237,8 @@
   "license_suspended_msg": "License key is suspended. Please contact support.",
   "license_revoked_alert": "Revoked",
   "license_revoked_msg": "This license key has been revoked.",
+  "license_limit_alert": "Activation Limit Reached",
+  "license_limit_msg": "This license key has reached its maximum number of device activations. Contact your administrator.",
 
   "select_your_role": "Select Your Role",
   "role_subtitle": "The right interface will open automatically",

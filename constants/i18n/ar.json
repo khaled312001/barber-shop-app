@@ -238,6 +238,8 @@
   "license_suspended_msg": "مفتاح الترخيص موقوف. تواصل مع الدعم.",
   "license_revoked_alert": "ملغي",
   "license_revoked_msg": "مفتاح الترخيص ملغي.",
+  "license_limit_alert": "تم الوصول للحد الأقصى للتفعيل",
+  "license_limit_msg": "وصل مفتاح الترخيص هذا للحد الأقصى من الأجهزة المسموح بها. تواصل مع المسؤول.",
 
   "select_your_role": "اختر دورك",
   "role_subtitle": "ستُفتح الواجهة المناسبة لدورك تلقائياً",

@@ -238,6 +238,8 @@
   "license_suspended_msg": "Lizenzschlüssel ist gesperrt. Bitte kontaktieren Sie den Support.",
   "license_revoked_alert": "Widerrufen",
   "license_revoked_msg": "Dieser Lizenzschlüssel wurde widerrufen.",
+  "license_limit_alert": "Aktivierungslimit erreicht",
+  "license_limit_msg": "Dieser Lizenzschlüssel hat das Maximum an Geräteaktivierungen erreicht. Kontaktieren Sie Ihren Administrator.",
 
   "select_your_role": "Ihre Rolle wählen",
   "role_subtitle": "Die passende Oberfläche öffnet sich automatisch",

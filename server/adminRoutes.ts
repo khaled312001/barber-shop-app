@@ -2,7 +2,7 @@ import { Express, Request, Response } from "express";
 import { db } from "./db";
 import {
   users, salons, bookings, reviews, coupons, appSettings, messages, services,
-  salonStaff, plans, subscriptions, licenseKeys, activityLogs, commissions, expenses, shifts,
+  salonStaff, plans, subscriptions, licenseKeys, licenseActivations, activityLogs, commissions, expenses, shifts,
   inventory, tips, customerNotes, loyaltyTransactions,
 } from "@shared/schema";
 import { eq, sql, and, desc, gte, lte } from "drizzle-orm";
@@ -881,8 +881,9 @@ export function registerAdminRoutes(app: Express) {
   // ════════════════════════════════════════════════════════════════════════════
   app.post("/api/auth/verify-license", async (req: Request, res: Response) => {
     try {
-      const { email, licenseKey } = req.body;
+      const { email, licenseKey, deviceId } = req.body;
       if (!email || !licenseKey) return res.status(400).json({ message: "Email and license key are required" });
+
       const [lk] = await db.select().from(licenseKeys).where(eq(licenseKeys.key, licenseKey.toUpperCase()));
       if (!lk) return res.status(404).json({ message: "Invalid license key" });
       if (lk.status === 'revoked') return res.status(403).json({ message: "License key has been revoked" });
@@ -890,15 +891,38 @@ export function registerAdminRoutes(app: Express) {
       if (lk.expiresAt && new Date(lk.expiresAt) < new Date()) {
         return res.status(403).json({ message: "License key has expired" });
       }
+
+      // Device activation tracking
+      const effectiveDeviceId = deviceId || `web-${email}`;
+      const existingActivations = await db.select().from(licenseActivations).where(eq(licenseActivations.licenseKeyId, lk.id));
+      const alreadyActivated = existingActivations.some(a => a.deviceId === effectiveDeviceId);
+
+      if (!alreadyActivated) {
+        // Check activation limit
+        const maxAct = lk.maxActivations ?? 0;
+        const currentCount = lk.activationCount ?? 0;
+        if (maxAct > 0 && currentCount >= maxAct) {
+          return res.status(403).json({ message: `Activation limit reached (${maxAct}/${maxAct} devices)` });
+        }
+        // Register this new device
+        await db.insert(licenseActivations).values({ licenseKeyId: lk.id, deviceId: effectiveDeviceId, email });
+        await db.update(licenseKeys).set({
+          activationCount: currentCount + 1,
+          status: 'active',
+        }).where(eq(licenseKeys.id, lk.id));
+      }
+
       let salonName = '';
       if (lk.salonId) {
         const [salon] = await db.select().from(salons).where(eq(salons.id, lk.salonId));
         if (salon) salonName = salon.name;
       }
-      if (lk.status === 'unused') {
-        await db.update(licenseKeys).set({ status: 'active' }).where(eq(licenseKeys.id, lk.id));
-      }
-      res.json({ valid: true, salonId: lk.salonId, salonName, planId: lk.planId, status: lk.status || 'active' });
+
+      const updatedCount = alreadyActivated ? (lk.activationCount ?? 0) : (lk.activationCount ?? 0) + 1;
+      res.json({
+        valid: true, salonId: lk.salonId, salonName, planId: lk.planId, status: 'active',
+        activationCount: updatedCount, maxActivations: lk.maxActivations ?? 0,
+      });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

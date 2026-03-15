@@ -81,7 +81,18 @@ export const licenseKeys = pgTable("license_keys", {
   planId: varchar("plan_id", { length: 255 }).default(""),
   status: text("status").notNull().default("unused"), // unused | active | revoked
   expiresAt: text("expires_at").default(""),
+  maxActivations: integer("max_activations").default(0), // 0 = unlimited
+  activationCount: integer("activation_count").default(0), // how many devices activated
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tracks which device IDs have activated a license key
+export const licenseActivations = pgTable("license_activations", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  licenseKeyId: varchar("license_key_id", { length: 255 }).notNull(),
+  deviceId: text("device_id").notNull(),
+  email: text("email").default(""),
+  activatedAt: timestamp("activated_at").defaultNow(),
 });
 
 // Platform activity logs

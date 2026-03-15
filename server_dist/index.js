@@ -55,6 +55,7 @@ __export(schema_exports, {
   expenses: () => expenses,
   insertUserSchema: () => insertUserSchema,
   inventory: () => inventory,
+  licenseActivations: () => licenseActivations,
   licenseKeys: () => licenseKeys,
   loyaltyTransactions: () => loyaltyTransactions,
   messages: () => messages,
@@ -156,7 +157,18 @@ var licenseKeys = (0, import_pg_core.pgTable)("license_keys", {
   status: (0, import_pg_core.text)("status").notNull().default("unused"),
   // unused | active | revoked
   expiresAt: (0, import_pg_core.text)("expires_at").default(""),
+  maxActivations: (0, import_pg_core.integer)("max_activations").default(0),
+  // 0 = unlimited
+  activationCount: (0, import_pg_core.integer)("activation_count").default(0),
+  // how many devices activated
   createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+});
+var licenseActivations = (0, import_pg_core.pgTable)("license_activations", {
+  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
+  licenseKeyId: (0, import_pg_core.varchar)("license_key_id", { length: 255 }).notNull(),
+  deviceId: (0, import_pg_core.text)("device_id").notNull(),
+  email: (0, import_pg_core.text)("email").default(""),
+  activatedAt: (0, import_pg_core.timestamp)("activated_at").defaultNow()
 });
 var activityLogs = (0, import_pg_core.pgTable)("activity_logs", {
   id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
@@ -1980,7 +1992,7 @@ function registerAdminRoutes(app2) {
   });
   app2.post("/api/auth/verify-license", async (req, res) => {
     try {
-      const { email, licenseKey } = req.body;
+      const { email, licenseKey, deviceId } = req.body;
       if (!email || !licenseKey) return res.status(400).json({ message: "Email and license key are required" });
       const [lk] = await db.select().from(licenseKeys).where((0, import_drizzle_orm3.eq)(licenseKeys.key, licenseKey.toUpperCase()));
       if (!lk) return res.status(404).json({ message: "Invalid license key" });
@@ -1989,15 +2001,36 @@ function registerAdminRoutes(app2) {
       if (lk.expiresAt && new Date(lk.expiresAt) < /* @__PURE__ */ new Date()) {
         return res.status(403).json({ message: "License key has expired" });
       }
+      const effectiveDeviceId = deviceId || `web-${email}`;
+      const existingActivations = await db.select().from(licenseActivations).where((0, import_drizzle_orm3.eq)(licenseActivations.licenseKeyId, lk.id));
+      const alreadyActivated = existingActivations.some((a) => a.deviceId === effectiveDeviceId);
+      if (!alreadyActivated) {
+        const maxAct = lk.maxActivations ?? 0;
+        const currentCount = lk.activationCount ?? 0;
+        if (maxAct > 0 && currentCount >= maxAct) {
+          return res.status(403).json({ message: `Activation limit reached (${maxAct}/${maxAct} devices)` });
+        }
+        await db.insert(licenseActivations).values({ licenseKeyId: lk.id, deviceId: effectiveDeviceId, email });
+        await db.update(licenseKeys).set({
+          activationCount: currentCount + 1,
+          status: "active"
+        }).where((0, import_drizzle_orm3.eq)(licenseKeys.id, lk.id));
+      }
       let salonName = "";
       if (lk.salonId) {
         const [salon] = await db.select().from(salons).where((0, import_drizzle_orm3.eq)(salons.id, lk.salonId));
         if (salon) salonName = salon.name;
       }
-      if (lk.status === "unused") {
-        await db.update(licenseKeys).set({ status: "active" }).where((0, import_drizzle_orm3.eq)(licenseKeys.id, lk.id));
-      }
-      res.json({ valid: true, salonId: lk.salonId, salonName, planId: lk.planId, status: lk.status || "active" });
+      const updatedCount = alreadyActivated ? lk.activationCount ?? 0 : (lk.activationCount ?? 0) + 1;
+      res.json({
+        valid: true,
+        salonId: lk.salonId,
+        salonName,
+        planId: lk.planId,
+        status: "active",
+        activationCount: updatedCount,
+        maxActivations: lk.maxActivations ?? 0
+      });
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
