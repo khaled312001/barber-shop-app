@@ -416,7 +416,7 @@ export default function BookingScreen() {
       </ScrollView>
 
       <View style={[styles.bottomBar, { paddingBottom: bottomPad + 12, backgroundColor: theme.background }]}>
-        {step !== 'success' && total > 0 && step !== 'review' && (
+        {(step as string) !== 'success' && total > 0 && step !== 'review' && (
           <View style={styles.totalRow}>
             <Text style={[styles.totalSmallLabel, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>Total</Text>
             <Text style={[styles.totalSmallValue, { color: theme.primary, fontFamily: 'Urbanist_700Bold' }]}>${total.toFixed(2)}</Text>

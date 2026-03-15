@@ -1256,7 +1256,7 @@ function registerAdminRoutes(app2) {
   app2.put("/api/admin/users/:id", requireSuperAdmin, async (req, res) => {
     try {
       const { fullName, email, role } = req.body;
-      const [user] = await db.update(users).set({ fullName, email, role }).where((0, import_drizzle_orm3.eq)(users.id, req.params.id)).returning();
+      const [user] = await db.update(users).set({ fullName, email, role }).where((0, import_drizzle_orm3.eq)(users.id, String(req.params.id))).returning();
       res.json(user);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1264,7 +1264,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/users/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(users).where((0, import_drizzle_orm3.eq)(users.id, req.params.id));
+      await db.delete(users).where((0, import_drizzle_orm3.eq)(users.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1296,9 +1296,9 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/salons/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [salon] = await db.update(salons).set(req.body).where((0, import_drizzle_orm3.eq)(salons.id, req.params.id)).returning();
+      const [salon] = await db.update(salons).set(req.body).where((0, import_drizzle_orm3.eq)(salons.id, String(req.params.id))).returning();
       if (req.body.status) {
-        await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: req.params.id });
+        await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: String(req.params.id) });
       }
       res.json(salon);
     } catch (err) {
@@ -1307,7 +1307,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/salons/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(salons).where((0, import_drizzle_orm3.eq)(salons.id, req.params.id));
+      await db.delete(salons).where((0, import_drizzle_orm3.eq)(salons.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1346,7 +1346,7 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/bookings/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [booking] = await db.update(bookings).set(req.body).where((0, import_drizzle_orm3.eq)(bookings.id, req.params.id)).returning();
+      const [booking] = await db.update(bookings).set(req.body).where((0, import_drizzle_orm3.eq)(bookings.id, String(req.params.id))).returning();
       res.json(booking);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1354,7 +1354,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/bookings/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(bookings).where((0, import_drizzle_orm3.eq)(bookings.id, req.params.id));
+      await db.delete(bookings).where((0, import_drizzle_orm3.eq)(bookings.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1377,7 +1377,7 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/coupons/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [c] = await db.update(coupons).set(req.body).where((0, import_drizzle_orm3.eq)(coupons.id, req.params.id)).returning();
+      const [c] = await db.update(coupons).set(req.body).where((0, import_drizzle_orm3.eq)(coupons.id, String(req.params.id))).returning();
       res.json(c);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1385,7 +1385,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/coupons/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(coupons).where((0, import_drizzle_orm3.eq)(coupons.id, req.params.id));
+      await db.delete(coupons).where((0, import_drizzle_orm3.eq)(coupons.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1472,7 +1472,7 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/services/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [s] = await db.update(services).set(req.body).where((0, import_drizzle_orm3.eq)(services.id, req.params.id)).returning();
+      const [s] = await db.update(services).set(req.body).where((0, import_drizzle_orm3.eq)(services.id, String(req.params.id))).returning();
       res.json(s);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1480,7 +1480,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/services/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(services).where((0, import_drizzle_orm3.eq)(services.id, req.params.id));
+      await db.delete(services).where((0, import_drizzle_orm3.eq)(services.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1511,7 +1511,7 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/plans/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [plan] = await db.update(plans).set(req.body).where((0, import_drizzle_orm3.eq)(plans.id, req.params.id)).returning();
+      const [plan] = await db.update(plans).set(req.body).where((0, import_drizzle_orm3.eq)(plans.id, String(req.params.id))).returning();
       res.json(plan);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1519,7 +1519,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/plans/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(plans).where((0, import_drizzle_orm3.eq)(plans.id, req.params.id));
+      await db.delete(plans).where((0, import_drizzle_orm3.eq)(plans.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1543,8 +1543,8 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/subscriptions/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [sub] = await db.update(subscriptions).set({ ...req.body, updatedAt: /* @__PURE__ */ new Date() }).where((0, import_drizzle_orm3.eq)(subscriptions.id, req.params.id)).returning();
-      await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: "subscription.updated", entityType: "subscription", entityId: req.params.id });
+      const [sub] = await db.update(subscriptions).set({ ...req.body, updatedAt: /* @__PURE__ */ new Date() }).where((0, import_drizzle_orm3.eq)(subscriptions.id, String(req.params.id))).returning();
+      await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: "subscription.updated", entityType: "subscription", entityId: String(req.params.id) });
       res.json(sub);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1552,7 +1552,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/subscriptions/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(subscriptions).where((0, import_drizzle_orm3.eq)(subscriptions.id, req.params.id));
+      await db.delete(subscriptions).where((0, import_drizzle_orm3.eq)(subscriptions.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1576,7 +1576,7 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/license-keys/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [lk] = await db.update(licenseKeys).set(req.body).where((0, import_drizzle_orm3.eq)(licenseKeys.id, req.params.id)).returning();
+      const [lk] = await db.update(licenseKeys).set(req.body).where((0, import_drizzle_orm3.eq)(licenseKeys.id, String(req.params.id))).returning();
       res.json(lk);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1584,7 +1584,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/license-keys/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(licenseKeys).where((0, import_drizzle_orm3.eq)(licenseKeys.id, req.params.id));
+      await db.delete(licenseKeys).where((0, import_drizzle_orm3.eq)(licenseKeys.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1608,7 +1608,7 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/commissions/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [c] = await db.update(commissions).set(req.body).where((0, import_drizzle_orm3.eq)(commissions.id, req.params.id)).returning();
+      const [c] = await db.update(commissions).set(req.body).where((0, import_drizzle_orm3.eq)(commissions.id, String(req.params.id))).returning();
       res.json(c);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1645,7 +1645,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/salon-staff/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.id, req.params.id));
+      await db.delete(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1715,7 +1715,7 @@ function registerAdminRoutes(app2) {
   app2.put("/api/salon/bookings/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [booking] = await db.update(bookings).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.id, req.params.id), (0, import_drizzle_orm3.eq)(bookings.salonId, salonId))).returning();
+      const [booking] = await db.update(bookings).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(bookings.salonId, salonId))).returning();
       if (req.body.status === "completed" && booking) {
         const sub = await db.select().from(subscriptions).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(subscriptions.salonId, salonId), (0, import_drizzle_orm3.eq)(subscriptions.status, "active")));
         const planId = sub[0]?.planId;
@@ -1751,7 +1751,7 @@ function registerAdminRoutes(app2) {
   app2.put("/api/salon/services/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [s] = await db.update(services).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(services.id, req.params.id), (0, import_drizzle_orm3.eq)(services.salonId, salonId))).returning();
+      const [s] = await db.update(services).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(services.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(services.salonId, salonId))).returning();
       res.json(s);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1760,7 +1760,7 @@ function registerAdminRoutes(app2) {
   app2.delete("/api/salon/services/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      await db.delete(services).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(services.id, req.params.id), (0, import_drizzle_orm3.eq)(services.salonId, salonId)));
+      await db.delete(services).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(services.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(services.salonId, salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1794,7 +1794,7 @@ function registerAdminRoutes(app2) {
   app2.delete("/api/salon/staff/:linkId", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      await db.delete(salonStaff).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salonStaff.id, req.params.linkId), (0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId)));
+      await db.delete(salonStaff).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salonStaff.id, String(req.params.linkId)), (0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1838,7 +1838,7 @@ function registerAdminRoutes(app2) {
   app2.put("/api/salon/expenses/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [e] = await db.update(expenses).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(expenses.id, req.params.id), (0, import_drizzle_orm3.eq)(expenses.salonId, salonId))).returning();
+      const [e] = await db.update(expenses).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(expenses.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(expenses.salonId, salonId))).returning();
       res.json(e);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1847,7 +1847,7 @@ function registerAdminRoutes(app2) {
   app2.delete("/api/salon/expenses/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      await db.delete(expenses).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(expenses.id, req.params.id), (0, import_drizzle_orm3.eq)(expenses.salonId, salonId)));
+      await db.delete(expenses).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(expenses.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(expenses.salonId, salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1873,7 +1873,7 @@ function registerAdminRoutes(app2) {
   app2.put("/api/salon/shifts/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [s] = await db.update(shifts).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(shifts.id, req.params.id), (0, import_drizzle_orm3.eq)(shifts.salonId, salonId))).returning();
+      const [s] = await db.update(shifts).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(shifts.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(shifts.salonId, salonId))).returning();
       res.json(s);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1882,7 +1882,7 @@ function registerAdminRoutes(app2) {
   app2.delete("/api/salon/shifts/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      await db.delete(shifts).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(shifts.id, req.params.id), (0, import_drizzle_orm3.eq)(shifts.salonId, salonId)));
+      await db.delete(shifts).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(shifts.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(shifts.salonId, salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1915,7 +1915,7 @@ function registerAdminRoutes(app2) {
       if (!allowed.includes(req.body.status)) {
         return res.status(400).json({ message: "Staff can only mark bookings as completed or no-show" });
       }
-      const [booking] = await db.update(bookings).set({ status: req.body.status }).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.id, req.params.id), (0, import_drizzle_orm3.eq)(bookings.specialistId, userId))).returning();
+      const [booking] = await db.update(bookings).set({ status: req.body.status }).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(bookings.specialistId, userId))).returning();
       res.json(booking);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2126,7 +2126,7 @@ function registerAdminRoutes(app2) {
     try {
       const salonId = req.salonId;
       const notes = await db.select().from(customerNotes).where(
-        (0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(customerNotes.salonId, salonId), (0, import_drizzle_orm3.eq)(customerNotes.customerId, req.params.customerId))
+        (0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(customerNotes.salonId, salonId), (0, import_drizzle_orm3.eq)(customerNotes.customerId, String(req.params.customerId)))
       ).orderBy((0, import_drizzle_orm3.desc)(customerNotes.createdAt));
       res.json(notes);
     } catch (err) {
@@ -2138,7 +2138,7 @@ function registerAdminRoutes(app2) {
       const salonId = req.salonId;
       const [note] = await db.insert(customerNotes).values({
         salonId,
-        customerId: req.params.customerId,
+        customerId: String(req.params.customerId),
         note: req.body.note
       }).returning();
       res.json(note);
@@ -2165,7 +2165,7 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/salon/inventory/:id", requireSalonAdmin, async (req, res) => {
     try {
-      const [item] = await db.update(inventory).set(req.body).where((0, import_drizzle_orm3.eq)(inventory.id, req.params.id)).returning();
+      const [item] = await db.update(inventory).set(req.body).where((0, import_drizzle_orm3.eq)(inventory.id, String(req.params.id))).returning();
       res.json(item);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2173,7 +2173,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/salon/inventory/:id", requireSalonAdmin, async (req, res) => {
     try {
-      await db.delete(inventory).where((0, import_drizzle_orm3.eq)(inventory.id, req.params.id));
+      await db.delete(inventory).where((0, import_drizzle_orm3.eq)(inventory.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2243,7 +2243,7 @@ function registerAdminRoutes(app2) {
     try {
       const role = req.session?.role;
       if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
-      const { salonId } = req.params;
+      const salonId = String(req.params.salonId);
       const { landingEnabled, landingSlug, landingTheme, landingAccentColor, landingBookingUrl } = req.body;
       if (landingSlug !== void 0) {
         const slug = String(landingSlug).trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
@@ -2273,7 +2273,7 @@ function registerAdminRoutes(app2) {
     try {
       const role = req.session?.role;
       if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
-      await db.update(salons).set({ landingViews: 0 }).where((0, import_drizzle_orm3.eq)(salons.id, req.params.salonId));
+      await db.update(salons).set({ landingViews: 0 }).where((0, import_drizzle_orm3.eq)(salons.id, String(req.params.salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2281,7 +2281,7 @@ function registerAdminRoutes(app2) {
   });
   app2.get("/salon/:slug", async (req, res) => {
     try {
-      const slug = req.params.slug.toLowerCase();
+      const slug = String(req.params.slug).toLowerCase();
       const [salon] = await db.select().from(salons).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salons.landingSlug, slug), (0, import_drizzle_orm3.eq)(salons.landingEnabled, true)));
       if (!salon) {
         return res.status(404).send(`<!DOCTYPE html><html><head><title>Not Found</title><style>body{background:#181A20;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column}</style></head><body><h1 style="font-size:3rem">404</h1><p>Salon page not found or not yet published.</p></body></html>`);
@@ -2702,15 +2702,15 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/salons/:id", async (req, res) => {
     try {
-      const salon = await getSalonById(req.params.id);
+      const salon = await getSalonById(String(req.params.id));
       if (!salon) {
         return res.status(404).json({ message: "Salon not found" });
       }
       const [salonServices2, salonPackages2, salonSpecialists2, salonReviews2] = await Promise.all([
-        getSalonServices(req.params.id),
-        getSalonPackages(req.params.id),
-        getSalonSpecialists(req.params.id),
-        getSalonReviews(req.params.id)
+        getSalonServices(String(req.params.id)),
+        getSalonPackages(String(req.params.id)),
+        getSalonSpecialists(String(req.params.id)),
+        getSalonReviews(String(req.params.id))
       ]);
       res.json({ ...salon, services: salonServices2, packages: salonPackages2, specialists: salonSpecialists2, reviews: salonReviews2 });
     } catch (err) {
@@ -2759,7 +2759,7 @@ async function registerRoutes(app2) {
   app2.put("/api/bookings/:id/cancel", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId;
-      const booking = await cancelBooking(req.params.id, userId);
+      const booking = await cancelBooking(String(req.params.id), userId);
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
@@ -2818,7 +2818,7 @@ async function registerRoutes(app2) {
   app2.get("/api/messages/:salonId", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId;
-      const msgs = await getConversation(userId, req.params.salonId);
+      const msgs = await getConversation(userId, String(req.params.salonId));
       res.json(msgs);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2859,7 +2859,7 @@ async function registerRoutes(app2) {
   app2.put("/api/notifications/:id/read", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId;
-      await markNotificationRead(req.params.id, userId);
+      await markNotificationRead(String(req.params.id), userId);
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });

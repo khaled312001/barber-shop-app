@@ -363,15 +363,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/salons/:id", async (req: Request, res: Response) => {
     try {
-      const salon = await storage.getSalonById(req.params.id);
+      const salon = await storage.getSalonById(String(req.params.id));
       if (!salon) {
         return res.status(404).json({ message: "Salon not found" });
       }
       const [salonServices, salonPackages, salonSpecialists, salonReviews] = await Promise.all([
-        storage.getSalonServices(req.params.id),
-        storage.getSalonPackages(req.params.id),
-        storage.getSalonSpecialists(req.params.id),
-        storage.getSalonReviews(req.params.id),
+        storage.getSalonServices(String(req.params.id)),
+        storage.getSalonPackages(String(req.params.id)),
+        storage.getSalonSpecialists(String(req.params.id)),
+        storage.getSalonReviews(String(req.params.id)),
       ]);
       res.json({ ...salon, services: salonServices, packages: salonPackages, specialists: salonSpecialists, reviews: salonReviews });
     } catch (err: any) {
@@ -420,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/bookings/:id/cancel", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      const booking = await storage.cancelBooking(req.params.id, userId);
+      const booking = await storage.cancelBooking(String(req.params.id), userId);
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
@@ -485,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/messages/:salonId", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      const msgs = await storage.getConversation(userId, req.params.salonId);
+      const msgs = await storage.getConversation(userId, String(req.params.salonId));
       res.json(msgs);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -527,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/notifications/:id/read", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      await storage.markNotificationRead(req.params.id, userId);
+      await storage.markNotificationRead(String(req.params.id), userId);
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ message: err.message });

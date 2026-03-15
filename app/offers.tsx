@@ -30,7 +30,7 @@ export default function OffersScreen() {
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={[styles.header, { paddingTop: topPad }]}>
-                <Pressable onPress={() => goBack()} style={styles.backBtn}>
+                <Pressable onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="close" size={24} color={theme.text} />
                 </Pressable>
                 <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Special Offers</Text>

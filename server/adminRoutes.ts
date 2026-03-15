@@ -157,14 +157,14 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/admin/users/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
       const { fullName, email, role } = req.body;
-      const [user] = await db.update(users).set({ fullName, email, role }).where(eq(users.id, req.params.id)).returning();
+      const [user] = await db.update(users).set({ fullName, email, role }).where(eq(users.id, String(req.params.id))).returning();
       res.json(user);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.delete("/api/admin/users/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(users).where(eq(users.id, req.params.id));
+      await db.delete(users).where(eq(users.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -195,9 +195,9 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/salons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [salon] = await db.update(salons).set(req.body).where(eq(salons.id, req.params.id)).returning();
+      const [salon] = await db.update(salons).set(req.body).where(eq(salons.id, String(req.params.id))).returning();
       if (req.body.status) {
-        await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: req.params.id });
+        await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: String(req.params.id) });
       }
       res.json(salon);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -205,7 +205,7 @@ export function registerAdminRoutes(app: Express) {
 
   app.delete("/api/admin/salons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(salons).where(eq(salons.id, req.params.id));
+      await db.delete(salons).where(eq(salons.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -242,14 +242,14 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/bookings/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [booking] = await db.update(bookings).set(req.body).where(eq(bookings.id, req.params.id)).returning();
+      const [booking] = await db.update(bookings).set(req.body).where(eq(bookings.id, String(req.params.id))).returning();
       res.json(booking);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.delete("/api/admin/bookings/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(bookings).where(eq(bookings.id, req.params.id));
+      await db.delete(bookings).where(eq(bookings.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -269,14 +269,14 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/coupons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [c] = await db.update(coupons).set(req.body).where(eq(coupons.id, req.params.id)).returning();
+      const [c] = await db.update(coupons).set(req.body).where(eq(coupons.id, String(req.params.id))).returning();
       res.json(c);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.delete("/api/admin/coupons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(coupons).where(eq(coupons.id, req.params.id));
+      await db.delete(coupons).where(eq(coupons.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -355,14 +355,14 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/services/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [s] = await db.update(services).set(req.body).where(eq(services.id, req.params.id)).returning();
+      const [s] = await db.update(services).set(req.body).where(eq(services.id, String(req.params.id))).returning();
       res.json(s);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.delete("/api/admin/services/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(services).where(eq(services.id, req.params.id));
+      await db.delete(services).where(eq(services.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -392,14 +392,14 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/plans/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [plan] = await db.update(plans).set(req.body).where(eq(plans.id, req.params.id)).returning();
+      const [plan] = await db.update(plans).set(req.body).where(eq(plans.id, String(req.params.id))).returning();
       res.json(plan);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.delete("/api/admin/plans/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(plans).where(eq(plans.id, req.params.id));
+      await db.delete(plans).where(eq(plans.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -422,15 +422,15 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/subscriptions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [sub] = await db.update(subscriptions).set({ ...req.body, updatedAt: new Date() }).where(eq(subscriptions.id, req.params.id)).returning();
-      await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "subscription.updated", entityType: "subscription", entityId: req.params.id });
+      const [sub] = await db.update(subscriptions).set({ ...req.body, updatedAt: new Date() }).where(eq(subscriptions.id, String(req.params.id))).returning();
+      await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "subscription.updated", entityType: "subscription", entityId: String(req.params.id) });
       res.json(sub);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.delete("/api/admin/subscriptions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(subscriptions).where(eq(subscriptions.id, req.params.id));
+      await db.delete(subscriptions).where(eq(subscriptions.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -453,14 +453,14 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/license-keys/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [lk] = await db.update(licenseKeys).set(req.body).where(eq(licenseKeys.id, req.params.id)).returning();
+      const [lk] = await db.update(licenseKeys).set(req.body).where(eq(licenseKeys.id, String(req.params.id))).returning();
       res.json(lk);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.delete("/api/admin/license-keys/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(licenseKeys).where(eq(licenseKeys.id, req.params.id));
+      await db.delete(licenseKeys).where(eq(licenseKeys.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -486,7 +486,7 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/commissions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [c] = await db.update(commissions).set(req.body).where(eq(commissions.id, req.params.id)).returning();
+      const [c] = await db.update(commissions).set(req.body).where(eq(commissions.id, String(req.params.id))).returning();
       res.json(c);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -524,7 +524,7 @@ export function registerAdminRoutes(app: Express) {
 
   app.delete("/api/admin/salon-staff/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(salonStaff).where(eq(salonStaff.id, req.params.id));
+      await db.delete(salonStaff).where(eq(salonStaff.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -600,7 +600,7 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/salon/bookings/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [booking] = await db.update(bookings).set(req.body).where(and(eq(bookings.id, req.params.id), eq(bookings.salonId, salonId))).returning();
+      const [booking] = await db.update(bookings).set(req.body).where(and(eq(bookings.id, String(req.params.id)), eq(bookings.salonId, salonId))).returning();
       // Auto-create commission on completion
       if (req.body.status === "completed" && booking) {
         const sub = await db.select().from(subscriptions).where(and(eq(subscriptions.salonId, salonId), eq(subscriptions.status, "active")));
@@ -635,7 +635,7 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/salon/services/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [s] = await db.update(services).set(req.body).where(and(eq(services.id, req.params.id), eq(services.salonId, salonId))).returning();
+      const [s] = await db.update(services).set(req.body).where(and(eq(services.id, String(req.params.id)), eq(services.salonId, salonId))).returning();
       res.json(s);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -643,7 +643,7 @@ export function registerAdminRoutes(app: Express) {
   app.delete("/api/salon/services/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      await db.delete(services).where(and(eq(services.id, req.params.id), eq(services.salonId, salonId)));
+      await db.delete(services).where(and(eq(services.id, String(req.params.id)), eq(services.salonId, salonId)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -675,7 +675,7 @@ export function registerAdminRoutes(app: Express) {
   app.delete("/api/salon/staff/:linkId", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      await db.delete(salonStaff).where(and(eq(salonStaff.id, req.params.linkId), eq(salonStaff.salonId, salonId)));
+      await db.delete(salonStaff).where(and(eq(salonStaff.id, String(req.params.linkId)), eq(salonStaff.salonId, salonId)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -717,7 +717,7 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/salon/expenses/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [e] = await db.update(expenses).set(req.body).where(and(eq(expenses.id, req.params.id), eq(expenses.salonId, salonId))).returning();
+      const [e] = await db.update(expenses).set(req.body).where(and(eq(expenses.id, String(req.params.id)), eq(expenses.salonId, salonId))).returning();
       res.json(e);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -725,7 +725,7 @@ export function registerAdminRoutes(app: Express) {
   app.delete("/api/salon/expenses/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      await db.delete(expenses).where(and(eq(expenses.id, req.params.id), eq(expenses.salonId, salonId)));
+      await db.delete(expenses).where(and(eq(expenses.id, String(req.params.id)), eq(expenses.salonId, salonId)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -749,7 +749,7 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/salon/shifts/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [s] = await db.update(shifts).set(req.body).where(and(eq(shifts.id, req.params.id), eq(shifts.salonId, salonId))).returning();
+      const [s] = await db.update(shifts).set(req.body).where(and(eq(shifts.id, String(req.params.id)), eq(shifts.salonId, salonId))).returning();
       res.json(s);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -757,7 +757,7 @@ export function registerAdminRoutes(app: Express) {
   app.delete("/api/salon/shifts/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      await db.delete(shifts).where(and(eq(shifts.id, req.params.id), eq(shifts.salonId, salonId)));
+      await db.delete(shifts).where(and(eq(shifts.id, String(req.params.id)), eq(shifts.salonId, salonId)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -796,7 +796,7 @@ export function registerAdminRoutes(app: Express) {
       if (!allowed.includes(req.body.status)) {
         return res.status(400).json({ message: "Staff can only mark bookings as completed or no-show" });
       }
-      const [booking] = await db.update(bookings).set({ status: req.body.status }).where(and(eq(bookings.id, req.params.id), eq(bookings.specialistId, userId))).returning();
+      const [booking] = await db.update(bookings).set({ status: req.body.status }).where(and(eq(bookings.id, String(req.params.id)), eq(bookings.specialistId, userId))).returning();
       res.json(booking);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -1024,7 +1024,7 @@ export function registerAdminRoutes(app: Express) {
     try {
       const salonId = (req as any).salonId;
       const notes = await db.select().from(customerNotes).where(
-        and(eq(customerNotes.salonId, salonId), eq(customerNotes.customerId, req.params.customerId))
+        and(eq(customerNotes.salonId, salonId), eq(customerNotes.customerId, String(req.params.customerId)))
       ).orderBy(desc(customerNotes.createdAt));
       res.json(notes);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -1034,7 +1034,7 @@ export function registerAdminRoutes(app: Express) {
     try {
       const salonId = (req as any).salonId;
       const [note] = await db.insert(customerNotes).values({
-        salonId, customerId: req.params.customerId, note: req.body.note
+        salonId, customerId: String(req.params.customerId), note: req.body.note
       }).returning();
       res.json(note);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -1060,14 +1060,14 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/salon/inventory/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
-      const [item] = await db.update(inventory).set(req.body).where(eq(inventory.id, req.params.id)).returning();
+      const [item] = await db.update(inventory).set(req.body).where(eq(inventory.id, String(req.params.id))).returning();
       res.json(item);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.delete("/api/salon/inventory/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(inventory).where(eq(inventory.id, req.params.id));
+      await db.delete(inventory).where(eq(inventory.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -1137,7 +1137,7 @@ export function registerAdminRoutes(app: Express) {
     try {
       const role = (req.session as any)?.role;
       if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
-      const { salonId } = req.params;
+      const salonId = String(req.params.salonId);
       const { landingEnabled, landingSlug, landingTheme, landingAccentColor, landingBookingUrl } = req.body;
 
       if (landingSlug !== undefined) {
@@ -1168,7 +1168,7 @@ export function registerAdminRoutes(app: Express) {
     try {
       const role = (req.session as any)?.role;
       if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
-      await db.update(salons).set({ landingViews: 0 }).where(eq(salons.id, req.params.salonId));
+      await db.update(salons).set({ landingViews: 0 }).where(eq(salons.id, String(req.params.salonId)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -1178,7 +1178,7 @@ export function registerAdminRoutes(app: Express) {
   // ════════════════════════════════════════════════════════════════════════════
   app.get("/salon/:slug", async (req: Request, res: Response) => {
     try {
-      const slug = req.params.slug.toLowerCase();
+      const slug = String(req.params.slug).toLowerCase();
       const [salon] = await db.select().from(salons).where(and(eq(salons.landingSlug, slug), eq(salons.landingEnabled, true)));
       if (!salon) {
         return res.status(404).send(`<!DOCTYPE html><html><head><title>Not Found</title><style>body{background:#181A20;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column}</style></head><body><h1 style="font-size:3rem">404</h1><p>Salon page not found or not yet published.</p></body></html>`);
