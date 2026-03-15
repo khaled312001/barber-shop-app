@@ -132,7 +132,7 @@ export default function LicenseScreen() {
           ))}
         </View>
 
-        <Pressable onPress={() => router.push('/signin')} style={styles.skipLink}>
+        <Pressable onPress={() => router.push('/welcome')} style={styles.skipLink}>
           <Text style={styles.skipText}>تسجيل دخول كعميل بدون ترخيص ←</Text>
         </Pressable>
       </ScrollView>
