@@ -5,7 +5,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useTheme } from '@/constants/theme';
 
 export default function IndexScreen() {
-  const { isOnboarded, isLoggedIn, authLoading } = useApp();
+  const { isOnboarded, isLoggedIn, authLoading, user } = useApp();
   const theme = useTheme();
 
   useEffect(() => {
@@ -15,12 +15,16 @@ export default function IndexScreen() {
         router.replace('/onboarding');
       } else if (!isLoggedIn) {
         router.replace('/welcome');
+      } else if (user?.role === 'salon_admin') {
+        router.replace('/(salon-admin)');
+      } else if (user?.role === 'staff') {
+        router.replace('/(staff)');
       } else {
         router.replace('/(tabs)');
       }
     }, 100);
     return () => clearTimeout(timer);
-  }, [isOnboarded, isLoggedIn, authLoading]);
+  }, [isOnboarded, isLoggedIn, authLoading, user]);
 
   return <View style={[styles.container, { backgroundColor: theme.background }]} />;
 }

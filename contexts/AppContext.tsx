@@ -141,9 +141,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const res = await apiRequest('POST', '/api/auth/signin', { email, password });
     const data = await res.json();
-    setUser(data.user || data);
+    const loggedUser = data.user || data;
+    setUser(loggedUser);
     setIsLoggedIn(true);
     await fetchUserData();
+    return loggedUser;
   }, [fetchUserData]);
 
   const signup = useCallback(async (fullName: string, email: string, password: string) => {

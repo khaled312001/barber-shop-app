@@ -34,8 +34,15 @@ export default function SignInScreen() {
     setLoading(true);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await login(email, password);
-      router.replace('/(tabs)');
+      const loggedUser = await login(email, password);
+      const role = (loggedUser as any)?.role;
+      if (role === 'salon_admin') {
+        router.replace('/(salon-admin)');
+      } else if (role === 'staff') {
+        router.replace('/(staff)');
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (e: any) {
       const msg = e?.message || '';
       let translated = t('check_credentials');
