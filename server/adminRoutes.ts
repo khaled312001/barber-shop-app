@@ -173,7 +173,15 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/admin/salons", requireSuperAdmin, async (_req, res) => {
     try {
       const allSalons = await db.select().from(salons);
-      res.json(allSalons);
+      const allStaff = await db.select().from(salonStaff);
+      const allUsers = await db.select({ id: users.id, email: users.email, fullName: users.fullName }).from(users);
+      const result = allSalons.map(s => {
+        const ownerEntry = allStaff.find(st => st.salonId === s.id && st.role === "salon_admin")
+          || (s.ownerId ? { userId: s.ownerId } : null);
+        const owner = ownerEntry ? allUsers.find(u => u.id === ownerEntry.userId) : null;
+        return { ...s, ownerEmail: owner?.email || '', ownerName: owner?.fullName || '' };
+      });
+      res.json(result);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

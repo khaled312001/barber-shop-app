@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Activity, Trash2, Search, Star, Edit2, Plus, X } from 'lucide-react';
+import { Activity, Trash2, Search, Star, Edit2, Plus, X, Copy, Check, Mail } from 'lucide-react';
 import api from '../lib/api';
 
 interface Salon {
@@ -9,6 +9,8 @@ interface Salon {
     image: string;
     address: string;
     rating: number;
+    ownerEmail: string;
+    ownerName: string;
 }
 
 export default function Salons() {
@@ -19,6 +21,14 @@ export default function Salons() {
     const [formData, setFormData] = React.useState({ name: '', address: '', image: '', rating: 0 });
     const [isUploading, setIsUploading] = React.useState(false);
     const [uploadError, setUploadError] = React.useState('');
+    const [copiedId, setCopiedId] = useState<string>('');
+
+    const copyEmail = (email: string, id: string) => {
+        if (!email) return;
+        navigator.clipboard.writeText(email);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(''), 2000);
+    };
 
     const { data: salons, isLoading } = useQuery<Salon[]>({
         queryKey: ['admin-salons'],
@@ -113,7 +123,8 @@ export default function Salons() {
 
     const filteredSalons = salons?.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.address.toLowerCase().includes(searchTerm.toLowerCase())
+        s.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.ownerEmail || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (isLoading) {
@@ -156,6 +167,7 @@ export default function Salons() {
                             <tr className="bg-white/5 border-b border-border text-text-muted text-sm">
                                 <th className="px-6 py-4 font-medium w-16">Image</th>
                                 <th className="px-6 py-4 font-medium">Salon Details</th>
+                                <th className="px-6 py-4 font-medium">Owner Login Email</th>
                                 <th className="px-6 py-4 font-medium">Rating</th>
                                 <th className="px-6 py-4 font-medium text-right">Actions</th>
                             </tr>
@@ -169,6 +181,25 @@ export default function Salons() {
                                     <td className="px-6 py-4">
                                         <p className="text-zinc-100 font-bold text-base mb-1">{s.name}</p>
                                         <p className="text-zinc-400 text-xs">{s.address}</p>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {s.ownerEmail ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1.5 bg-[#181A20] border border-[#35383F] rounded-lg px-3 py-1.5 max-w-[220px]">
+                                                    <Mail size={13} className="text-[#F4A460] shrink-0" />
+                                                    <span className="text-zinc-200 text-xs font-mono truncate">{s.ownerEmail}</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => copyEmail(s.ownerEmail, s.id)}
+                                                    title="Copy email"
+                                                    className="p-1.5 rounded-lg text-zinc-500 hover:text-[#F4A460] hover:bg-[#F4A46015] transition-colors"
+                                                >
+                                                    {copiedId === s.id ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span className="text-zinc-600 text-xs italic">No owner assigned</span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-1.5 text-zinc-100 font-bold">
@@ -196,7 +227,7 @@ export default function Salons() {
                             ))}
                             {filteredSalons?.length === 0 && (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">
+                                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
                                         No salons found matching your search.
                                     </td>
                                 </tr>
