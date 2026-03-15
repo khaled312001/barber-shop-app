@@ -1,387 +1,824 @@
 import { Express, Request, Response } from "express";
 import { db } from "./db";
-import { users, salons, bookings, reviews, coupons, appSettings, messages, services } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import {
+  users, salons, bookings, reviews, coupons, appSettings, messages, services,
+  salonStaff, plans, subscriptions, licenseKeys, activityLogs, commissions, expenses, shifts,
+} from "@shared/schema";
+import { eq, sql, and, desc, gte, lte } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { logActivity } from "./activityLogger";
+import os from "os";
+
+// ─── Auth middleware ──────────────────────────────────────────────────────────
+
+/** Super Admin: role must be 'super_admin' or legacy 'admin' */
+export async function requireSuperAdmin(req: Request, res: Response, next: Function) {
+  const userId = (req.session as any)?.userId;
+  if (!userId) return res.status(401).json({ message: "Not authenticated" });
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user || (user.role !== "super_admin" && user.role !== "admin")) {
+    return res.status(403).json({ message: "Super admin access required" });
+  }
+  (req as any).currentUser = user;
+  next();
+}
+
+/** Salon Admin: role must be 'salon_admin'. Attaches salonId via salon_staff table. */
+export async function requireSalonAdmin(req: Request, res: Response, next: Function) {
+  const userId = (req.session as any)?.userId;
+  if (!userId) return res.status(401).json({ message: "Not authenticated" });
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user || user.role !== "salon_admin") {
+    return res.status(403).json({ message: "Salon admin access required" });
+  }
+  const [link] = await db.select().from(salonStaff)
+    .where(and(eq(salonStaff.userId, userId), eq(salonStaff.role, "salon_admin")));
+  if (!link) return res.status(403).json({ message: "No salon linked to this admin" });
+  (req as any).currentUser = user;
+  (req as any).salonId = link.salonId;
+  next();
+}
+
+/** Staff: role must be 'staff'. Attaches salonId via salon_staff table. */
+export async function requireStaff(req: Request, res: Response, next: Function) {
+  const userId = (req.session as any)?.userId;
+  if (!userId) return res.status(401).json({ message: "Not authenticated" });
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user || user.role !== "staff") {
+    return res.status(403).json({ message: "Staff access required" });
+  }
+  const [link] = await db.select().from(salonStaff)
+    .where(and(eq(salonStaff.userId, userId), eq(salonStaff.role, "staff")));
+  (req as any).currentUser = user;
+  (req as any).salonId = link?.salonId || "";
+  next();
+}
+
+// Keep legacy alias so existing code still compiles
+export const requireAdmin = requireSuperAdmin;
+
+// ─── Register all routes ──────────────────────────────────────────────────────
 
 export function registerAdminRoutes(app: Express) {
-    // Middleware to ensure user is admin
-    async function requireAdmin(req: Request, res: Response, next: Function) {
-        const userId = (req.session as any)?.userId;
-        if (!userId) {
-            return res.status(401).json({ message: "Not authenticated" });
-        }
-        const [user] = await db.select().from(users).where(eq(users.id, userId));
-        if (!user || user.role !== "admin") {
-            return res.status(403).json({ message: "Not authorized as admin" });
-        }
-        next();
+
+  // ── Upload setup ────────────────────────────────────────────────────────────
+  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+    },
+  });
+  const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+
+  // ── Super Admin: Dashboard stats ────────────────────────────────────────────
+  app.get("/api/admin/stats", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [usersCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
+      const [salonsCount] = await db.select({ count: sql<number>`count(*)` }).from(salons);
+      const [bookingsCount] = await db.select({ count: sql<number>`count(*)` }).from(bookings);
+      const [revenue] = await db.select({ sum: sql<number>`coalesce(sum(${bookings.totalPrice}),0)` }).from(bookings);
+      const [couponsCount] = await db.select({ count: sql<number>`count(*)` }).from(coupons);
+      const [servicesCount] = await db.select({ count: sql<number>`count(*)` }).from(services);
+      const [messagesCount] = await db.select({ count: sql<number>`count(*)` }).from(messages);
+      const [pendingBookings] = await db.select({ count: sql<number>`count(*)` }).from(bookings).where(eq(bookings.status, "pending"));
+      const [completedBookings] = await db.select({ count: sql<number>`count(*)` }).from(bookings).where(eq(bookings.status, "completed"));
+      const [activeSubscriptions] = await db.select({ count: sql<number>`count(*)` }).from(subscriptions).where(eq(subscriptions.status, "active"));
+      const [commissionTotal] = await db.select({ sum: sql<number>`coalesce(sum(${commissions.amount}),0)` }).from(commissions);
+
+      res.json({
+        totalUsers: usersCount.count,
+        totalSalons: salonsCount.count,
+        totalBookings: bookingsCount.count,
+        totalRevenue: Number(revenue.sum) || 0,
+        totalCoupons: couponsCount.count,
+        totalServices: servicesCount.count,
+        totalMessages: messagesCount.count,
+        pendingBookings: pendingBookings.count,
+        completedBookings: completedBookings.count,
+        activeSubscriptions: activeSubscriptions.count,
+        totalCommissions: Number(commissionTotal.sum) || 0,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
+  });
 
-    app.post("/api/admin/messages/broadcast", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const { targetUserId, content } = req.body;
-            const adminIdentity = {
-                salonId: "admin",
-                salonName: "System Admin",
-                salonImage: "",
-            };
-
-            if (targetUserId === "all") {
-                const allUsers = await db.select().from(users);
-                const msgs = await Promise.all(allUsers.map(user =>
-                    db.insert(messages).values({
-                        userId: user.id,
-                        ...adminIdentity,
-                        content,
-                        sender: "salon"
-                    }).returning()
-                ));
-                res.json({ success: true, count: msgs.length });
-            } else {
-                const [msg] = await db.insert(messages).values({
-                    userId: targetUserId,
-                    ...adminIdentity,
-                    content,
-                    sender: "salon"
-                }).returning();
-                res.json(msg);
-            }
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    // Dashboard Stats
-    app.get("/api/admin/stats", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const [usersCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
-            const [salonsCount] = await db.select({ count: sql<number>`count(*)` }).from(salons);
-            const [bookingsCount] = await db.select({ count: sql<number>`count(*)` }).from(bookings);
-            const [revenue] = await db.select({ sum: sql<number>`sum(${bookings.totalPrice})` }).from(bookings);
-            const [couponsCount] = await db.select({ count: sql<number>`count(*)` }).from(coupons);
-            const [servicesCount] = await db.select({ count: sql<number>`count(*)` }).from(services);
-            const [messagesCount] = await db.select({ count: sql<number>`count(*)` }).from(messages);
-            const [pendingBookings] = await db.select({ count: sql<number>`count(*)` }).from(bookings).where(eq(bookings.status, 'pending'));
-            const [completedBookings] = await db.select({ count: sql<number>`count(*)` }).from(bookings).where(eq(bookings.status, 'completed'));
-
-            res.json({
-                totalUsers: usersCount.count,
-                totalSalons: salonsCount.count,
-                totalBookings: bookingsCount.count,
-                totalRevenue: Number(revenue.sum) || 0,
-                totalCoupons: couponsCount.count,
-                totalServices: servicesCount.count,
-                totalMessages: messagesCount.count,
-                pendingBookings: pendingBookings.count,
-                completedBookings: completedBookings.count,
-            });
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    // Users CRUD
-    app.get("/api/admin/users", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const allUsers = await db.select().from(users);
-            res.json(allUsers);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    app.post("/api/admin/users", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const { fullName, email, password, role } = req.body;
-            const hashed = await bcrypt.hash(password || "password123", 10);
-            const [user] = await db.insert(users).values({ fullName, email, password: hashed, role: role || "user" }).returning();
-            res.json(user);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    app.put("/api/admin/users/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const { fullName, email, role } = req.body;
-            const [user] = await db.update(users).set({ fullName, email, role }).where(eq(users.id, req.params.id as string)).returning();
-            res.json(user);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    app.delete("/api/admin/users/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            await db.delete(users).where(eq(users.id, req.params.id as string));
-            res.json({ success: true });
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    // Salons CRUD
-    app.get("/api/admin/salons", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const allSalons = await db.select().from(salons);
-            res.json(allSalons);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    app.post("/api/admin/salons", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const data = req.body;
-            const [salon] = await db.insert(salons).values(data).returning();
-            res.json(salon);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    app.put("/api/admin/salons/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const data = req.body;
-            const [salon] = await db.update(salons).set(data).where(eq(salons.id, req.params.id as string)).returning();
-            res.json(salon);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    app.delete("/api/admin/salons/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            await db.delete(salons).where(eq(salons.id, req.params.id as string));
-            res.json({ success: true });
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    // Bookings CRUD
-    app.get("/api/admin/bookings", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const allBookings = await db.select().from(bookings);
-            res.json(allBookings);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    app.post("/api/admin/bookings", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const data = req.body;
-            // Provide sensible defaults for a created booking if not provided
-            const [booking] = await db.insert(bookings).values({
-                ...data,
-                status: data.status || 'upcoming'
-            }).returning();
-            res.json(booking);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    app.put("/api/admin/bookings/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const data = req.body;
-            const [booking] = await db.update(bookings).set(data).where(eq(bookings.id, req.params.id as string)).returning();
-            res.json(booking);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    app.delete("/api/admin/bookings/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            await db.delete(bookings).where(eq(bookings.id, req.params.id as string));
-            res.json({ success: true });
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
-
-    // --- Image Upload Configurations ---
-    // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
+  // ── System Health ───────────────────────────────────────────────────────────
+  app.get("/api/admin/system-health", requireSuperAdmin, async (req: Request, res: Response) => {
+    const start = Date.now();
+    let dbStatus = "ok";
+    let dbLatency = 0;
+    try {
+      const t0 = Date.now();
+      await db.execute(sql`SELECT 1`);
+      dbLatency = Date.now() - t0;
+    } catch {
+      dbStatus = "error";
     }
+    res.json({
+      status: "ok",
+      uptime: Math.floor(process.uptime()),
+      dbStatus,
+      dbLatencyMs: dbLatency,
+      memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+      totalMemoryMB: Math.round(os.totalmem() / 1024 / 1024),
+      nodeVersion: process.version,
+      environment: process.env.NODE_ENV || "development",
+      timestamp: new Date().toISOString(),
+    });
+  });
 
-    const storage = multer.diskStorage({
-        destination: function (req: any, file: any, cb: any) {
-            cb(null, uploadsDir);
-        },
-        filename: function (req: any, file: any, cb: any) {
-            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-            const ext = path.extname(file.originalname);
-            cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  // ── Users CRUD ──────────────────────────────────────────────────────────────
+  app.get("/api/admin/users", requireSuperAdmin, async (_req, res) => {
+    try {
+      const allUsers = await db.select().from(users);
+      res.json(allUsers);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/users", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { fullName, email, password, role } = req.body;
+      const hashed = await bcrypt.hash(password || "password123", 10);
+      const [user] = await db.insert(users).values({ fullName, email, password: hashed, role: role || "user" }).returning();
+      await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "user.created", entityType: "user", entityId: user.id });
+      res.json(user);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/users/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { fullName, email, role } = req.body;
+      const [user] = await db.update(users).set({ fullName, email, role }).where(eq(users.id, req.params.id)).returning();
+      res.json(user);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/users/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(users).where(eq(users.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Salons CRUD (Super Admin - sees all) ────────────────────────────────────
+  app.get("/api/admin/salons", requireSuperAdmin, async (_req, res) => {
+    try {
+      const allSalons = await db.select().from(salons);
+      res.json(allSalons);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/salons", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [salon] = await db.insert(salons).values(req.body).returning();
+      await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "salon.created", entityType: "salon", entityId: salon.id, metadata: { name: salon.name } });
+      res.json(salon);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/salons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [salon] = await db.update(salons).set(req.body).where(eq(salons.id, req.params.id)).returning();
+      if (req.body.status) {
+        await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: req.params.id });
+      }
+      res.json(salon);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/salons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(salons).where(eq(salons.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Tenants (alias for salons with staff info) ──────────────────────────────
+  app.get("/api/admin/tenants", requireSuperAdmin, async (_req, res) => {
+    try {
+      const allSalons = await db.select().from(salons);
+      const allStaff = await db.select().from(salonStaff);
+      const allSubs = await db.select().from(subscriptions);
+      const tenants = allSalons.map(s => {
+        const owner = allStaff.find(st => st.salonId === s.id && st.role === "salon_admin");
+        const sub = allSubs.find(su => su.salonId === s.id && su.status === "active");
+        return { ...s, ownerId: owner?.userId || "", hasActiveSubscription: !!sub, subscriptionStatus: sub?.status || "none" };
+      });
+      res.json(tenants);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Bookings CRUD ───────────────────────────────────────────────────────────
+  app.get("/api/admin/bookings", requireSuperAdmin, async (_req, res) => {
+    try {
+      const all = await db.select().from(bookings).orderBy(desc(bookings.createdAt));
+      res.json(all);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/bookings", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [booking] = await db.insert(bookings).values({ ...req.body, status: req.body.status || "upcoming" }).returning();
+      res.json(booking);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/bookings/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [booking] = await db.update(bookings).set(req.body).where(eq(bookings.id, req.params.id)).returning();
+      res.json(booking);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/bookings/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(bookings).where(eq(bookings.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Coupons CRUD ────────────────────────────────────────────────────────────
+  app.get("/api/admin/coupons", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(coupons)); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/coupons", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [c] = await db.insert(coupons).values(req.body).returning();
+      res.json(c);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/coupons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [c] = await db.update(coupons).set(req.body).where(eq(coupons.id, req.params.id)).returning();
+      res.json(c);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/coupons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(coupons).where(eq(coupons.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Payments ────────────────────────────────────────────────────────────────
+  app.get("/api/admin/payments", requireSuperAdmin, async (_req, res) => {
+    try {
+      const payments = await db.select().from(bookings).where(sql`${bookings.paymentMethod} != ''`);
+      res.json(payments);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Messages ────────────────────────────────────────────────────────────────
+  app.get("/api/admin/messages", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(messages)); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/messages/broadcast", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { targetUserId, content } = req.body;
+      const adminIdentity = { salonId: "admin", salonName: "Barmagly Platform", salonImage: "" };
+      if (targetUserId === "all") {
+        const allUsers = await db.select().from(users);
+        const msgs = await Promise.all(allUsers.map(u =>
+          db.insert(messages).values({ userId: u.id, ...adminIdentity, content, sender: "salon" }).returning()
+        ));
+        res.json({ success: true, count: msgs.length });
+      } else {
+        const [msg] = await db.insert(messages).values({ userId: targetUserId, ...adminIdentity, content, sender: "salon" }).returning();
+        res.json(msg);
+      }
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/messages/reply", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { userId, salonId, salonName, salonImage, content } = req.body;
+      const [msg] = await db.insert(messages).values({ userId, salonId, salonName, salonImage, content, sender: "salon" }).returning();
+      res.json(msg);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Settings ────────────────────────────────────────────────────────────────
+  app.get("/api/admin/settings", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(appSettings)); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/settings", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { key, value, description } = req.body;
+      const existing = await db.select().from(appSettings).where(eq(appSettings.key, key));
+      let setting;
+      if (existing.length > 0) {
+        [setting] = await db.update(appSettings).set({ value, description, updatedAt: new Date() }).where(eq(appSettings.key, key)).returning();
+      } else {
+        [setting] = await db.insert(appSettings).values({ key, value, description }).returning();
+      }
+      res.json(setting);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Services CRUD ───────────────────────────────────────────────────────────
+  app.get("/api/admin/services", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(services)); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/services", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [s] = await db.insert(services).values(req.body).returning();
+      res.json(s);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/services/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [s] = await db.update(services).set(req.body).where(eq(services.id, req.params.id)).returning();
+      res.json(s);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/services/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(services).where(eq(services.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Upload ──────────────────────────────────────────────────────────────────
+  app.post("/api/admin/upload", requireSuperAdmin, upload.single("image"), (req: any, res: Response) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No image file provided" });
+      res.json({ url: `/uploads/${req.file.filename}` });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Plans CRUD
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/plans", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(plans)); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/plans", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [plan] = await db.insert(plans).values(req.body).returning();
+      res.json(plan);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/plans/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [plan] = await db.update(plans).set(req.body).where(eq(plans.id, req.params.id)).returning();
+      res.json(plan);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/plans/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(plans).where(eq(plans.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Subscriptions CRUD
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/subscriptions", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(subscriptions).orderBy(desc(subscriptions.createdAt))); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/subscriptions", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [sub] = await db.insert(subscriptions).values(req.body).returning();
+      await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "subscription.created", entityType: "subscription", entityId: sub.id, metadata: { salonId: sub.salonId, planId: sub.planId } });
+      res.json(sub);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/subscriptions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [sub] = await db.update(subscriptions).set({ ...req.body, updatedAt: new Date() }).where(eq(subscriptions.id, req.params.id)).returning();
+      await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "subscription.updated", entityType: "subscription", entityId: req.params.id });
+      res.json(sub);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/subscriptions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(subscriptions).where(eq(subscriptions.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // License Keys CRUD
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/license-keys", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(licenseKeys).orderBy(desc(licenseKeys.createdAt))); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/license-keys", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const key = req.body.key || `BRMG-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const [lk] = await db.insert(licenseKeys).values({ ...req.body, key }).returning();
+      res.json(lk);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/license-keys/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [lk] = await db.update(licenseKeys).set(req.body).where(eq(licenseKeys.id, req.params.id)).returning();
+      res.json(lk);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/license-keys/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(licenseKeys).where(eq(licenseKeys.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Activity Logs
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/activity-logs", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt)).limit(limit);
+      res.json(logs);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Commissions (super admin view)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/commissions", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(commissions).orderBy(desc(commissions.createdAt))); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/admin/commissions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [c] = await db.update(commissions).set(req.body).where(eq(commissions.id, req.params.id)).returning();
+      res.json(c);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Expenses (super admin sees all; salon admin sees own)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/expenses", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(expenses).orderBy(desc(expenses.createdAt))); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Shifts (super admin sees all)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/shifts", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(shifts)); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Salon Staff management (super admin)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/salon-staff", requireSuperAdmin, async (_req, res) => {
+    try { res.json(await db.select().from(salonStaff)); }
+    catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/salon-staff", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const [link] = await db.insert(salonStaff).values(req.body).returning();
+      res.json(link);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/admin/salon-staff/:id", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(salonStaff).where(eq(salonStaff.id, req.params.id));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Backup endpoint (triggers a pg_dump via env DATABASE_URL)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/admin/backup", requireSuperAdmin, async (_req, res) => {
+    res.json({ message: "Backup endpoint ready. Configure pg_dump with DATABASE_URL for production backups.", databaseUrl: !!process.env.DATABASE_URL });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // SALON ADMIN ROUTES  (/api/salon/*)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // Current salon info
+  app.get("/api/salon/me", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
+      res.json(salon);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/salon/me", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [salon] = await db.update(salons).set(req.body).where(eq(salons.id, salonId)).returning();
+      res.json(salon);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Salon subscription
+  app.get("/api/salon/subscription", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [sub] = await db.select().from(subscriptions).where(and(eq(subscriptions.salonId, salonId), eq(subscriptions.status, "active")));
+      if (!sub) return res.json(null);
+      const [plan] = await db.select().from(plans).where(eq(plans.id, sub.planId));
+      res.json({ ...sub, plan });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Salon stats
+  app.get("/api/salon/stats", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const today = new Date().toISOString().split("T")[0];
+      const [todayBookings] = await db.select({ count: sql<number>`count(*)` }).from(bookings).where(and(eq(bookings.salonId, salonId), eq(bookings.date, today)));
+      const [totalBookings] = await db.select({ count: sql<number>`count(*)` }).from(bookings).where(eq(bookings.salonId, salonId));
+      const [revenue] = await db.select({ sum: sql<number>`coalesce(sum(${bookings.totalPrice}),0)` }).from(bookings).where(and(eq(bookings.salonId, salonId), eq(bookings.status, "completed")));
+      const [staffCount] = await db.select({ count: sql<number>`count(*)` }).from(salonStaff).where(eq(salonStaff.salonId, salonId));
+      const [pendingCount] = await db.select({ count: sql<number>`count(*)` }).from(bookings).where(and(eq(bookings.salonId, salonId), eq(bookings.status, "upcoming")));
+      res.json({
+        todayBookings: todayBookings.count,
+        totalBookings: totalBookings.count,
+        totalRevenue: Number(revenue.sum) || 0,
+        staffCount: staffCount.count,
+        pendingBookings: pendingCount.count,
+      });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Salon bookings
+  app.get("/api/salon/bookings", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const all = await db.select().from(bookings).where(eq(bookings.salonId, salonId)).orderBy(desc(bookings.createdAt));
+      res.json(all);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/salon/bookings/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [booking] = await db.update(bookings).set(req.body).where(and(eq(bookings.id, req.params.id), eq(bookings.salonId, salonId))).returning();
+      // Auto-create commission on completion
+      if (req.body.status === "completed" && booking) {
+        const sub = await db.select().from(subscriptions).where(and(eq(subscriptions.salonId, salonId), eq(subscriptions.status, "active")));
+        const planId = sub[0]?.planId;
+        let rate = 5;
+        if (planId) {
+          const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
+          if (plan) rate = plan.commissionRate ?? 5;
         }
-    });
+        await db.insert(commissions).values({ bookingId: booking.id, salonId, amount: booking.totalPrice * (rate / 100), rate }).returning();
+      }
+      res.json(booking);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    const upload = multer({
-        storage: storage,
-        limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-    });
+  // Salon services
+  app.get("/api/salon/services", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      res.json(await db.select().from(services).where(eq(services.salonId, salonId)));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    // Image Upload API (Accessible to admins)
-    app.post("/api/admin/upload", requireAdmin, upload.single('image'), (req: any, res: Response) => {
-        try {
-            if (!req.file) {
-                return res.status(400).json({ message: "No image file provided" });
-            }
+  app.post("/api/salon/services", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [s] = await db.insert(services).values({ ...req.body, salonId }).returning();
+      res.json(s);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-            // Return the public URL for the uploaded file
-            // Note: Since Express serves 'public' statically via setupVite or static middleware usually, 
-            // the client accesses it via /uploads/filename.ext
-            const fileUrl = `/uploads/${req.file.filename}`;
-            res.json({ url: fileUrl });
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  app.put("/api/salon/services/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [s] = await db.update(services).set(req.body).where(and(eq(services.id, req.params.id), eq(services.salonId, salonId))).returning();
+      res.json(s);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    // --- Coupons Management ---
-    app.get("/api/admin/coupons", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const allCoupons = await db.select().from(coupons);
-            res.json(allCoupons);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  app.delete("/api/salon/services/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      await db.delete(services).where(and(eq(services.id, req.params.id), eq(services.salonId, salonId)));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    app.post("/api/admin/coupons", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const data = req.body;
-            const [coupon] = await db.insert(coupons).values(data).returning();
-            res.json(coupon);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  // Salon staff management
+  app.get("/api/salon/staff", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const links = await db.select().from(salonStaff).where(eq(salonStaff.salonId, salonId));
+      const staffUsers = await Promise.all(links.map(async l => {
+        const [u] = await db.select({ id: users.id, fullName: users.fullName, email: users.email, phone: users.phone, avatar: users.avatar, role: users.role }).from(users).where(eq(users.id, l.userId));
+        return { ...u, linkId: l.id, staffRole: l.role };
+      }));
+      res.json(staffUsers.filter(Boolean));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    app.put("/api/admin/coupons/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const data = req.body;
-            const [coupon] = await db.update(coupons).set(data).where(eq(coupons.id, req.params.id as string)).returning();
-            res.json(coupon);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  app.post("/api/salon/staff", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const { fullName, email, password, staffRole = "staff" } = req.body;
+      const hashed = await bcrypt.hash(password || "password123", 10);
+      const [newUser] = await db.insert(users).values({ fullName, email, password: hashed, role: staffRole === "salon_admin" ? "salon_admin" : "staff" }).returning();
+      const [link] = await db.insert(salonStaff).values({ userId: newUser.id, salonId, role: staffRole }).returning();
+      res.json({ ...newUser, linkId: link.id, staffRole: link.role });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    app.delete("/api/admin/coupons/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            await db.delete(coupons).where(eq(coupons.id, req.params.id as string));
-            res.json({ success: true });
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  app.delete("/api/salon/staff/:linkId", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      await db.delete(salonStaff).where(and(eq(salonStaff.id, req.params.linkId), eq(salonStaff.salonId, salonId)));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    // --- Payments / Transactions ---
-    // Note: We use bookings table for now as it contains payment info
-    app.get("/api/admin/payments", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const payments = await db.select().from(bookings).where(sql`${bookings.paymentMethod} != ''`);
-            res.json(payments);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  // Salon customers (unique users from bookings)
+  app.get("/api/salon/customers", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const rows = await db.select({ userId: bookings.userId, count: sql<number>`count(*)`, lastVisit: sql<string>`max(${bookings.date})` })
+        .from(bookings).where(eq(bookings.salonId, salonId))
+        .groupBy(bookings.userId);
+      const customers = await Promise.all(rows.map(async r => {
+        const [u] = await db.select({ id: users.id, fullName: users.fullName, email: users.email, phone: users.phone, avatar: users.avatar }).from(users).where(eq(users.id, r.userId));
+        return u ? { ...u, bookingCount: r.count, lastVisit: r.lastVisit } : null;
+      }));
+      res.json(customers.filter(Boolean));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    // --- Messages Management ---
-    app.get("/api/admin/messages", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const allMessages = await db.select().from(messages);
-            res.json(allMessages);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  // Salon expenses
+  app.get("/api/salon/expenses", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      res.json(await db.select().from(expenses).where(eq(expenses.salonId, salonId)).orderBy(desc(expenses.createdAt)));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    app.post("/api/admin/messages/reply", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const { userId, salonId, salonName, salonImage, content } = req.body;
-            const [msg] = await db.insert(messages).values({
-                userId, salonId, salonName, salonImage, content, sender: "salon"
-            }).returning();
-            res.json(msg);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  app.post("/api/salon/expenses", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [e] = await db.insert(expenses).values({ ...req.body, salonId }).returning();
+      res.json(e);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
+  app.put("/api/salon/expenses/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [e] = await db.update(expenses).set(req.body).where(and(eq(expenses.id, req.params.id), eq(expenses.salonId, salonId))).returning();
+      res.json(e);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    // --- Settings Management ---
-    app.get("/api/admin/settings", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const settings = await db.select().from(appSettings);
-            res.json(settings);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  app.delete("/api/salon/expenses/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      await db.delete(expenses).where(and(eq(expenses.id, req.params.id), eq(expenses.salonId, salonId)));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    app.post("/api/admin/settings", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const { key, value, description } = req.body;
-            // Upsert setting
-            const existing = await db.select().from(appSettings).where(eq(appSettings.key, key));
-            let setting;
-            if (existing.length > 0) {
-                [setting] = await db.update(appSettings).set({ value, description, updatedAt: new Date() }).where(eq(appSettings.key, key)).returning();
-            } else {
-                [setting] = await db.insert(appSettings).values({ key, value, description }).returning();
-            }
-            res.json(setting);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  // Salon shifts
+  app.get("/api/salon/shifts", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      res.json(await db.select().from(shifts).where(eq(shifts.salonId, salonId)));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    // --- Services Management ---
-    app.get("/api/admin/services", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const allServices = await db.select().from(services);
-            res.json(allServices);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  app.post("/api/salon/shifts", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [s] = await db.insert(shifts).values({ ...req.body, salonId }).returning();
+      res.json(s);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    app.post("/api/admin/services", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const data = req.body;
-            const [service] = await db.insert(services).values(data).returning();
-            res.json(service);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  app.put("/api/salon/shifts/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [s] = await db.update(shifts).set(req.body).where(and(eq(shifts.id, req.params.id), eq(shifts.salonId, salonId))).returning();
+      res.json(s);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    app.put("/api/admin/services/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            const data = req.body;
-            const [service] = await db.update(services).set(data).where(eq(services.id, req.params.id as string)).returning();
-            res.json(service);
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  app.delete("/api/salon/shifts/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      await db.delete(shifts).where(and(eq(shifts.id, req.params.id), eq(shifts.salonId, salonId)));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 
-    app.delete("/api/admin/services/:id", requireAdmin, async (req: Request, res: Response) => {
-        try {
-            await db.delete(services).where(eq(services.id, req.params.id as string));
-            res.json({ success: true });
-        } catch (err: any) {
-            res.status(500).json({ message: err.message });
-        }
-    });
+  // Salon upload
+  app.post("/api/salon/upload", requireSalonAdmin, upload.single("image"), (req: any, res: Response) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: "No image file provided" });
+      res.json({ url: `/uploads/${req.file.filename}` });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STAFF ROUTES  (/api/staff/*)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // Staff: my schedule (bookings for my salonId where specialistId = my userId)
+  app.get("/api/staff/schedule", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const salonId = (req as any).salonId;
+      const all = await db.select().from(bookings).where(
+        salonId
+          ? and(eq(bookings.salonId, salonId), eq(bookings.specialistId, userId))
+          : eq(bookings.specialistId, userId)
+      ).orderBy(desc(bookings.date));
+      res.json(all);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Staff: update booking status (complete / no-show)
+  app.put("/api/staff/bookings/:id", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const allowed = ["completed", "no-show"];
+      if (!allowed.includes(req.body.status)) {
+        return res.status(400).json({ message: "Staff can only mark bookings as completed or no-show" });
+      }
+      const [booking] = await db.update(bookings).set({ status: req.body.status }).where(and(eq(bookings.id, req.params.id), eq(bookings.specialistId, userId))).returning();
+      res.json(booking);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Staff: my bookings
+  app.get("/api/staff/bookings", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const salonId = (req as any).salonId;
+      const all = await db.select().from(bookings).where(
+        salonId
+          ? and(eq(bookings.salonId, salonId), eq(bookings.specialistId, userId))
+          : eq(bookings.specialistId, userId)
+      ).orderBy(desc(bookings.date));
+      res.json(all);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Staff: update own profile
+  app.put("/api/staff/profile", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const { name, email, phone } = req.body;
+      const [user] = await db.update(users).set({ fullName: name, email, phone }).where(eq(users.id, userId)).returning();
+      res.json(user);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Staff: my shifts
+  app.get("/api/staff/shifts", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      const salonId = (req as any).salonId;
+      res.json(await db.select().from(shifts).where(and(eq(shifts.staffId, userId), eq(shifts.salonId, salonId))));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
 }

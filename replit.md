@@ -1,8 +1,12 @@
-# Casca - Barber & Salon Booking App
+# Barmagly - Multi-Tenant SaaS Barber Shop Management Platform
 
 ## Overview
 
-Casca is a full-stack barber and salon booking mobile application built with Expo (React Native) on the frontend and Express.js on the backend. It allows users to browse salons, view services and specialists, book appointments, manage bookmarks, chat with salons, and manage their profiles. The app follows a dark-themed design inspired by a Figma UI kit, using the Urbanist font family throughout.
+Barmagly is a scalable multi-tenant SaaS barber shop management platform built on top of the Casca codebase. It extends a barber/salon booking mobile app (Expo + React Native) with a comprehensive admin ecosystem consisting of three separate role-based dashboards: Super Admin, Salon Admin, and Staff.
+
+The platform features subscription management, license keys, activity logging, system health monitoring, commission tracking, shift management, and expense tracking. The admin panel is available at `/admin_dashboard` and routes users based on their role.
+
+The underlying mobile app (Casca) allows users to browse salons, view services and specialists, book appointments, manage bookmarks, chat with salons, and manage their profiles. It follows a dark-themed design using the Urbanist font family throughout.
 
 The project runs as two concurrent processes: an Expo development server for the React Native app (targeting web, iOS, and Android) and an Express API server on port 5000 that handles authentication, data access, and session management.
 
@@ -36,13 +40,65 @@ Preferred communication style: Simple, everyday language.
 - **CORS**: Dynamic origin allowlist based on Replit environment variables, plus localhost origins for local development.
 - **Middleware**: `requireAuth` middleware function checks `req.session.userId` for protected routes.
 
+### Admin Panel (`admin-panel/`)
+
+A Vite + React + TypeScript admin dashboard compiled to `admin-dist/` and served at `/admin_dashboard`. Features three role-based sections:
+
+**Super Admin (`/admin_dashboard/`)** — Login with `super_admin` or legacy `admin` role:
+- Dashboard with platform-wide stats (salons, bookings, revenue, subscriptions, commissions)
+- Tenant management (activate/suspend/deactivate salons)
+- Subscription management (create, update, cancel)
+- License key generation and revocation
+- Activity log viewer (real-time event stream)
+- System health monitor (DB latency, uptime, memory)
+- Commission tracking with mark-as-paid
+- Platform-wide expense viewer
+- Shift viewer across all salons
+- Notification broadcaster
+- Backup & restore (config download + pg_dump instructions)
+- WhatsApp integration placeholder
+- Landing pages placeholder
+
+**Salon Admin (`/admin_dashboard/salon`)** — Login with `salon_admin` role:
+- Dashboard with today's bookings, revenue, staff count
+- Appointment management (confirm/complete/cancel)
+- Staff management (add/remove with role assignment)
+- Service catalog management
+- Customer list with booking history
+- Payment tracking
+- Analytics charts (bookings by month, revenue trend)
+- Shift scheduling
+- Expense tracking
+- Salon profile settings
+- Subscription status viewer
+
+**Staff (`/admin_dashboard/staff`)** — Login with `staff` role:
+- Weekly schedule viewer
+- Personal appointment list with complete action
+- Profile editor
+
+### Role System
+
+- `super_admin` / `admin` (legacy) → Super Admin dashboard
+- `salon_admin` → Salon Admin dashboard (linked via `salonStaff` table)
+- `staff` → Staff dashboard (linked via `salonStaff` table)
+- `user` → Mobile app only
+
+### Backend Admin Routes (`server/adminRoutes.ts`)
+
+All routes under `/api/admin/*` (super admin), `/api/salon/*` (salon admin), `/api/staff/*` (staff).
+
+Key middlewares: `requireSuperAdmin`, `requireSalonAdmin`, `requireStaff`
+
+Activity logging on: login, logout, booking.created, salon CRUD, subscription changes
+
 ### Database
 
 - **Database**: PostgreSQL via Neon serverless driver (`@neondatabase/serverless`) with WebSocket support.
 - **ORM**: Drizzle ORM with `drizzle-orm/neon-serverless` adapter.
 - **Schema**: Defined in `shared/schema.ts` using Drizzle's `pgTable` helpers. Tables include:
-  - `users` - User accounts with auth credentials and profile fields
-  - `salons` - Salon listings with location, ratings, gallery
+  - `users` - User accounts with auth credentials, profile fields, and role
+  - `salons` - Salon listings with location, ratings, gallery, and status field
   - `services` - Individual services linked to salons
   - `packages` - Service bundles with discounted pricing
   - `specialists` - Staff members linked to salons
@@ -51,6 +107,14 @@ Preferred communication style: Simple, everyday language.
   - `bookmarkTable` - User bookmark relationships
   - `messages` - Chat messages between users and salons
   - `notifications` - User notification items
+  - `salonStaff` - Links users (salon_admin/staff) to salons
+  - `plans` - Subscription plans with pricing and commission rates
+  - `subscriptions` - Salon subscription records
+  - `licenseKeys` - Platform access keys (format: BRMG-{timestamp}-{random})
+  - `activityLogs` - Platform-wide event audit trail
+  - `commissions` - Platform commissions per booking
+  - `expenses` - Per-salon expense records
+  - `shifts` - Staff shift schedules
 - **Validation**: `drizzle-zod` for generating Zod schemas from Drizzle table definitions.
 - **Migrations**: Managed via `drizzle-kit push` (push-based, no migration files needed for development). Config in `drizzle.config.ts`.
 - **Seeding**: `server/seed.ts` populates the database with sample salon data, services, specialists, and reviews on startup.

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import api from '../lib/api';
 
@@ -8,49 +8,55 @@ interface User {
     [key: string]: any;
 }
 
-export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+const SUPER_ADMIN_ROLES = ['super_admin', 'admin'];
+
+export function SuperAdminRoute({ children }: { children: React.ReactNode }) {
+    return <RoleGuard allowedRoles={SUPER_ADMIN_ROLES} redirectTo="/login">{children}</RoleGuard>;
+}
+
+export function SalonAdminRoute({ children }: { children: React.ReactNode }) {
+    return <RoleGuard allowedRoles={['salon_admin']} redirectTo="/login">{children}</RoleGuard>;
+}
+
+export function StaffRoute({ children }: { children: React.ReactNode }) {
+    return <RoleGuard allowedRoles={['staff']} redirectTo="/login">{children}</RoleGuard>;
+}
+
+function RoleGuard({ children, allowedRoles, redirectTo }: { children: React.ReactNode; allowedRoles: string[]; redirectTo: string }) {
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState<User | null>(null);
     const location = useLocation();
-    const checkedRef = useRef(false);
 
     useEffect(() => {
-        // Only check auth once, not on every route change
-        if (checkedRef.current && user) return;
-
-        const checkAuth = async () => {
-            try {
-                const response = await api.get('/auth/me');
-                console.log('Auth check response:', response.status, response.data);
-                if (response.data?.user?.role === 'admin') {
-                    setUser(response.data.user);
-                    checkedRef.current = true;
+        api.get('/auth/me')
+            .then(res => {
+                const u = res.data?.user;
+                if (u && allowedRoles.includes(u.role)) {
+                    setUser(u);
                 } else {
-                    console.warn('User is not admin:', response.data);
                     setUser(null);
                 }
-            } catch (error: any) {
-                console.error('Auth check failed:', error?.response?.status, error?.message);
-                setUser(null);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        checkAuth();
-    }, []); // Only run once on mount
+            })
+            .catch(() => setUser(null))
+            .finally(() => setIsLoading(false));
+    }, []);
 
     if (isLoading) {
         return (
-            <div className="flex h-screen w-full items-center justify-center bg-bg-dark">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <div className="flex h-screen w-full items-center justify-center bg-[#181A20]">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#F4A460]"></div>
             </div>
         );
     }
 
     if (!user) {
-        return <Navigate to="/login" replace state={{ from: location }} />;
+        return <Navigate to={redirectTo} replace state={{ from: location }} />;
     }
 
     return <>{children}</>;
+}
+
+// Legacy default export for backward compatibility
+export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+    return <SuperAdminRoute>{children}</SuperAdminRoute>;
 }

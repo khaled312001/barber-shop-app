@@ -6,6 +6,7 @@ import { seedDatabase } from "./seed";
 import * as storage from "./storage";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { registerAdminRoutes } from "./adminRoutes";
+import { logActivity } from "./activityLogger";
 
 const PgSession = connectPgSimple(session);
 
@@ -79,6 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Incorrect password" });
       }
       (req.session as any).userId = user.id;
+      await logActivity({ userId: user.id, userRole: user.role || "user", action: "user.login", entityType: "user", entityId: user.id });
       const { password: _, ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (err: any) {
@@ -297,7 +299,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", (req: Request, res: Response) => {
+  app.post("/api/auth/logout", async (req: Request, res: Response) => {
+    const userId = (req.session as any)?.userId;
+    if (userId) await logActivity({ userId, action: "user.logout", entityType: "user", entityId: userId });
     req.session.destroy(() => {
       res.json({ message: "Logged out" });
     });
@@ -404,6 +408,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Your appointment at ${salonName} on ${date} at ${time} is confirmed.`,
         type: "booking",
       });
+
+      await logActivity({ userId, action: "booking.created", entityType: "booking", entityId: booking.id, metadata: { salonId, date, time, totalPrice } });
 
       res.status(201).json(booking);
     } catch (err: any) {
