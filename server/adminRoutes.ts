@@ -1159,19 +1159,15 @@ export function registerAdminRoutes(app: Express) {
   // ════════════════════════════════════════════════════════════════════════════
   // Landing Pages (Super Admin)
   // ════════════════════════════════════════════════════════════════════════════
-  app.get("/api/admin/landing-pages", async (req: Request, res: Response) => {
+  app.get("/api/admin/landing-pages", requireSuperAdmin, async (_req: Request, res: Response) => {
     try {
-      const role = (req.session as any)?.role;
-      if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
       const rows = await db.select().from(salons).orderBy(salons.name);
       res.json(rows);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
-  app.put("/api/admin/landing-pages/:salonId", async (req: Request, res: Response) => {
+  app.put("/api/admin/landing-pages/:salonId", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const role = (req.session as any)?.role;
-      if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
       const salonId = String(req.params.salonId);
       const { landingEnabled, landingSlug, landingTheme, landingAccentColor, landingBookingUrl } = req.body;
 
@@ -1199,10 +1195,8 @@ export function registerAdminRoutes(app: Express) {
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
-  app.post("/api/admin/landing-pages/:salonId/reset-views", async (req: Request, res: Response) => {
+  app.post("/api/admin/landing-pages/:salonId/reset-views", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const role = (req.session as any)?.role;
-      if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
       await db.update(salons).set({ landingViews: 0 }).where(eq(salons.id, String(req.params.salonId)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
