@@ -8,13 +8,19 @@ import { Platform } from "react-native";
  * @returns {string} The API base URL
  */
 export function getApiUrl(): string {
+  // On web, always use the current window origin so the app works
+  // in any environment (dev at localhost:5000, production at *.replit.app, etc.)
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+
   let host = process.env.EXPO_PUBLIC_DOMAIN;
 
   if (!host) {
     if (Platform.OS === 'android') {
-      host = '10.0.2.2:5001';
+      host = '10.0.2.2:5000';
     } else {
-      host = 'localhost:5001';
+      host = 'localhost:5000';
     }
   }
 

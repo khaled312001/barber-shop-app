@@ -1287,7 +1287,19 @@ function registerAdminRoutes(app2) {
   });
   app2.post("/api/admin/salons", requireSuperAdmin, async (req, res) => {
     try {
-      const [salon] = await db.insert(salons).values(req.body).returning();
+      const { ownerEmail, ...salonData2 } = req.body;
+      if (ownerEmail) {
+        const [ownerUser] = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.email, ownerEmail)).limit(1);
+        if (!ownerUser) return res.status(400).json({ message: `No user found with email "${ownerEmail}". Ask them to register first.` });
+        salonData2.ownerId = ownerUser.id;
+      }
+      const [salon] = await db.insert(salons).values(salonData2).returning();
+      if (salonData2.ownerId) {
+        const existing = await db.select().from(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salon.id)).limit(1);
+        if (existing.length === 0) {
+          await db.insert(salonStaff).values({ salonId: salon.id, userId: salonData2.ownerId, role: "salon_admin" });
+        }
+      }
       await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: "salon.created", entityType: "salon", entityId: salon.id, metadata: { name: salon.name } });
       res.json(salon);
     } catch (err) {
@@ -1296,9 +1308,27 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/salons/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [salon] = await db.update(salons).set(req.body).where((0, import_drizzle_orm3.eq)(salons.id, String(req.params.id))).returning();
+      const salonId = String(req.params.id);
+      const { ownerEmail, ...salonData2 } = req.body;
+      if (ownerEmail !== void 0) {
+        if (ownerEmail === "") {
+          salonData2.ownerId = null;
+          await db.delete(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId));
+        } else {
+          const [ownerUser] = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.email, ownerEmail)).limit(1);
+          if (!ownerUser) return res.status(400).json({ message: `No user found with email "${ownerEmail}". Ask them to register first.` });
+          salonData2.ownerId = ownerUser.id;
+          const existing = await db.select().from(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId)).limit(1);
+          if (existing.length === 0) {
+            await db.insert(salonStaff).values({ salonId, userId: ownerUser.id, role: "salon_admin" });
+          } else {
+            await db.update(salonStaff).set({ userId: ownerUser.id, role: "salon_admin" }).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId));
+          }
+        }
+      }
+      const [salon] = await db.update(salons).set(salonData2).where((0, import_drizzle_orm3.eq)(salons.id, salonId)).returning();
       if (req.body.status) {
-        await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: String(req.params.id) });
+        await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: salonId });
       }
       res.json(salon);
     } catch (err) {
@@ -1309,6 +1339,41 @@ function registerAdminRoutes(app2) {
     try {
       await db.delete(salons).where((0, import_drizzle_orm3.eq)(salons.id, String(req.params.id)));
       res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+  app2.post("/api/admin/salons/:id/create-default-account", requireSuperAdmin, async (req, res) => {
+    try {
+      const salonId = String(req.params.id);
+      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+      if (!salon) return res.status(404).json({ message: "Salon not found" });
+      const slug = salon.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
+      const email = `${slug}@barmagly.com`;
+      const defaultPassword = "salon123";
+      const existing = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.email, email)).limit(1);
+      let user = existing[0];
+      if (!user) {
+        const hashed = await import_bcryptjs2.default.hash(defaultPassword, 10);
+        const [created] = await db.insert(users).values({
+          fullName: salon.name,
+          email,
+          password: hashed,
+          role: "salon_admin",
+          phone: "",
+          avatar: ""
+        }).returning();
+        user = created;
+      }
+      const staffExisting = await db.select().from(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId)).limit(1);
+      if (staffExisting.length === 0) {
+        await db.insert(salonStaff).values({ salonId, userId: user.id, role: "salon_admin" });
+      } else {
+        await db.update(salonStaff).set({ userId: user.id, role: "salon_admin" }).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId));
+      }
+      await db.update(salons).set({ ownerId: user.id }).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+      await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: "salon.owner.created", entityType: "salon", entityId: salonId, metadata: { email } });
+      res.json({ email, password: defaultPassword, userId: user.id });
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -2229,20 +2294,16 @@ function registerAdminRoutes(app2) {
       res.status(500).json({ message: err.message });
     }
   });
-  app2.get("/api/admin/landing-pages", async (req, res) => {
+  app2.get("/api/admin/landing-pages", requireSuperAdmin, async (_req, res) => {
     try {
-      const role = req.session?.role;
-      if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
       const rows = await db.select().from(salons).orderBy(salons.name);
       res.json(rows);
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
   });
-  app2.put("/api/admin/landing-pages/:salonId", async (req, res) => {
+  app2.put("/api/admin/landing-pages/:salonId", requireSuperAdmin, async (req, res) => {
     try {
-      const role = req.session?.role;
-      if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
       const salonId = String(req.params.salonId);
       const { landingEnabled, landingSlug, landingTheme, landingAccentColor, landingBookingUrl } = req.body;
       if (landingSlug !== void 0) {
@@ -2269,10 +2330,8 @@ function registerAdminRoutes(app2) {
       res.status(500).json({ message: err.message });
     }
   });
-  app2.post("/api/admin/landing-pages/:salonId/reset-views", async (req, res) => {
+  app2.post("/api/admin/landing-pages/:salonId/reset-views", requireSuperAdmin, async (req, res) => {
     try {
-      const role = req.session?.role;
-      if (role !== "super_admin" && role !== "admin") return res.status(403).json({ message: "Forbidden" });
       await db.update(salons).set({ landingViews: 0 }).where((0, import_drizzle_orm3.eq)(salons.id, String(req.params.salonId)));
       res.json({ success: true });
     } catch (err) {
