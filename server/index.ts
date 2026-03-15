@@ -192,6 +192,10 @@ function configureExpoAndLanding(app: express.Application) {
     }
 
     if (req.path === "/") {
+      const staticBuildIdx = path.resolve(process.cwd(), "static-build", "index.html");
+      if (fs.existsSync(staticBuildIdx)) {
+        return res.sendFile(staticBuildIdx);
+      }
       return serveLandingPage({
         req,
         res,
