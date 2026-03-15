@@ -19,7 +19,7 @@ const translations: Record<Language, Record<string, string>> = { en, ar, de };
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-    const [language, setLanguageState] = useState<Language>('ar');
+    const [language, setLanguageState] = useState<Language>('en');
 
     useEffect(() => {
         (async () => {

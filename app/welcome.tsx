@@ -82,7 +82,7 @@ export default function WelcomeScreen() {
         <Pressable onPress={() => router.push('/license')} style={styles.licenseLink}>
           <Ionicons name="key-outline" size={14} color="#555" />
           <Text style={[styles.licenseText, { fontFamily: 'Urbanist_500Medium' }]}>
-            Admin / Staff? تسجيل دخول بالترخيص
+            {t('admin_staff_login_license') || 'Admin / Staff? Login with License'}
           </Text>
         </Pressable>
       </View>
