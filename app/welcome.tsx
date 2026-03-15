@@ -7,13 +7,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/theme';
 import { useSocialAuth } from '@/hooks/useSocialAuth';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useLanguage, Language } from '@/contexts/LanguageContext';
+
+const LANGUAGES: { code: Language; label: string; flag: string }[] = [
+  { code: 'ar', label: 'العربية', flag: 'AR' },
+  { code: 'en', label: 'English', flag: 'EN' },
+  { code: 'de', label: 'Deutsch', flag: 'DE' },
+];
 
 export default function WelcomeScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { handleGooglePress } = useSocialAuth();
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, language, setLanguage } = useLanguage();
   const webBottomInset = Platform.OS === 'web' ? 34 : 0;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
 
@@ -35,6 +41,27 @@ export default function WelcomeScreen() {
           <Ionicons name="cut" size={18} color="#181A20" />
         </View>
         <Text style={styles.logoLabel}>Barmagly</Text>
+      </View>
+
+      {/* Language switcher */}
+      <View style={[styles.langSwitcher, { top: Platform.OS === 'web' ? 36 : insets.top + 16 }]}>
+        {LANGUAGES.map((lang) => (
+          <Pressable
+            key={lang.code}
+            onPress={() => setLanguage(lang.code)}
+            style={[
+              styles.langBtn,
+              language === lang.code && styles.langBtnActive,
+            ]}
+          >
+            <Text style={[styles.langFlag, language === lang.code && styles.langFlagActive]}>
+              {lang.flag}
+            </Text>
+            {language === lang.code && (
+              <Text style={styles.langLabel}>{lang.label}</Text>
+            )}
+          </Pressable>
+        ))}
       </View>
 
       <View style={[styles.content, { paddingBottom: bottomPad + 20 }]}>
@@ -112,4 +139,10 @@ const styles = StyleSheet.create({
   linkText: { fontSize: 14 },
   licenseLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingBottom: 8 },
   licenseText: { fontSize: 12, color: '#555' },
+  langSwitcher: { position: 'absolute', right: 16, flexDirection: 'row', alignItems: 'center', gap: 6, zIndex: 10 },
+  langBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', backgroundColor: 'rgba(0,0,0,0.25)' },
+  langBtnActive: { backgroundColor: '#F4A460', borderColor: '#F4A460' },
+  langFlag: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)', letterSpacing: 0.5 },
+  langFlagActive: { color: '#181A20' },
+  langLabel: { fontSize: 11, fontWeight: '600', color: '#181A20' },
 });
