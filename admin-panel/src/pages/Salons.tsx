@@ -58,7 +58,7 @@ export default function Salons() {
             qc.invalidateQueries({ queryKey: ['admin-salons'] });
             closeModal();
         },
-        onError: (err: any) => alert(err.message),
+        onError: (err: any) => alert(err.response?.data?.message || err.message),
     });
 
     const handleDelete = (id: string, name: string) => {
