@@ -18,7 +18,7 @@ export default function Salons() {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isModalOpen, setIsModalOpen] = React.useState(false);
     const [editingSalon, setEditingSalon] = React.useState<Salon | null>(null);
-    const [formData, setFormData] = React.useState({ name: '', address: '', image: '', rating: 0 });
+    const [formData, setFormData] = React.useState({ name: '', address: '', image: '', rating: 0, ownerEmail: '' });
     const [isUploading, setIsUploading] = React.useState(false);
     const [uploadError, setUploadError] = React.useState('');
     const [copiedId, setCopiedId] = useState<string>('');
@@ -68,9 +68,9 @@ export default function Salons() {
     const openModal = (salon: Salon | null = null) => {
         setEditingSalon(salon);
         if (salon) {
-            setFormData({ name: salon.name, address: salon.address, image: salon.image || '', rating: salon.rating || 0 });
+            setFormData({ name: salon.name, address: salon.address, image: salon.image || '', rating: salon.rating || 0, ownerEmail: salon.ownerEmail || '' });
         } else {
-            setFormData({ name: '', address: '', image: '', rating: 5 });
+            setFormData({ name: '', address: '', image: '', rating: 5, ownerEmail: '' });
         }
         setIsModalOpen(true);
     };
@@ -269,6 +269,23 @@ export default function Salons() {
                                     onChange={e => setFormData({ ...formData, address: e.target.value })}
                                     className="w-full bg-bg-dark border border-border rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors text-white"
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">
+                                    Owner Login Email
+                                    <span className="ml-1.5 text-zinc-600 font-normal text-xs">(optional – user must already be registered)</span>
+                                </label>
+                                <div className="relative">
+                                    <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                                    <input
+                                        type="email"
+                                        placeholder="owner@example.com"
+                                        value={formData.ownerEmail}
+                                        onChange={e => setFormData({ ...formData, ownerEmail: e.target.value })}
+                                        className="w-full bg-bg-dark border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors text-white placeholder:text-zinc-600"
+                                    />
+                                </div>
                             </div>
 
                             <div>

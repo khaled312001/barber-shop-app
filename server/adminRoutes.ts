@@ -187,7 +187,21 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/salons", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [salon] = await db.insert(salons).values(req.body).returning();
+      const { ownerEmail, ...salonData } = req.body;
+      // Resolve owner by email if provided
+      if (ownerEmail) {
+        const [ownerUser] = await db.select().from(users).where(eq(users.email, ownerEmail)).limit(1);
+        if (!ownerUser) return res.status(400).json({ message: `No user found with email "${ownerEmail}". Ask them to register first.` });
+        salonData.ownerId = ownerUser.id;
+      }
+      const [salon] = await db.insert(salons).values(salonData).returning();
+      // Add owner to salonStaff as salon_admin
+      if (salonData.ownerId) {
+        const existing = await db.select().from(salonStaff).where(eq(salonStaff.salonId, salon.id)).limit(1);
+        if (existing.length === 0) {
+          await db.insert(salonStaff).values({ salonId: salon.id, userId: salonData.ownerId, role: "salon_admin" });
+        }
+      }
       await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "salon.created", entityType: "salon", entityId: salon.id, metadata: { name: salon.name } });
       res.json(salon);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -195,9 +209,30 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/salons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [salon] = await db.update(salons).set(req.body).where(eq(salons.id, String(req.params.id))).returning();
+      const salonId = String(req.params.id);
+      const { ownerEmail, ...salonData } = req.body;
+      // Resolve owner by email if provided
+      if (ownerEmail !== undefined) {
+        if (ownerEmail === '') {
+          // Clear owner
+          salonData.ownerId = null;
+          await db.delete(salonStaff).where(eq(salonStaff.salonId, salonId));
+        } else {
+          const [ownerUser] = await db.select().from(users).where(eq(users.email, ownerEmail)).limit(1);
+          if (!ownerUser) return res.status(400).json({ message: `No user found with email "${ownerEmail}". Ask them to register first.` });
+          salonData.ownerId = ownerUser.id;
+          // Upsert salonStaff record
+          const existing = await db.select().from(salonStaff).where(eq(salonStaff.salonId, salonId)).limit(1);
+          if (existing.length === 0) {
+            await db.insert(salonStaff).values({ salonId, userId: ownerUser.id, role: "salon_admin" });
+          } else {
+            await db.update(salonStaff).set({ userId: ownerUser.id, role: "salon_admin" }).where(eq(salonStaff.salonId, salonId));
+          }
+        }
+      }
+      const [salon] = await db.update(salons).set(salonData).where(eq(salons.id, salonId)).returning();
       if (req.body.status) {
-        await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: String(req.params.id) });
+        await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: salonId });
       }
       res.json(salon);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
