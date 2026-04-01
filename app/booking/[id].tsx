@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, Platform, ActivityIndicator, Alert,
+  View, Text, StyleSheet, ScrollView, Pressable, Platform, ActivityIndicator, Alert, TextInput,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '@/lib/navigation';
@@ -344,20 +344,13 @@ export default function BookingScreen() {
               <View style={styles.promoInputRow}>
                 <View style={[styles.promoInputContainer, { backgroundColor: theme.inputBg, borderColor: theme.border }]}>
                   <Ionicons name="pricetag-outline" size={20} color={theme.textTertiary} />
-                  <input
-                    style={{
-                      flex: 1,
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      color: theme.text,
-                      padding: '8px 12px',
-                      fontSize: '14px',
-                      fontFamily: 'Urbanist_600SemiBold',
-                      outline: 'none',
-                    }}
+                  <TextInput
+                    style={[styles.promoInput, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}
                     placeholder="Enter Promo Code"
+                    placeholderTextColor={theme.textTertiary}
                     value={promoCode}
-                    onChange={(e: any) => setPromoCode(e.target.value.toUpperCase())}
+                    onChangeText={(text) => setPromoCode(text.toUpperCase())}
+                    autoCapitalize="characters"
                   />
                 </View>
                 <Pressable

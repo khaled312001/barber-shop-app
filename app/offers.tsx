@@ -2,8 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { useTheme } from '@/constants/theme';
+import { useLanguage } from '@/contexts/LanguageContext';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
@@ -12,7 +13,7 @@ import { getQueryFn } from '@/lib/query-client';
 export default function OffersScreen() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
-    const router = useRouter();
+    const { t, isRTL } = useLanguage();
 
     const topPad = Platform.OS === 'web' ? 24 : Math.max(insets.top, 24);
 
@@ -24,16 +25,15 @@ export default function OffersScreen() {
     const copyCode = async (code: string) => {
         await Clipboard.setStringAsync(code);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        // Toast notification could go here
     };
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
-            <View style={[styles.header, { paddingTop: topPad }]}>
+            <View style={[styles.header, { paddingTop: topPad, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Pressable onPress={() => goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={theme.text} />
+                    <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={theme.text} />
                 </Pressable>
-                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Special Offers</Text>
+                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('offers')}</Text>
                 <View style={styles.placeholder} />
             </View>
 
@@ -72,7 +72,7 @@ export default function OffersScreen() {
                                         style={[styles.copyBtn, { backgroundColor: theme.primary }]}
                                         onPress={() => copyCode(coupon.code)}
                                     >
-                                        <Text style={[styles.copyBtnText, { fontFamily: 'Urbanist_600SemiBold' }]}>Copy Code</Text>
+                                        <Text style={[styles.copyBtnText, { fontFamily: 'Urbanist_600SemiBold' }]}>{t('copy_code')}</Text>
                                     </Pressable>
                                 </View>
                             </View>

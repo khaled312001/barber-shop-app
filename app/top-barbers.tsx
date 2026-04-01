@@ -3,60 +3,83 @@ import { View, Text, StyleSheet, ScrollView, Platform, Pressable } from 'react-n
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { useTheme } from '@/constants/theme';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { DEFAULT_AVATAR } from '@/constants/images';
+import { useQuery } from '@tanstack/react-query';
+import { getQueryFn, getImageUrl } from '@/lib/query-client';
 
 export default function TopBarbersScreen() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
-    const router = useRouter();
+    const { t, isRTL } = useLanguage();
 
     const topPad = Platform.OS === 'web' ? 24 : Math.max(insets.top, 24);
 
-    const barbers = [
-        { id: '1', name: 'James Wilson', role: 'Master Barber', rating: 4.9, reviews: 124, salon: 'Elite Cuts', image: DEFAULT_AVATAR },
-        { id: '2', name: 'Michael Chen', role: 'Senior Stylist', rating: 4.8, reviews: 98, salon: 'The Grooming Lounge', image: DEFAULT_AVATAR },
-        { id: '3', name: 'David Smith', role: 'Barber Specialist', rating: 4.7, reviews: 156, salon: 'Classic Barbershop', image: DEFAULT_AVATAR },
-        { id: '4', name: 'Robert Davis', role: 'Beard Expert', rating: 4.9, reviews: 210, salon: 'Urban Gentlemen', image: DEFAULT_AVATAR },
-    ];
+    // Fetch specialists from salons API and aggregate them
+    const { data: salons = [], isLoading } = useQuery<any[]>({
+        queryKey: ['/api/salons'],
+        queryFn: getQueryFn({ on401: 'returnNull' }),
+    });
+
+    // Aggregate all specialists from all salons
+    const barbers = React.useMemo(() => {
+        const allSpecialists: any[] = [];
+        salons.forEach((salon: any) => {
+            (salon.specialists || []).forEach((sp: any) => {
+                allSpecialists.push({
+                    ...sp,
+                    salonName: salon.name,
+                    salonId: salon.id,
+                });
+            });
+        });
+        // Sort by rating descending
+        return allSpecialists.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 20);
+    }, [salons]);
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
-            <View style={[styles.header, { paddingTop: topPad }]}>
+            <View style={[styles.header, { paddingTop: topPad, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
                 <Pressable onPress={() => goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={theme.text} />
+                    <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={24} color={theme.text} />
                 </Pressable>
-                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Top Specialists</Text>
+                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('top_barbers')}</Text>
                 <View style={styles.placeholder} />
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {barbers.map((barber) => (
-                    <Pressable
-                        key={barber.id}
-                        style={({ pressed }) => [
-                            styles.barberCard,
-                            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.9 : 1 }
-                        ]}
-                    >
-                        <Image source={{ uri: barber.image }} style={styles.barberAvatar} contentFit="cover" />
+                {isLoading ? (
+                    <Text style={[styles.loadingText, { color: theme.textSecondary }]}>{t('loading') || 'Loading...'}</Text>
+                ) : barbers.length === 0 ? (
+                    <Text style={[styles.emptyText, { color: theme.textSecondary }]}>{t('no_results')}</Text>
+                ) : (
+                    barbers.map((barber: any) => (
+                        <View
+                            key={barber.id}
+                            style={[
+                                styles.barberCard,
+                                { backgroundColor: theme.card, borderColor: theme.border }
+                            ]}
+                        >
+                            <Image source={{ uri: getImageUrl(barber.image) }} style={styles.barberAvatar} contentFit="cover" />
 
-                        <View style={styles.barberInfo}>
-                            <Text style={[styles.barberName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{barber.name}</Text>
-                            <Text style={[styles.barberRole, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>{barber.role}</Text>
-                            <Text style={[styles.barberSalon, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{barber.salon}</Text>
-                        </View>
-
-                        <View style={styles.ratingContainer}>
-                            <View style={styles.ratingRow}>
-                                <Ionicons name="star" size={16} color={theme.star} />
-                                <Text style={[styles.ratingText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{barber.rating}</Text>
+                            <View style={styles.barberInfo}>
+                                <Text style={[styles.barberName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{barber.name}</Text>
+                                <Text style={[styles.barberRole, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>{barber.role}</Text>
+                                <Text style={[styles.barberSalon, { color: theme.primary, fontFamily: 'Urbanist_600SemiBold' }]}>{barber.salonName}</Text>
                             </View>
-                            <Text style={[styles.reviewsText, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{barber.reviews} reviews</Text>
+
+                            <View style={styles.ratingContainer}>
+                                <View style={styles.ratingRow}>
+                                    <Ionicons name="star" size={16} color={theme.star} />
+                                    <Text style={[styles.ratingText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{barber.rating?.toFixed(1) || '0.0'}</Text>
+                                </View>
+                            </View>
                         </View>
-                    </Pressable>
-                ))}
+                    ))
+                )}
             </ScrollView>
         </View>
     );
@@ -129,12 +152,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        marginBottom: 4,
     },
     ratingText: {
         fontSize: 16,
     },
-    reviewsText: {
-        fontSize: 12,
+    loadingText: {
+        textAlign: 'center',
+        marginTop: 40,
+        fontSize: 16,
+    },
+    emptyText: {
+        textAlign: 'center',
+        marginTop: 40,
+        fontSize: 16,
     },
 });

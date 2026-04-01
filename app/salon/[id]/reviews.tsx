@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { useTheme } from '@/constants/theme';
 import { Image } from 'expo-image';
 import { DEFAULT_AVATAR } from '@/constants/images';
@@ -11,12 +12,14 @@ export default function SalonReviewsScreen() {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const { id } = useLocalSearchParams();
+    const { id } = { id: '1' }; // Default for standalone usage
 
     const [filter, setFilter] = useState('All');
 
     const topPad = Platform.OS === 'web' ? 24 : Math.max(insets.top, 24);
 
+    // Note: In production, fetch reviews from the salon data via API
+    // For now, using placeholder data
     const reviews = [
         { id: '1', user: 'Ali Ahmed', rating: 5, date: '2 days ago', text: 'Best haircut I have ever had! The barber was very professional and the salon is extremely clean.', image: DEFAULT_AVATAR },
         { id: '2', user: 'Omar Hassan', rating: 4, date: '1 week ago', text: 'Great service, but I had to wait 10 minutes past my appointment time. Otherwise, perfect.', image: DEFAULT_AVATAR },
