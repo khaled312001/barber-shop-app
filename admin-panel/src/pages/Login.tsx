@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail } from 'lucide-react';
+import { Lock, Mail, Scissors } from 'lucide-react';
 import api from '../lib/api';
 
 export default function Login() {
-    const [email, setEmail] = useState('admin@barber.com');
-    const [password, setPassword] = useState('admin123');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
@@ -19,20 +19,13 @@ export default function Login() {
             const res = await api.post('/auth/signin', { email, password });
             const user = res.data?.user;
 
-            // Check if user is admin
-            if (!user || user.role !== 'admin') {
-                setError('Access denied. Admin privileges required.');
+            if (!user || (user.role !== 'super_admin' && user.role !== 'admin')) {
+                setError('Access denied. This portal is for Super Admins only.');
                 setLoading(false);
                 return;
             }
 
-            // Verify session is established before navigating
-            const meRes = await api.get('/auth/me');
-            if (meRes.data?.user?.role === 'admin') {
-                navigate('/');
-            } else {
-                setError('Session could not be established. Please try again.');
-            }
+            navigate('/');
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'Login failed');
         } finally {
@@ -44,11 +37,15 @@ export default function Login() {
         <div className="min-h-screen flex items-center justify-center bg-[#09090b] p-4">
             <div className="w-full max-w-md bg-[#18181b] rounded-2xl border border-[#27272a] p-8 shadow-2xl">
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-violet-500 rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg shadow-violet-500/20">
-                        <Lock className="text-white" size={28} />
+                    <div className="w-16 h-16 bg-[#F4A460] rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg shadow-[#F4A460]/20">
+                        <Scissors className="text-[#181A20]" size={28} />
                     </div>
-                    <h1 className="text-2xl font-bold text-zinc-100">Welcome Back</h1>
-                    <p className="text-zinc-400 mt-2">Sign in to your admin dashboard</p>
+                    <h1 className="text-2xl font-bold text-zinc-100">Barmagly</h1>
+                    <p className="text-zinc-400 mt-2 text-sm">Super Admin Portal</p>
+                    <div className="mt-3 inline-flex items-center gap-2 bg-[#F4A460]/10 border border-[#F4A460]/20 rounded-full px-4 py-1.5">
+                        <div className="w-2 h-2 rounded-full bg-[#F4A460] animate-pulse"></div>
+                        <span className="text-[#F4A460] text-xs font-medium">Super Admin Access Only</span>
+                    </div>
                 </div>
 
                 {error && (
@@ -67,8 +64,8 @@ export default function Login() {
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-[#09090b] border border-[#27272a] text-zinc-100 rounded-xl px-12 py-3.5 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-zinc-600"
-                                placeholder="admin@barber.com"
+                                className="w-full bg-[#09090b] border border-[#27272a] text-zinc-100 rounded-xl px-12 py-3.5 focus:outline-none focus:border-[#F4A460] focus:ring-1 focus:ring-[#F4A460] transition-all placeholder:text-zinc-600"
+                                placeholder="admin@barmagly.com"
                             />
                         </div>
                     </div>
@@ -82,7 +79,7 @@ export default function Login() {
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-[#09090b] border border-[#27272a] text-zinc-100 rounded-xl px-12 py-3.5 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-zinc-600"
+                                className="w-full bg-[#09090b] border border-[#27272a] text-zinc-100 rounded-xl px-12 py-3.5 focus:outline-none focus:border-[#F4A460] focus:ring-1 focus:ring-[#F4A460] transition-all placeholder:text-zinc-600"
                                 placeholder="••••••••"
                             />
                         </div>
@@ -91,11 +88,15 @@ export default function Login() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-violet-600 hover:bg-violet-700 text-white font-medium rounded-xl py-3.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-lg shadow-violet-600/20"
+                        className="w-full bg-[#F4A460] hover:bg-[#e8935a] text-[#181A20] font-bold rounded-xl py-3.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-lg shadow-[#F4A460]/20"
                     >
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
+
+                <p className="text-center text-xs text-zinc-600 mt-6">
+                    Barmagly Super Admin · All rights reserved
+                </p>
             </div>
         </div>
     );

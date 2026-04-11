@@ -25,8 +25,8 @@ function BookingCard({ booking, onCancel, t }: { booking: Booking; onCancel?: ()
         <View style={styles.cardInfo}>
           <Text style={[styles.cardName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{booking.salonName}</Text>
           <Text style={[styles.cardServices, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>{booking.services.join(', ')}</Text>
-          <View style={[styles.statusPill, { backgroundColor: statusColors[booking.status] + '15' }]}>
-            <Text style={[styles.statusPillText, { color: statusColors[booking.status], fontFamily: 'Urbanist_600SemiBold' }]}>
+          <View style={[styles.statusPill, { backgroundColor: (statusColors as Record<string, string>)[booking.status] + '15' }]}>
+            <Text style={[styles.statusPillText, { color: (statusColors as Record<string, string>)[booking.status], fontFamily: 'Urbanist_600SemiBold' }]}>
               {t(booking.status)}
             </Text>
           </View>

@@ -1,0 +1,21 @@
+signup:1 Access to fetch at 'http://localhost:5001/api/auth/me' from origin 'https://barber-shop-app.replit.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+localhost:5001/api/auth/me:1  Failed to load resource: net::ERR_FAILED
+barber-shop-app.replit.app/:1 Access to fetch at 'http://localhost:5001/api/salons' from origin 'https://barber-shop-app.replit.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+localhost:5001/api/salons:1  Failed to load resource: net::ERR_FAILED
+profile:1 Access to fetch at 'http://localhost:5001/api/auth/logout' from origin 'https://barber-shop-app.replit.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+localhost:5001/api/auth/logout:1  Failed to load resource: net::ERR_FAILED
+entry-4579d7b2447464a3b27dd0483e586f85.js:856 Logout request failed: TypeError: Failed to fetch
+    at e.apiRequest (entry-4579d7b2447464a3b27dd0483e586f85.js:863:319)
+    at entry-4579d7b2447464a3b27dd0483e586f85.js:856:2151
+    at entry-4579d7b2447464a3b27dd0483e586f85.js:1013:3974
+    at onPress (entry-4579d7b2447464a3b27dd0483e586f85.js:1013:4008)
+    at onClick (entry-4579d7b2447464a3b27dd0483e586f85.js:139:3907)
+    at ef (entry-4579d7b2447464a3b27dd0483e586f85.js:533:128098)
+    at entry-4579d7b2447464a3b27dd0483e586f85.js:533:133049
+    at Bn (entry-4579d7b2447464a3b27dd0483e586f85.js:533:21205)
+    at of (entry-4579d7b2447464a3b27dd0483e586f85.js:533:129323)
+    at Fd (entry-4579d7b2447464a3b27dd0483e586f85.js:533:160346)
+(anonymous) @ entry-4579d7b2447464a3b27dd0483e586f85.js:856
+license:1 Access to fetch at 'http://localhost:5001/api/auth/verify-license' from origin 'https://barber-shop-app.replit.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+localhost:5001/api/auth/verify-license:1  Failed to load resource: net::ERR_FAILED
+license:1  Failed to load resource: the server responded with a status of 404 ()

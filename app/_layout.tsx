@@ -43,6 +43,10 @@ function RootLayoutNav() {
       <Stack.Screen name="privacy-policy" />
       <Stack.Screen name="invite-friends" />
       <Stack.Screen name="help-center" />
+      <Stack.Screen name="license" />
+      <Stack.Screen name="role-select" />
+      <Stack.Screen name="(salon-admin)" />
+      <Stack.Screen name="(staff)" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

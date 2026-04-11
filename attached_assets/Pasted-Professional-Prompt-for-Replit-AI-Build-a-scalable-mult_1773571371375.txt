@@ -1,0 +1,298 @@
+Professional Prompt for Replit AI
+
+Build a scalable multi-tenant SaaS barber shop management system called Barmagly.
+
+The application must support three main roles:
+
+Super Admin (Platform Owner – Barmagly)
+
+Salon Admin / Manager (Store Owner)
+
+Staff / Barber
+
+The system must allow multiple salons (stores) to operate inside the same platform, where each salon has its own data, users, bookings, and settings.
+
+The platform owner (Super Admin) can manage all salons from a central dashboard.
+
+Architecture Requirements
+
+Use a modern scalable architecture suitable for SaaS platforms.
+
+Suggested stack:
+
+Frontend
+React / Next.js
+
+Backend
+Node.js (Express) or Laravel API
+
+Database
+PostgreSQL or MySQL
+
+Authentication
+JWT or session-based authentication
+
+Multi-tenancy strategy
+Tenant ID linked to each salon/store
+
+Authentication System
+
+The app must allow login from the same application but assign different permissions based on role.
+
+Roles:
+
+Super Admin
+Salon Admin (Store Manager)
+Staff / Barber
+
+Permissions:
+
+Super Admin
+
+Access the full platform
+
+Manage all salons
+
+Manage subscriptions
+
+Control platform analytics
+
+Salon Admin
+
+Manage their own store only
+
+Manage barbers, services, bookings
+
+View store analytics
+
+Staff / Barber
+
+View their schedule
+
+Manage appointments assigned to them
+
+Multi-Tenant System
+
+Each salon must be treated as a tenant.
+
+Each tenant should have:
+
+unique store ID
+
+store name
+
+store settings
+
+store staff
+
+store services
+
+store bookings
+
+store customers
+
+store subscription
+
+All data must be isolated per tenant.
+
+SUPER ADMIN PANEL (Barmagly Platform)
+
+Create a Super Admin Dashboard where the Barmagly team can manage the whole system.
+
+Menu Structure:
+
+SUPER ADMIN
+
+OVERVIEW
+Dashboard
+
+STORES
+Store Manager
+Landing Pages
+
+PLATFORM
+Tenants
+Subscriptions
+License Keys
+
+ANALYTICS
+Analytics
+Commissions
+System Health
+
+OPERATIONS
+Notifications
+Reports
+Activity Log
+Expenses
+Shifts
+
+SYSTEM
+Backup & Restore
+WhatsApp Integration
+
+ACCOUNT
+Settings
+
+Super Admin Features
+
+The Super Admin must be able to:
+
+Manage all salons (stores)
+
+Create new salon
+
+Deactivate salon
+
+Suspend salon subscription
+
+View analytics across all salons
+
+Manage subscriptions and plans
+
+Monitor platform health
+
+Manage license keys
+
+Send notifications to salons
+
+View platform activity logs
+
+Control WhatsApp integration
+
+Backup and restore platform data
+
+Store Manager (Salon Admin Dashboard)
+
+Each salon owner must have their own store dashboard.
+
+Features:
+
+Store Dashboard
+Appointments management
+Barber staff management
+Services management
+Customer management
+Payments tracking
+Store analytics
+Working hours management
+Store settings
+
+Booking System
+
+Customers must be able to:
+
+Book appointments
+Select barber
+Select service
+Select time slot
+
+The booking system must include:
+
+Calendar view
+Availability logic
+Notifications
+
+Subscription System
+
+The platform must support SaaS subscription plans.
+
+Each salon must subscribe to a plan.
+
+Plans example:
+
+Basic
+Pro
+Enterprise
+
+Features:
+
+Monthly subscriptions
+License keys
+Automatic expiration
+Upgrade / downgrade plan
+
+Analytics
+
+Provide analytics for:
+
+Platform analytics (Super Admin)
+
+Number of stores
+Total bookings
+Revenue
+Active subscriptions
+
+Store analytics (Salon Admin)
+
+Bookings per day
+Most popular services
+Revenue reports
+
+Notifications
+
+System should support notifications via:
+
+In-app notifications
+Email notifications
+WhatsApp integration (future support)
+
+System Health
+
+The Super Admin must be able to monitor:
+
+Server health
+API response time
+Database status
+Active users
+
+Activity Logs
+
+The system must track all important actions:
+
+Store creation
+User login
+Subscription changes
+Booking actions
+
+Logs must be viewable in the Super Admin dashboard.
+
+Backup & Restore
+
+Super Admin must be able to:
+
+Backup database
+Restore backups
+Download backup files
+
+UI Design
+
+Design should be:
+
+Modern SaaS dashboard style
+Responsive
+Clean admin interface
+
+Use:
+
+TailwindCSS or Material UI
+
+Security
+
+Implement:
+
+Role-based access control (RBAC)
+Tenant data isolation
+Secure authentication
+API protection
+
+Deliverables
+
+Generate:
+
+Database schema
+API endpoints
+Authentication system
+Admin dashboard structure
+Super Admin panel
+Multi-tenant logic

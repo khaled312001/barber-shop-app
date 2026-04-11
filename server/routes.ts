@@ -6,6 +6,7 @@ import { seedDatabase } from "./seed";
 import * as storage from "./storage";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { registerAdminRoutes } from "./adminRoutes";
+import { logActivity } from "./activityLogger";
 
 const PgSession = connectPgSimple(session);
 
@@ -79,6 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Incorrect password" });
       }
       (req.session as any).userId = user.id;
+      await logActivity({ userId: user.id, userRole: user.role || "user", action: "user.login", entityType: "user", entityId: user.id });
       const { password: _, ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (err: any) {
@@ -297,7 +299,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", (req: Request, res: Response) => {
+  app.post("/api/auth/logout", async (req: Request, res: Response) => {
+    const userId = (req.session as any)?.userId;
+    if (userId) await logActivity({ userId, action: "user.logout", entityType: "user", entityId: userId });
     req.session.destroy(() => {
       res.json({ message: "Logged out" });
     });
@@ -359,15 +363,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/salons/:id", async (req: Request, res: Response) => {
     try {
-      const salon = await storage.getSalonById(req.params.id);
+      const salon = await storage.getSalonById(String(req.params.id));
       if (!salon) {
         return res.status(404).json({ message: "Salon not found" });
       }
       const [salonServices, salonPackages, salonSpecialists, salonReviews] = await Promise.all([
-        storage.getSalonServices(req.params.id),
-        storage.getSalonPackages(req.params.id),
-        storage.getSalonSpecialists(req.params.id),
-        storage.getSalonReviews(req.params.id),
+        storage.getSalonServices(String(req.params.id)),
+        storage.getSalonPackages(String(req.params.id)),
+        storage.getSalonSpecialists(String(req.params.id)),
+        storage.getSalonReviews(String(req.params.id)),
       ]);
       res.json({ ...salon, services: salonServices, packages: salonPackages, specialists: salonSpecialists, reviews: salonReviews });
     } catch (err: any) {
@@ -405,6 +409,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "booking",
       });
 
+      await logActivity({ userId, action: "booking.created", entityType: "booking", entityId: booking.id, metadata: { salonId, date, time, totalPrice } });
+
       res.status(201).json(booking);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -414,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/bookings/:id/cancel", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      const booking = await storage.cancelBooking(req.params.id, userId);
+      const booking = await storage.cancelBooking(String(req.params.id), userId);
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
@@ -479,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/messages/:salonId", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      const msgs = await storage.getConversation(userId, req.params.salonId);
+      const msgs = await storage.getConversation(userId, String(req.params.salonId));
       res.json(msgs);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
@@ -521,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/notifications/:id/read", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      await storage.markNotificationRead(req.params.id, userId);
+      await storage.markNotificationRead(String(req.params.id), userId);
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ message: err.message });

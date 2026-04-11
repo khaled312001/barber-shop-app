@@ -28,13 +28,13 @@ export default function OnboardingScreen() {
       flatListRef.current?.scrollToIndex({ index: activeIndex + 1, animated: true });
     } else {
       setIsOnboarded(true);
-      router.replace('/welcome');
+      router.replace('/license');
     }
   };
 
   const handleSkip = () => {
     setIsOnboarded(true);
-    router.replace('/welcome');
+    router.replace('/license');
   };
 
   return (

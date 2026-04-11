@@ -3,8 +3,9 @@ import { I18nManager, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import en from '../constants/i18n/en.json';
 import ar from '../constants/i18n/ar.json';
+import de from '../constants/i18n/de.json';
 
-type Language = 'en' | 'ar';
+export type Language = 'en' | 'ar' | 'de';
 
 interface LanguageContextValue {
     language: Language;
@@ -13,7 +14,7 @@ interface LanguageContextValue {
     isRTL: boolean;
 }
 
-const translations: Record<Language, any> = { en, ar };
+const translations: Record<Language, Record<string, string>> = { en, ar, de };
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
@@ -23,7 +24,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         (async () => {
             const stored = await AsyncStorage.getItem('user_language');
-            if (stored === 'ar' || stored === 'en') {
+            if (stored === 'ar' || stored === 'en' || stored === 'de') {
                 setLanguageState(stored as Language);
             }
         })();
@@ -31,28 +32,24 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
     const setLanguage = async (lang: Language) => {
         await AsyncStorage.setItem('user_language', lang);
+        const wasRTL = language === 'ar';
+        const willBeRTL = lang === 'ar';
         setLanguageState(lang);
 
-        const isRTL = lang === 'ar';
-        if (I18nManager.isRTL !== isRTL) {
-            I18nManager.allowRTL(isRTL);
-            I18nManager.forceRTL(isRTL);
-            // Reload the app to apply RTL changes
+        if (wasRTL !== willBeRTL) {
+            I18nManager.allowRTL(willBeRTL);
+            I18nManager.forceRTL(willBeRTL);
             if (Platform.OS === 'web') {
                 window.location.reload();
-            } else {
-                // Skip expo-updates for now if not available
-                // In a production app, we would want expo-updates installed
-                console.warn('RTL change requires app restart');
             }
         }
     };
 
-    const t = (key: string) => {
-        return translations[language][key] || key;
+    const t = (key: string): string => {
+        return (translations[language] as Record<string, string>)[key] || (translations['en'] as Record<string, string>)[key] || key;
     };
 
-    const value = {
+    const value: LanguageContextValue = {
         language,
         setLanguage,
         t,

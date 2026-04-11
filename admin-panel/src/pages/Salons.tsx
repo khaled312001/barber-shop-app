@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Activity, Trash2, Search, Star, Edit2, Plus, X } from 'lucide-react';
+import { Activity, Trash2, Search, Star, Edit2, Plus, X, Copy, Check, Mail, UserPlus, KeyRound } from 'lucide-react';
 import api from '../lib/api';
 
 interface Salon {
@@ -9,6 +9,8 @@ interface Salon {
     image: string;
     address: string;
     rating: number;
+    ownerEmail: string;
+    ownerName: string;
 }
 
 export default function Salons() {
@@ -16,9 +18,19 @@ export default function Salons() {
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isModalOpen, setIsModalOpen] = React.useState(false);
     const [editingSalon, setEditingSalon] = React.useState<Salon | null>(null);
-    const [formData, setFormData] = React.useState({ name: '', address: '', image: '', rating: 0 });
+    const [formData, setFormData] = React.useState({ name: '', address: '', image: '', rating: 0, ownerEmail: '' });
     const [isUploading, setIsUploading] = React.useState(false);
     const [uploadError, setUploadError] = React.useState('');
+    const [copiedId, setCopiedId] = useState<string>('');
+    const [credsModal, setCredsModal] = useState<{ email: string; password: string; salonName: string } | null>(null);
+    const [copiedCred, setCopiedCred] = useState('');
+
+    const copyEmail = (email: string, id: string) => {
+        if (!email) return;
+        navigator.clipboard.writeText(email);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(''), 2000);
+    };
 
     const { data: salons, isLoading } = useQuery<Salon[]>({
         queryKey: ['admin-salons'],
@@ -48,8 +60,26 @@ export default function Salons() {
             qc.invalidateQueries({ queryKey: ['admin-salons'] });
             closeModal();
         },
-        onError: (err: any) => alert(err.message),
+        onError: (err: any) => alert(err.response?.data?.message || err.message),
     });
+
+    const createAccountMutation = useMutation({
+        mutationFn: async (salon: Salon) => {
+            const { data } = await api.post(`/admin/salons/${salon.id}/create-default-account`);
+            return { ...data, salonName: salon.name };
+        },
+        onSuccess: (data) => {
+            qc.invalidateQueries({ queryKey: ['admin-salons'] });
+            setCredsModal(data);
+        },
+        onError: (err: any) => alert(err.response?.data?.message || err.message),
+    });
+
+    const copyCred = (text: string, key: string) => {
+        navigator.clipboard.writeText(text);
+        setCopiedCred(key);
+        setTimeout(() => setCopiedCred(''), 2000);
+    };
 
     const handleDelete = (id: string, name: string) => {
         if (window.confirm(`Delete salon "${name}"?`)) deleteMutation.mutate(id);
@@ -58,9 +88,9 @@ export default function Salons() {
     const openModal = (salon: Salon | null = null) => {
         setEditingSalon(salon);
         if (salon) {
-            setFormData({ name: salon.name, address: salon.address, image: salon.image || '', rating: salon.rating || 0 });
+            setFormData({ name: salon.name, address: salon.address, image: salon.image || '', rating: salon.rating || 0, ownerEmail: salon.ownerEmail || '' });
         } else {
-            setFormData({ name: '', address: '', image: '', rating: 5 });
+            setFormData({ name: '', address: '', image: '', rating: 5, ownerEmail: '' });
         }
         setIsModalOpen(true);
     };
@@ -113,7 +143,8 @@ export default function Salons() {
 
     const filteredSalons = salons?.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.address.toLowerCase().includes(searchTerm.toLowerCase())
+        s.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.ownerEmail || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (isLoading) {
@@ -156,6 +187,7 @@ export default function Salons() {
                             <tr className="bg-white/5 border-b border-border text-text-muted text-sm">
                                 <th className="px-6 py-4 font-medium w-16">Image</th>
                                 <th className="px-6 py-4 font-medium">Salon Details</th>
+                                <th className="px-6 py-4 font-medium">Owner Login Email</th>
                                 <th className="px-6 py-4 font-medium">Rating</th>
                                 <th className="px-6 py-4 font-medium text-right">Actions</th>
                             </tr>
@@ -171,22 +203,61 @@ export default function Salons() {
                                         <p className="text-zinc-400 text-xs">{s.address}</p>
                                     </td>
                                     <td className="px-6 py-4">
+                                        {s.ownerEmail ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1.5 bg-[#181A20] border border-[#35383F] rounded-lg px-3 py-1.5 max-w-[220px]">
+                                                    <Mail size={13} className="text-[#F4A460] shrink-0" />
+                                                    <span className="text-zinc-200 text-xs font-mono truncate">{s.ownerEmail}</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => copyEmail(s.ownerEmail, s.id)}
+                                                    title="Copy email"
+                                                    className="p-1.5 rounded-lg text-zinc-500 hover:text-[#F4A460] hover:bg-[#F4A46015] transition-colors"
+                                                >
+                                                    {copiedId === s.id ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span className="text-zinc-600 text-xs italic">No owner assigned</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
                                         <div className="flex items-center gap-1.5 text-zinc-100 font-bold">
                                             <Star size={16} className="text-yellow-500 fill-yellow-500" />
                                             {s.rating}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+                                            {!s.ownerEmail && (
+                                                <button
+                                                    onClick={() => createAccountMutation.mutate(s)}
+                                                    disabled={createAccountMutation.isPending}
+                                                    title="Create default account"
+                                                    className="p-2 text-zinc-400 hover:text-[#F4A460] hover:bg-[#F4A46015] rounded-lg transition-colors"
+                                                >
+                                                    <UserPlus size={16} />
+                                                </button>
+                                            )}
+                                            {s.ownerEmail && (
+                                                <button
+                                                    onClick={() => createAccountMutation.mutate(s)}
+                                                    disabled={createAccountMutation.isPending}
+                                                    title="Show / regenerate account credentials"
+                                                    className="p-2 text-zinc-400 hover:text-[#F4A460] hover:bg-[#F4A46015] rounded-lg transition-colors"
+                                                >
+                                                    <KeyRound size={16} />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => openModal(s)}
-                                                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-colors focus:opacity-100"
+                                                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-700/50 rounded-lg transition-colors"
                                             >
                                                 <Edit2 size={16} />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(s.id, s.name)}
-                                                className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors focus:opacity-100"
+                                                className="p-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -196,7 +267,7 @@ export default function Salons() {
                             ))}
                             {filteredSalons?.length === 0 && (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">
+                                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
                                         No salons found matching your search.
                                     </td>
                                 </tr>
@@ -238,6 +309,23 @@ export default function Salons() {
                                     onChange={e => setFormData({ ...formData, address: e.target.value })}
                                     className="w-full bg-bg-dark border border-border rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors text-white"
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">
+                                    Owner Login Email
+                                    <span className="ml-1.5 text-zinc-600 font-normal text-xs">(optional – user must already be registered)</span>
+                                </label>
+                                <div className="relative">
+                                    <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                                    <input
+                                        type="email"
+                                        placeholder="owner@example.com"
+                                        value={formData.ownerEmail}
+                                        onChange={e => setFormData({ ...formData, ownerEmail: e.target.value })}
+                                        className="w-full bg-bg-dark border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors text-white placeholder:text-zinc-600"
+                                    />
+                                </div>
                             </div>
 
                             <div>
@@ -292,6 +380,63 @@ export default function Salons() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Credentials Modal */}
+            {credsModal && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-bg-card border border-border rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+                        <div className="flex justify-between items-center p-6 border-b border-border">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-[#F4A46020] flex items-center justify-center">
+                                    <KeyRound size={18} className="text-[#F4A460]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-base font-bold text-white">Account Created</h2>
+                                    <p className="text-xs text-zinc-500">{credsModal.salonName}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setCredsModal(null)} className="text-text-muted hover:text-white transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-xs text-zinc-400">Share these login credentials with the salon owner. The password is <span className="text-yellow-400">salon123</span> — remind them to change it after first login.</p>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 block">Email</label>
+                                    <div className="flex items-center gap-2 bg-[#181A20] border border-[#35383F] rounded-xl px-3 py-2.5">
+                                        <Mail size={14} className="text-[#F4A460] shrink-0" />
+                                        <span className="flex-1 text-sm text-white font-mono">{credsModal.email}</span>
+                                        <button onClick={() => copyCred(credsModal.email, 'email')} className="text-zinc-500 hover:text-[#F4A460] transition-colors">
+                                            {copiedCred === 'email' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 block">Password</label>
+                                    <div className="flex items-center gap-2 bg-[#181A20] border border-[#35383F] rounded-xl px-3 py-2.5">
+                                        <KeyRound size={14} className="text-[#F4A460] shrink-0" />
+                                        <span className="flex-1 text-sm text-white font-mono">{credsModal.password}</span>
+                                        <button onClick={() => copyCred(credsModal.password, 'pass')} className="text-zinc-500 hover:text-[#F4A460] transition-colors">
+                                            {copiedCred === 'pass' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    copyCred(`Email: ${credsModal.email}\nPassword: ${credsModal.password}`, 'all');
+                                }}
+                                className="w-full bg-[#F4A460] hover:opacity-90 text-black font-bold py-2.5 rounded-xl text-sm transition-opacity flex items-center justify-center gap-2"
+                            >
+                                {copiedCred === 'all' ? <><Check size={15} /> Copied!</> : <><Copy size={15} /> Copy Both</>}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
