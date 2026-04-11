@@ -19,8 +19,6 @@ async function getCredentials() {
       : null;
 
   if (!xReplitToken) {
-    // If we're not in Replit and keys aren't set, we can't initialize Stripe fully.
-    // Instead of crashing, we'll throw a clear error that we can catch.
     throw new Error('Stripe credentials not found. Set STRIPE_PUBLISHABLE_KEY and STRIPE_SECRET_KEY in .env for local development.');
   }
 
@@ -68,20 +66,7 @@ export async function getStripeSecretKey() {
   return secretKey;
 }
 
-let stripeSync: any = null;
-
-export async function getStripeSync() {
-  if (!stripeSync) {
-    const { StripeSync } = await import('stripe-replit-sync');
-    const secretKey = await getStripeSecretKey();
-
-    stripeSync = new StripeSync({
-      poolConfig: {
-        connectionString: process.env.DATABASE_URL!,
-        max: 2,
-      },
-      stripeSecretKey: secretKey,
-    });
-  }
-  return stripeSync;
+// Stripe sync disabled — stripe-replit-sync depends on PostgreSQL
+export async function getStripeSync(): Promise<null> {
+  return null;
 }

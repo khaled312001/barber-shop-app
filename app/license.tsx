@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TextInput, Pressable, Alert, ActivityIndicator,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRequest } from '@/lib/query-client';
@@ -55,7 +55,7 @@ export default function LicenseScreen() {
       await AsyncStorage.setItem('license_salon_name', data.salonName || '');
       await AsyncStorage.setItem('license_key', licenseKey.trim().toUpperCase());
 
-      router.replace('/role-select');
+      router.replace('/role-select' as Href);
     } catch (e: any) {
       const msg = e?.message || '';
       if (msg.includes('Activation limit reached') || msg.includes('activation limit')) {

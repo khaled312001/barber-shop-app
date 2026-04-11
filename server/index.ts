@@ -1,9 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
-import { runMigrations } from "stripe-replit-sync";
-import { getStripeSync } from "./stripeClient";
 import { WebhookHandlers } from "./webhookHandlers";
 import * as fs from "fs";
 import * as path from "path";
@@ -31,6 +30,10 @@ function setupCors(app: express.Application) {
         origins.add(`https://${d.trim()}`);
       });
     }
+
+    // Allow barber.barmagly.tech
+    origins.add("https://barber.barmagly.tech");
+    origins.add("http://barber.barmagly.tech");
 
     const origin = req.header("origin");
 
@@ -253,56 +256,40 @@ function setupErrorHandler(app: express.Application) {
 }
 
 async function initStripe() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    log('DATABASE_URL not set, skipping Stripe initialization');
-    return;
-  }
-
-  // Check if we have local credentials or are in Replit
+  // Stripe sync (stripe-replit-sync) is disabled for MySQL deployment
+  // Core Stripe API (payments, webhooks) still works via STRIPE_SECRET_KEY
   const hasLocalKeys = process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY;
-  const isReplit = process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL;
-
-  if (!hasLocalKeys && !isReplit) {
-    log('Stripe credentials not found in .env, skipping Stripe initialization for local development.');
-    return;
-  }
-
-  try {
-    log('Initializing Stripe schema...');
-    await (runMigrations as any)({ databaseUrl, schema: 'stripe' });
-    log('Stripe schema ready');
-
-    const stripeSync = await getStripeSync();
-
-    const domain = process.env.REPLIT_DOMAINS?.split(',')[0] || process.env.REPLIT_DEV_DOMAIN;
-    if (domain) {
-      const webhookUrl = `https://${domain}/api/stripe/webhook`;
-      try {
-        const result = await stripeSync.findOrCreateManagedWebhook(webhookUrl);
-        if (result?.webhook?.url) {
-          log(`Stripe webhook configured: ${result.webhook.url}`);
-        } else {
-          log('Stripe webhook setup returned no URL, but continuing...');
-        }
-      } catch (webhookErr: any) {
-        log(`Stripe webhook setup skipped: ${webhookErr.message}`);
-      }
-    } else {
-      log('No domain found for Stripe webhook, skipping webhook setup');
-    }
-
-    stripeSync.syncBackfill()
-      .then(() => log('Stripe data synced'))
-      .catch((err: any) => console.error('Error syncing Stripe data:', err));
-  } catch (error) {
-    console.error('Failed to initialize Stripe:', error);
+  if (hasLocalKeys) {
+    log('Stripe API keys found — payments enabled (sync disabled for MySQL)');
+  } else {
+    log('Stripe keys not found, skipping Stripe initialization');
   }
 }
 
 (async () => {
   log("Starting server initialization...");
   setupCors(app);
+
+  // Rate limiting - general API
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many requests, please try again later" },
+  });
+  app.use("/api/", apiLimiter);
+
+  // Stricter rate limiting for auth endpoints
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many authentication attempts, please try again later" },
+  });
+  app.use("/api/auth/signin", authLimiter);
+  app.use("/api/auth/signup", authLimiter);
 
   // Serve the public directory for static file uploads
   app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));

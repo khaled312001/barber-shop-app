@@ -491,6 +491,7 @@ const styles = StyleSheet.create({
   promoCard: { borderRadius: 20, padding: 20, marginTop: 12, borderWidth: 1 },
   promoInputRow: { flexDirection: 'row', gap: 12 },
   promoInputContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderRadius: 12, borderWidth: 1 },
+  promoInput: { flex: 1, height: 48, marginLeft: 8, fontSize: 15 },
   applyBtn: { paddingHorizontal: 20, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   applyBtnText: { color: '#fff', fontSize: 14 },
   appliedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },

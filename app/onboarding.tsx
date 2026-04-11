@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, Dimensions, FlatList, Pressable, Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, Href } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/theme';
@@ -28,13 +28,13 @@ export default function OnboardingScreen() {
       flatListRef.current?.scrollToIndex({ index: activeIndex + 1, animated: true });
     } else {
       setIsOnboarded(true);
-      router.replace('/license');
+      router.replace('/license' as Href);
     }
   };
 
   const handleSkip = () => {
     setIsOnboarded(true);
-    router.replace('/license');
+    router.replace('/license' as Href);
   };
 
   return (

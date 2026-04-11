@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, Href } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -106,7 +106,7 @@ export default function WelcomeScreen() {
         </View>
 
         {/* License / Admin link */}
-        <Pressable onPress={() => router.push('/license')} style={styles.licenseLink}>
+        <Pressable onPress={() => router.push('/license' as Href)} style={styles.licenseLink}>
           <Ionicons name="key-outline" size={14} color="#555" />
           <Text style={[styles.licenseText, { fontFamily: 'Urbanist_500Medium' }]}>
             {t('admin_staff_login_license') || 'Admin / Staff? Login with License'}

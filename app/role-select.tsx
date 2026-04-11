@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { router, Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '@/contexts/AppContext';
@@ -63,13 +63,13 @@ export default function RoleSelectScreen() {
         }
       } else if (role.key === 'admin') {
         if (user?.role === 'salon_admin') {
-          router.replace('/(salon-admin)');
+          router.replace('/(salon-admin)' as Href);
         } else {
           router.replace('/signin');
         }
       } else if (role.key === 'barber') {
         if (user?.role === 'staff') {
-          router.replace('/(staff)');
+          router.replace('/(staff)' as Href);
         } else {
           router.replace('/signin');
         }
@@ -120,7 +120,7 @@ export default function RoleSelectScreen() {
         ))}
       </View>
 
-      <Pressable onPress={() => router.replace('/license')} style={styles.back}>
+      <Pressable onPress={() => router.replace('/license' as Href)} style={styles.back}>
         <Ionicons name="arrow-back" size={16} color="#666" />
         <Text style={styles.backText}>تغيير مفتاح الترخيص</Text>
       </Pressable>

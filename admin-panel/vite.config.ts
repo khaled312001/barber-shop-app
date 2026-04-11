@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/super_admin/',
+  base: '/barber/super_admin/',
   build: {
     outDir: '../admin-dist',
     emptyOutDir: true,

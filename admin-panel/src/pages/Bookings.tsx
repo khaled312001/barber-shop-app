@@ -29,13 +29,14 @@ export default function Bookings() {
         status: 'upcoming'
     });
 
-    const { data: bookings, isLoading } = useQuery<Booking[]>({
+    const { data: bookingsResponse, isLoading } = useQuery<{ data: Booking[]; total: number } | Booking[]>({
         queryKey: ['admin-bookings'],
         queryFn: async () => {
             const { data } = await api.get('/admin/bookings');
             return data;
         },
     });
+    const bookings = Array.isArray(bookingsResponse) ? bookingsResponse : bookingsResponse?.data;
 
     const deleteMutation = useMutation({
         mutationFn: async (id: string) => {

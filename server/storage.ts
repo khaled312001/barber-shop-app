@@ -1,5 +1,6 @@
+import crypto from "crypto";
 import { db } from "./db";
-import { eq, and, ilike, or, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, like, or, desc, inArray, sql } from "drizzle-orm";
 import {
   users, salons, services, packages, specialists, reviews,
   bookings, bookmarkTable, messages, notifications, coupons, appSettings,
@@ -11,7 +12,9 @@ import bcrypt from "bcryptjs";
 
 export async function createUser(data: { fullName: string; email: string; password: string }): Promise<User> {
   const hashed = await bcrypt.hash(data.password, 10);
-  const [user] = await db.insert(users).values({ ...data, password: hashed }).returning();
+  const id = crypto.randomUUID();
+  await db.insert(users).values({ ...data, password: hashed, id });
+  const [user] = await db.select().from(users).where(eq(users.id, id));
   return user;
 }
 
@@ -26,7 +29,8 @@ export async function getUserById(id: string): Promise<User | undefined> {
 }
 
 export async function updateUser(id: string, data: Partial<Omit<User, 'id' | 'createdAt'>>): Promise<User> {
-  const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
+  await db.update(users).set(data).where(eq(users.id, id));
+  const [user] = await db.select().from(users).where(eq(users.id, id));
   return user;
 }
 
@@ -45,7 +49,7 @@ export async function getSalonById(id: string): Promise<Salon | undefined> {
 
 export async function searchSalons(query: string): Promise<Salon[]> {
   return db.select().from(salons).where(
-    or(ilike(salons.name, `%${query}%`), ilike(salons.address, `%${query}%`))
+    or(like(salons.name, `%${query}%`), like(salons.address, `%${query}%`))
   );
 }
 
@@ -54,7 +58,7 @@ export async function getSalonServices(salonId: string): Promise<Service[]> {
 }
 
 export async function getSalonsByCategory(category: string): Promise<Salon[]> {
-  const matchingServices = await db.select({ salonId: services.salonId }).from(services).where(ilike(services.category, category));
+  const matchingServices = await db.select({ salonId: services.salonId }).from(services).where(like(services.category, category));
   const salonIds = [...new Set(matchingServices.map(s => s.salonId))];
   if (salonIds.length === 0) return [];
   return db.select().from(salons).where(inArray(salons.id, salonIds));
@@ -73,7 +77,9 @@ export async function getSalonReviews(salonId: string): Promise<Review[]> {
 }
 
 export async function createReview(data: { salonId: string; userId?: string; userName: string; userImage?: string; rating: number; comment: string }): Promise<Review> {
-  const [review] = await db.insert(reviews).values({ ...data, date: 'Just now' }).returning();
+  const id = crypto.randomUUID();
+  await db.insert(reviews).values({ ...data, date: 'Just now', id });
+  const [review] = await db.select().from(reviews).where(eq(reviews.id, id));
   return review;
 }
 
@@ -85,15 +91,17 @@ export async function createBooking(data: {
   userId: string; salonId: string; salonName: string; salonImage: string;
   services: string[]; date: string; time: string; totalPrice: number; paymentMethod: string;
 }): Promise<Booking> {
-  const [booking] = await db.insert(bookings).values(data).returning();
+  const id = crypto.randomUUID();
+  await db.insert(bookings).values({ ...data, id });
+  const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
   return booking;
 }
 
 export async function cancelBooking(id: string, userId: string): Promise<Booking | undefined> {
-  const [booking] = await db.update(bookings)
+  await db.update(bookings)
     .set({ status: 'cancelled' })
-    .where(and(eq(bookings.id, id), eq(bookings.userId, userId)))
-    .returning();
+    .where(and(eq(bookings.id, id), eq(bookings.userId, userId)));
+  const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
   return booking;
 }
 
@@ -125,7 +133,9 @@ export async function getConversation(userId: string, salonId: string): Promise<
 }
 
 export async function sendMessage(data: { userId: string; salonId: string; salonName: string; salonImage: string; content: string; sender: string }): Promise<Message> {
-  const [msg] = await db.insert(messages).values(data).returning();
+  const id = crypto.randomUUID();
+  await db.insert(messages).values({ ...data, id });
+  const [msg] = await db.select().from(messages).where(eq(messages.id, id));
   return msg;
 }
 
@@ -138,7 +148,9 @@ export async function markNotificationRead(id: string, userId: string): Promise<
 }
 
 export async function createNotification(data: { userId: string; title: string; message: string; type: string }): Promise<Notification> {
-  const [notif] = await db.insert(notifications).values(data).returning();
+  const id = crypto.randomUUID();
+  await db.insert(notifications).values({ ...data, id });
+  const [notif] = await db.select().from(notifications).where(eq(notifications.id, id));
   return notif;
 }
 

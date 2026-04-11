@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { router, Href } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '@/contexts/AppContext';
 
@@ -28,9 +28,9 @@ export default function IndexScreen() {
       // 2. Already logged in → route by role
       if (isLoggedIn && user) {
         if (user.role === 'salon_admin') {
-          router.replace('/(salon-admin)');
+          router.replace('/(salon-admin)' as Href);
         } else if (user.role === 'staff') {
-          router.replace('/(staff)');
+          router.replace('/(staff)' as Href);
         } else if (user.role === 'super_admin' || user.role === 'admin') {
           router.replace('/(tabs)');
         } else {
@@ -40,11 +40,11 @@ export default function IndexScreen() {
       }
       // 3. Not logged in + no license → license screen first
       if (!licenseVerified) {
-        router.replace('/license');
+        router.replace('/license' as Href);
         return;
       }
       // 4. License verified but no session → role select
-      router.replace('/role-select');
+      router.replace('/role-select' as Href);
     }, 100);
 
     return () => clearTimeout(timer);

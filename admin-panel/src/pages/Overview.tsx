@@ -9,10 +9,10 @@ export default function Overview() {
         queryFn: async () => { const { data } = await api.get('/admin/stats'); return data; },
     });
 
-    const weekData = [
-        { name: 'Mon', bookings: 4 }, { name: 'Tue', bookings: 3 }, { name: 'Wed', bookings: 7 },
-        { name: 'Thu', bookings: 5 }, { name: 'Fri', bookings: 9 }, { name: 'Sat', bookings: 12 }, { name: 'Sun', bookings: 8 },
-    ];
+    const { data: weekData = [] } = useQuery({
+        queryKey: ['admin-weekly-activity'],
+        queryFn: async () => { const { data } = await api.get('/admin/weekly-activity'); return data; },
+    });
 
     if (isLoading) return <div className="flex h-full items-center justify-center"><Activity className="animate-spin text-[#F4A460]" size={32} /></div>;
 

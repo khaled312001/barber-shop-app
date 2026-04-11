@@ -1,19 +1,19 @@
 import * as dotenv from "dotenv";
 import path from "path";
-console.log("--- DB.TS DEBUG START ---");
-console.log("CWD:", process.cwd());
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
-console.log("DB_TS_ENV_LOADED. DATABASE_URL present:", !!process.env.DATABASE_URL);
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
+
+import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
 import * as schema from "@shared/schema";
 
-neonConfig.webSocketConstructor = ws;
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+});
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set");
-}
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
+export const db = drizzle(pool, { schema, mode: "default" });
+export { pool };

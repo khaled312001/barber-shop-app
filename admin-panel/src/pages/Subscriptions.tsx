@@ -18,7 +18,7 @@ export default function Subscriptions() {
     });
     const { data: salons = [] } = useQuery({
         queryKey: ['salons'],
-        queryFn: async () => { const { data } = await api.get('/admin/salons'); return data; },
+        queryFn: async () => { const { data } = await api.get('/admin/salons'); return Array.isArray(data) ? data : data?.data || []; },
     });
 
     const create = useMutation({

@@ -11,7 +11,9 @@ export function getApiUrl(): string {
   // On web, always use the current window origin so the app works
   // in any environment (dev at localhost:5000, production at *.replit.app, etc.)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return window.location.origin;
+    // Support subpath deployment (e.g. /barber/) — include the base path
+    const basePath = window.location.pathname.startsWith('/barber') ? '/barber' : '';
+    return window.location.origin + basePath;
   }
 
   let host = process.env.EXPO_PUBLIC_DOMAIN;

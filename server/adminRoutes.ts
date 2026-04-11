@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Express, Request, Response } from "express";
 import { db } from "./db";
 import {
@@ -27,7 +28,7 @@ export async function requireSuperAdmin(req: Request, res: Response, next: Funct
   next();
 }
 
-/** Salon Admin: role must be 'salon_admin'. Attaches salonId via salon_staff table. */
+/** Salon Admin: role must be 'salon_admin'. Attaches salonId via salon_staff table. Verifies salon is active. */
 export async function requireSalonAdmin(req: Request, res: Response, next: Function) {
   const userId = (req.session as any)?.userId;
   if (!userId) return res.status(401).json({ message: "Not authenticated" });
@@ -38,6 +39,11 @@ export async function requireSalonAdmin(req: Request, res: Response, next: Funct
   const [link] = await db.select().from(salonStaff)
     .where(and(eq(salonStaff.userId, userId), eq(salonStaff.role, "salon_admin")));
   if (!link) return res.status(403).json({ message: "No salon linked to this admin" });
+  // Verify the salon is active
+  const [salon] = await db.select().from(salons).where(eq(salons.id, link.salonId));
+  if (salon && salon.status === "deactivated") {
+    return res.status(403).json({ message: "Your salon has been deactivated. Contact support." });
+  }
   (req as any).currentUser = user;
   (req as any).salonId = link.salonId;
   next();
@@ -60,6 +66,14 @@ export async function requireStaff(req: Request, res: Response, next: Function) 
 
 // Keep legacy alias so existing code still compiles
 export const requireAdmin = requireSuperAdmin;
+
+// ─── Pagination helper ───────────────────────────────────────────────────────
+function getPagination(req: Request) {
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+  const offset = (page - 1) * limit;
+  return { page, limit, offset };
+}
 
 // ─── Register all routes ──────────────────────────────────────────────────────
 
@@ -111,6 +125,25 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
+  // ── Weekly Bookings Activity (for dashboard chart) ──────────────────────────
+  app.get("/api/admin/weekly-activity", requireSuperAdmin, async (_req: Request, res: Response) => {
+    try {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const now = new Date();
+      const weekData = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(now.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const [count] = await db.select({ count: sql<number>`count(*)` })
+          .from(bookings)
+          .where(eq(bookings.date, dateStr));
+        weekData.push({ name: days[date.getDay()], bookings: Number(count.count) || 0, date: dateStr });
+      }
+      res.json(weekData);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   // ── System Health ───────────────────────────────────────────────────────────
   app.get("/api/admin/system-health", requireSuperAdmin, async (req: Request, res: Response) => {
     const start = Date.now();
@@ -137,10 +170,12 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // ── Users CRUD ──────────────────────────────────────────────────────────────
-  app.get("/api/admin/users", requireSuperAdmin, async (_req, res) => {
+  app.get("/api/admin/users", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const allUsers = await db.select().from(users);
-      res.json(allUsers);
+      const { page, limit, offset } = getPagination(req);
+      const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(users);
+      const allUsers = await db.select().from(users).limit(limit).offset(offset).orderBy(desc(users.createdAt));
+      res.json({ data: allUsers, total: Number(countResult.count), page, limit });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
@@ -148,7 +183,9 @@ export function registerAdminRoutes(app: Express) {
     try {
       const { fullName, email, password, role } = req.body;
       const hashed = await bcrypt.hash(password || "password123", 10);
-      const [user] = await db.insert(users).values({ fullName, email, password: hashed, role: role || "user" }).returning();
+      const userId = crypto.randomUUID();
+      await db.insert(users).values({ fullName, email, password: hashed, role: role || "user", id: userId });
+      const [user] = await db.select().from(users).where(eq(users.id, userId));
       await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "user.created", entityType: "user", entityId: user.id });
       res.json(user);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -157,14 +194,25 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/admin/users/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
       const { fullName, email, role } = req.body;
-      const [user] = await db.update(users).set({ fullName, email, role }).where(eq(users.id, String(req.params.id))).returning();
+      await db.update(users).set({ fullName, email, role }).where(eq(users.id, String(req.params.id)));
+      const [user] = await db.select().from(users).where(eq(users.id, String(req.params.id)));
       res.json(user);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.delete("/api/admin/users/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      await db.delete(users).where(eq(users.id, String(req.params.id)));
+      const targetId = String(req.params.id);
+      const currentUserId = (req as any).currentUser?.id;
+      if (targetId === currentUserId) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+      const [target] = await db.select().from(users).where(eq(users.id, targetId));
+      if (target?.role === "super_admin" && target.id !== currentUserId) {
+        return res.status(403).json({ message: "Cannot delete another super admin" });
+      }
+      await db.delete(users).where(eq(users.id, targetId));
+      await logActivity({ userId: currentUserId, userRole: "super_admin", action: "user.deleted", entityType: "user", entityId: targetId });
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -194,7 +242,9 @@ export function registerAdminRoutes(app: Express) {
         if (!ownerUser) return res.status(400).json({ message: `No user found with email "${ownerEmail}". Ask them to register first.` });
         salonData.ownerId = ownerUser.id;
       }
-      const [salon] = await db.insert(salons).values(salonData).returning();
+      const salonId2 = crypto.randomUUID();
+      await db.insert(salons).values({ ...salonData, id: salonId2 });
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId2));
       // Add owner to salonStaff as salon_admin
       if (salonData.ownerId) {
         const existing = await db.select().from(salonStaff).where(eq(salonStaff.salonId, salon.id)).limit(1);
@@ -230,7 +280,8 @@ export function registerAdminRoutes(app: Express) {
           }
         }
       }
-      const [salon] = await db.update(salons).set(salonData).where(eq(salons.id, salonId)).returning();
+      await db.update(salons).set(salonData).where(eq(salons.id, salonId));
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
       if (req.body.status) {
         await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: salonId });
       }
@@ -267,14 +318,17 @@ export function registerAdminRoutes(app: Express) {
 
       if (!user) {
         const hashed = await bcrypt.hash(defaultPassword, 10);
-        const [created] = await db.insert(users).values({
+        const newUserId = crypto.randomUUID();
+        await db.insert(users).values({
+          id: newUserId,
           fullName: salon.name,
           email,
           password: hashed,
           role: "salon_admin",
           phone: "",
           avatar: "",
-        }).returning();
+        });
+        const [created] = await db.select().from(users).where(eq(users.id, newUserId));
         user = created;
       }
 
@@ -310,23 +364,28 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // ── Bookings CRUD ───────────────────────────────────────────────────────────
-  app.get("/api/admin/bookings", requireSuperAdmin, async (_req, res) => {
+  app.get("/api/admin/bookings", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const all = await db.select().from(bookings).orderBy(desc(bookings.createdAt));
-      res.json(all);
+      const { page, limit, offset } = getPagination(req);
+      const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(bookings);
+      const all = await db.select().from(bookings).orderBy(desc(bookings.createdAt)).limit(limit).offset(offset);
+      res.json({ data: all, total: Number(countResult.count), page, limit });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.post("/api/admin/bookings", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [booking] = await db.insert(bookings).values({ ...req.body, status: req.body.status || "upcoming" }).returning();
+      const bookingId = crypto.randomUUID();
+      await db.insert(bookings).values({ ...req.body, status: req.body.status || "upcoming", id: bookingId });
+      const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
       res.json(booking);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.put("/api/admin/bookings/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [booking] = await db.update(bookings).set(req.body).where(eq(bookings.id, String(req.params.id))).returning();
+      await db.update(bookings).set(req.body).where(eq(bookings.id, String(req.params.id)));
+      const [booking] = await db.select().from(bookings).where(eq(bookings.id, String(req.params.id)));
       res.json(booking);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -346,14 +405,17 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/coupons", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [c] = await db.insert(coupons).values(req.body).returning();
+      const couponId = crypto.randomUUID();
+      await db.insert(coupons).values({ ...req.body, id: couponId });
+      const [c] = await db.select().from(coupons).where(eq(coupons.id, couponId));
       res.json(c);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.put("/api/admin/coupons/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [c] = await db.update(coupons).set(req.body).where(eq(coupons.id, String(req.params.id))).returning();
+      await db.update(coupons).set(req.body).where(eq(coupons.id, String(req.params.id)));
+      const [c] = await db.select().from(coupons).where(eq(coupons.id, String(req.params.id)));
       res.json(c);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -385,12 +447,14 @@ export function registerAdminRoutes(app: Express) {
       const adminIdentity = { salonId: "admin", salonName: "Barmagly Platform", salonImage: "" };
       if (targetUserId === "all") {
         const allUsers = await db.select().from(users);
-        const msgs = await Promise.all(allUsers.map(u =>
-          db.insert(messages).values({ userId: u.id, ...adminIdentity, content, sender: "salon" }).returning()
+        await Promise.all(allUsers.map(u =>
+          db.insert(messages).values({ userId: u.id, ...adminIdentity, content, sender: "salon" })
         ));
-        res.json({ success: true, count: msgs.length });
+        res.json({ success: true, count: allUsers.length });
       } else {
-        const [msg] = await db.insert(messages).values({ userId: targetUserId, ...adminIdentity, content, sender: "salon" }).returning();
+        const msgId = crypto.randomUUID();
+        await db.insert(messages).values({ id: msgId, userId: targetUserId, ...adminIdentity, content, sender: "salon" });
+        const [msg] = await db.select().from(messages).where(eq(messages.id, msgId));
         res.json(msg);
       }
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -399,7 +463,9 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/admin/messages/reply", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
       const { userId, salonId, salonName, salonImage, content } = req.body;
-      const [msg] = await db.insert(messages).values({ userId, salonId, salonName, salonImage, content, sender: "salon" }).returning();
+      const replyMsgId = crypto.randomUUID();
+      await db.insert(messages).values({ id: replyMsgId, userId, salonId, salonName, salonImage, content, sender: "salon" });
+      const [msg] = await db.select().from(messages).where(eq(messages.id, replyMsgId));
       res.json(msg);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -414,12 +480,12 @@ export function registerAdminRoutes(app: Express) {
     try {
       const { key, value, description } = req.body;
       const existing = await db.select().from(appSettings).where(eq(appSettings.key, key));
-      let setting;
       if (existing.length > 0) {
-        [setting] = await db.update(appSettings).set({ value, description, updatedAt: new Date() }).where(eq(appSettings.key, key)).returning();
+        await db.update(appSettings).set({ value, description, updatedAt: new Date() }).where(eq(appSettings.key, key));
       } else {
-        [setting] = await db.insert(appSettings).values({ key, value, description }).returning();
+        await db.insert(appSettings).values({ key, value, description });
       }
+      const [setting] = await db.select().from(appSettings).where(eq(appSettings.key, key));
       res.json(setting);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -432,14 +498,17 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/services", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [s] = await db.insert(services).values(req.body).returning();
+      const svcId = crypto.randomUUID();
+      await db.insert(services).values({ ...req.body, id: svcId });
+      const [s] = await db.select().from(services).where(eq(services.id, svcId));
       res.json(s);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.put("/api/admin/services/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [s] = await db.update(services).set(req.body).where(eq(services.id, String(req.params.id))).returning();
+      await db.update(services).set(req.body).where(eq(services.id, String(req.params.id)));
+      const [s] = await db.select().from(services).where(eq(services.id, String(req.params.id)));
       res.json(s);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -469,14 +538,17 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/plans", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [plan] = await db.insert(plans).values(req.body).returning();
+      const planId = crypto.randomUUID();
+      await db.insert(plans).values({ ...req.body, id: planId });
+      const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
       res.json(plan);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.put("/api/admin/plans/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [plan] = await db.update(plans).set(req.body).where(eq(plans.id, String(req.params.id))).returning();
+      await db.update(plans).set(req.body).where(eq(plans.id, String(req.params.id)));
+      const [plan] = await db.select().from(plans).where(eq(plans.id, String(req.params.id)));
       res.json(plan);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -498,7 +570,9 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/subscriptions", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [sub] = await db.insert(subscriptions).values(req.body).returning();
+      const subId = crypto.randomUUID();
+      await db.insert(subscriptions).values({ ...req.body, id: subId });
+      const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.id, subId));
       await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "subscription.created", entityType: "subscription", entityId: sub.id, metadata: { salonId: sub.salonId, planId: sub.planId } });
       res.json(sub);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -506,7 +580,8 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/subscriptions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [sub] = await db.update(subscriptions).set({ ...req.body, updatedAt: new Date() }).where(eq(subscriptions.id, String(req.params.id))).returning();
+      await db.update(subscriptions).set({ ...req.body, updatedAt: new Date() }).where(eq(subscriptions.id, String(req.params.id)));
+      const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.id, String(req.params.id)));
       await logActivity({ userId: (req as any).currentUser?.id, userRole: "super_admin", action: "subscription.updated", entityType: "subscription", entityId: String(req.params.id) });
       res.json(sub);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -530,14 +605,17 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/admin/license-keys", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
       const key = req.body.key || `BRMG-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      const [lk] = await db.insert(licenseKeys).values({ ...req.body, key }).returning();
+      const lkId = crypto.randomUUID();
+      await db.insert(licenseKeys).values({ ...req.body, key, id: lkId });
+      const [lk] = await db.select().from(licenseKeys).where(eq(licenseKeys.id, lkId));
       res.json(lk);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.put("/api/admin/license-keys/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [lk] = await db.update(licenseKeys).set(req.body).where(eq(licenseKeys.id, String(req.params.id))).returning();
+      await db.update(licenseKeys).set(req.body).where(eq(licenseKeys.id, String(req.params.id)));
+      const [lk] = await db.select().from(licenseKeys).where(eq(licenseKeys.id, String(req.params.id)));
       res.json(lk);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -570,7 +648,8 @@ export function registerAdminRoutes(app: Express) {
 
   app.put("/api/admin/commissions/:id", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [c] = await db.update(commissions).set(req.body).where(eq(commissions.id, String(req.params.id))).returning();
+      await db.update(commissions).set(req.body).where(eq(commissions.id, String(req.params.id)));
+      const [c] = await db.select().from(commissions).where(eq(commissions.id, String(req.params.id)));
       res.json(c);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -601,7 +680,9 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/salon-staff", requireSuperAdmin, async (req: Request, res: Response) => {
     try {
-      const [link] = await db.insert(salonStaff).values(req.body).returning();
+      const linkId = crypto.randomUUID();
+      await db.insert(salonStaff).values({ ...req.body, id: linkId });
+      const [link] = await db.select().from(salonStaff).where(eq(salonStaff.id, linkId));
       res.json(link);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -636,7 +717,8 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/salon/me", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [salon] = await db.update(salons).set(req.body).where(eq(salons.id, salonId)).returning();
+      await db.update(salons).set(req.body).where(eq(salons.id, salonId));
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
       res.json(salon);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -684,7 +766,8 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/salon/bookings/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [booking] = await db.update(bookings).set(req.body).where(and(eq(bookings.id, String(req.params.id)), eq(bookings.salonId, salonId))).returning();
+      await db.update(bookings).set(req.body).where(and(eq(bookings.id, String(req.params.id)), eq(bookings.salonId, salonId)));
+      const [booking] = await db.select().from(bookings).where(eq(bookings.id, String(req.params.id)));
       // Auto-create commission on completion
       if (req.body.status === "completed" && booking) {
         const sub = await db.select().from(subscriptions).where(and(eq(subscriptions.salonId, salonId), eq(subscriptions.status, "active")));
@@ -694,7 +777,7 @@ export function registerAdminRoutes(app: Express) {
           const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
           if (plan) rate = plan.commissionRate ?? 5;
         }
-        await db.insert(commissions).values({ bookingId: booking.id, salonId, amount: booking.totalPrice * (rate / 100), rate }).returning();
+        await db.insert(commissions).values({ bookingId: booking.id, salonId, amount: booking.totalPrice * (rate / 100), rate });
       }
       res.json(booking);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
@@ -711,7 +794,9 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/salon/services", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [s] = await db.insert(services).values({ ...req.body, salonId }).returning();
+      const svcId2 = crypto.randomUUID();
+      await db.insert(services).values({ ...req.body, salonId, id: svcId2 });
+      const [s] = await db.select().from(services).where(eq(services.id, svcId2));
       res.json(s);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -719,7 +804,8 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/salon/services/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [s] = await db.update(services).set(req.body).where(and(eq(services.id, String(req.params.id)), eq(services.salonId, salonId))).returning();
+      await db.update(services).set(req.body).where(and(eq(services.id, String(req.params.id)), eq(services.salonId, salonId)));
+      const [s] = await db.select().from(services).where(eq(services.id, String(req.params.id)));
       res.json(s);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -750,8 +836,12 @@ export function registerAdminRoutes(app: Express) {
       const salonId = (req as any).salonId;
       const { fullName, email, password, staffRole = "staff" } = req.body;
       const hashed = await bcrypt.hash(password || "password123", 10);
-      const [newUser] = await db.insert(users).values({ fullName, email, password: hashed, role: staffRole === "salon_admin" ? "salon_admin" : "staff" }).returning();
-      const [link] = await db.insert(salonStaff).values({ userId: newUser.id, salonId, role: staffRole }).returning();
+      const newUserId2 = crypto.randomUUID();
+      await db.insert(users).values({ id: newUserId2, fullName, email, password: hashed, role: staffRole === "salon_admin" ? "salon_admin" : "staff" });
+      const [newUser] = await db.select().from(users).where(eq(users.id, newUserId2));
+      const linkId2 = crypto.randomUUID();
+      await db.insert(salonStaff).values({ id: linkId2, userId: newUser.id, salonId, role: staffRole });
+      const [link] = await db.select().from(salonStaff).where(eq(salonStaff.id, linkId2));
       res.json({ ...newUser, linkId: link.id, staffRole: link.role });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -793,7 +883,9 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/salon/expenses", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [e] = await db.insert(expenses).values({ ...req.body, salonId }).returning();
+      const expId = crypto.randomUUID();
+      await db.insert(expenses).values({ ...req.body, salonId, id: expId });
+      const [e] = await db.select().from(expenses).where(eq(expenses.id, expId));
       res.json(e);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -801,7 +893,8 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/salon/expenses/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [e] = await db.update(expenses).set(req.body).where(and(eq(expenses.id, String(req.params.id)), eq(expenses.salonId, salonId))).returning();
+      await db.update(expenses).set(req.body).where(and(eq(expenses.id, String(req.params.id)), eq(expenses.salonId, salonId)));
+      const [e] = await db.select().from(expenses).where(eq(expenses.id, String(req.params.id)));
       res.json(e);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -825,7 +918,9 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/salon/shifts", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [s] = await db.insert(shifts).values({ ...req.body, salonId }).returning();
+      const shiftId = crypto.randomUUID();
+      await db.insert(shifts).values({ ...req.body, salonId, id: shiftId });
+      const [s] = await db.select().from(shifts).where(eq(shifts.id, shiftId));
       res.json(s);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -833,7 +928,8 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/salon/shifts/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [s] = await db.update(shifts).set(req.body).where(and(eq(shifts.id, String(req.params.id)), eq(shifts.salonId, salonId))).returning();
+      await db.update(shifts).set(req.body).where(and(eq(shifts.id, String(req.params.id)), eq(shifts.salonId, salonId)));
+      const [s] = await db.select().from(shifts).where(eq(shifts.id, String(req.params.id)));
       res.json(s);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -880,7 +976,8 @@ export function registerAdminRoutes(app: Express) {
       if (!allowed.includes(req.body.status)) {
         return res.status(400).json({ message: "Staff can only mark bookings as completed or no-show" });
       }
-      const [booking] = await db.update(bookings).set({ status: req.body.status }).where(and(eq(bookings.id, String(req.params.id)), eq(bookings.specialistId, userId))).returning();
+      await db.update(bookings).set({ status: req.body.status }).where(and(eq(bookings.id, String(req.params.id)), eq(bookings.specialistId, userId)));
+      const [booking] = await db.select().from(bookings).where(eq(bookings.id, String(req.params.id)));
       res.json(booking);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -904,7 +1001,8 @@ export function registerAdminRoutes(app: Express) {
     try {
       const userId = (req.session as any)?.userId;
       const { name, email, phone } = req.body;
-      const [user] = await db.update(users).set({ fullName: name, email, phone }).where(eq(users.id, userId)).returning();
+      await db.update(users).set({ fullName: name, email, phone }).where(eq(users.id, userId));
+      const [user] = await db.select().from(users).where(eq(users.id, userId));
       res.json(user);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -1117,9 +1215,11 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/salon/customers/:customerId/notes", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [note] = await db.insert(customerNotes).values({
-        salonId, customerId: String(req.params.customerId), note: req.body.note
-      }).returning();
+      const noteId = crypto.randomUUID();
+      await db.insert(customerNotes).values({
+        id: noteId, salonId, customerId: String(req.params.customerId), note: req.body.note
+      });
+      const [note] = await db.select().from(customerNotes).where(eq(customerNotes.id, noteId));
       res.json(note);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -1137,14 +1237,17 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/salon/inventory", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [item] = await db.insert(inventory).values({ ...req.body, salonId }).returning();
+      const invId = crypto.randomUUID();
+      await db.insert(inventory).values({ ...req.body, salonId, id: invId });
+      const [item] = await db.select().from(inventory).where(eq(inventory.id, invId));
       res.json(item);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
   app.put("/api/salon/inventory/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
-      const [item] = await db.update(inventory).set(req.body).where(eq(inventory.id, String(req.params.id))).returning();
+      await db.update(inventory).set(req.body).where(eq(inventory.id, String(req.params.id)));
+      const [item] = await db.select().from(inventory).where(eq(inventory.id, String(req.params.id)));
       res.json(item);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -1162,7 +1265,9 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/salon/tips", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
-      const [tip] = await db.insert(tips).values({ ...req.body, salonId }).returning();
+      const tipId = crypto.randomUUID();
+      await db.insert(tips).values({ ...req.body, salonId, id: tipId });
+      const [tip] = await db.select().from(tips).where(eq(tips.id, tipId));
       res.json(tip);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });

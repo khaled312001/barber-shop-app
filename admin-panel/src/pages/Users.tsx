@@ -18,13 +18,14 @@ export default function Users() {
     const [editingUser, setEditingUser] = React.useState<UserData | null>(null);
     const [formData, setFormData] = React.useState({ fullName: '', email: '', role: 'user', password: '' });
 
-    const { data: users, isLoading } = useQuery<UserData[]>({
+    const { data: usersResponse, isLoading } = useQuery<{ data: UserData[]; total: number } | UserData[]>({
         queryKey: ['admin-users'],
         queryFn: async () => {
             const { data } = await api.get('/admin/users');
             return data;
         },
     });
+    const users = Array.isArray(usersResponse) ? usersResponse : usersResponse?.data;
 
     const deleteMutation = useMutation({
         mutationFn: async (id: string) => {
@@ -224,7 +225,9 @@ export default function Users() {
                                     className="w-full bg-bg-dark border border-border rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors text-white"
                                 >
                                     <option value="user">User</option>
-                                    <option value="admin">Admin</option>
+                                    <option value="salon_admin">Salon Admin</option>
+                                    <option value="staff">Staff</option>
+                                    <option value="super_admin">Super Admin</option>
                                 </select>
                             </div>
 

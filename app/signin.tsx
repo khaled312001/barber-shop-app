@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Pressable, TextInput, Platform, ScrollView, Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, Href } from 'expo-router';
 import { goBack } from '@/lib/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,9 +37,9 @@ export default function SignInScreen() {
       const loggedUser = await login(email, password);
       const role = (loggedUser as any)?.role;
       if (role === 'salon_admin') {
-        router.replace('/(salon-admin)');
+        router.replace('/(salon-admin)' as Href);
       } else if (role === 'staff') {
-        router.replace('/(staff)');
+        router.replace('/(staff)' as Href);
       } else {
         router.replace('/(tabs)');
       }

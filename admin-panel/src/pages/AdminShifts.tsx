@@ -9,9 +9,9 @@ export default function AdminShifts() {
         queryKey: ['all-shifts'],
         queryFn: async () => { const { data } = await api.get('/admin/shifts'); return data; },
     });
-    const { data: salons = [] } = useQuery({ queryKey: ['salons'], queryFn: async () => { const { data } = await api.get('/admin/salons'); return data; } });
+    const { data: salonsRaw = [] } = useQuery({ queryKey: ['salons'], queryFn: async () => { const { data } = await api.get('/admin/salons'); return Array.isArray(data) ? data : data?.data || []; } });
 
-    const getSalonName = (id: string) => salons.find((s: any) => s.id === id)?.name || id.slice(0, 8) + '...';
+    const getSalonName = (id: string) => salonsRaw.find((s: any) => s.id === id)?.name || id.slice(0, 8) + '...';
 
     return (
         <div className="p-6">

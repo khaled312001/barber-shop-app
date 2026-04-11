@@ -29,18 +29,19 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 // server/index.ts
 var import_config = require("dotenv/config");
 var import_express = __toESM(require("express"));
+var import_express_rate_limit = __toESM(require("express-rate-limit"));
 
 // server/routes.ts
 var import_node_http = require("node:http");
+var import_node_crypto = __toESM(require("node:crypto"));
 var import_express_session = __toESM(require("express-session"));
-var import_connect_pg_simple = __toESM(require("connect-pg-simple"));
+var import_express_mysql_session = __toESM(require("express-mysql-session"));
 
 // server/db.ts
 var dotenv = __toESM(require("dotenv"));
 var import_path = __toESM(require("path"));
-var import_neon_serverless = require("drizzle-orm/neon-serverless");
-var import_serverless = require("@neondatabase/serverless");
-var import_ws = __toESM(require("ws"));
+var import_mysql2 = require("drizzle-orm/mysql2");
+var import_promise = __toESM(require("mysql2/promise"));
 
 // shared/schema.ts
 var schema_exports = {};
@@ -66,299 +67,293 @@ __export(schema_exports, {
   salonStaff: () => salonStaff,
   salons: () => salons,
   services: () => services,
-  session: () => session,
   shifts: () => shifts,
   specialists: () => specialists,
   subscriptions: () => subscriptions,
   tips: () => tips,
   users: () => users
 });
-var import_drizzle_orm = require("drizzle-orm");
-var import_pg_core = require("drizzle-orm/pg-core");
+var import_crypto = __toESM(require("crypto"));
+var import_mysql_core = require("drizzle-orm/mysql-core");
 var import_drizzle_zod = require("drizzle-zod");
-var users = (0, import_pg_core.pgTable)("users", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  fullName: (0, import_pg_core.text)("full_name").notNull(),
-  email: (0, import_pg_core.text)("email").notNull().unique(),
-  password: (0, import_pg_core.text)("password").notNull(),
-  phone: (0, import_pg_core.text)("phone").default(""),
-  avatar: (0, import_pg_core.text)("avatar").default(""),
-  nickname: (0, import_pg_core.text)("nickname").default(""),
-  gender: (0, import_pg_core.text)("gender").default(""),
-  dob: (0, import_pg_core.text)("dob").default(""),
-  role: (0, import_pg_core.text)("role").default("user"),
+var users = (0, import_mysql_core.mysqlTable)("users", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  fullName: (0, import_mysql_core.text)("full_name").notNull(),
+  email: (0, import_mysql_core.varchar)("email", { length: 255 }).notNull().unique(),
+  password: (0, import_mysql_core.text)("password").notNull(),
+  phone: (0, import_mysql_core.text)("phone").default(""),
+  avatar: (0, import_mysql_core.text)("avatar").default(""),
+  nickname: (0, import_mysql_core.text)("nickname").default(""),
+  gender: (0, import_mysql_core.text)("gender").default(""),
+  dob: (0, import_mysql_core.text)("dob").default(""),
+  role: (0, import_mysql_core.text)("role").default("user"),
   // user | admin | super_admin | salon_admin | staff
-  loyaltyPoints: (0, import_pg_core.integer)("loyalty_points").default(0),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  loyaltyPoints: (0, import_mysql_core.int)("loyalty_points").default(0),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var salons = (0, import_pg_core.pgTable)("salons", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  name: (0, import_pg_core.text)("name").notNull(),
-  image: (0, import_pg_core.text)("image").notNull(),
-  address: (0, import_pg_core.text)("address").notNull(),
-  distance: (0, import_pg_core.text)("distance").default("0 km"),
-  rating: (0, import_pg_core.doublePrecision)("rating").default(0),
-  reviewCount: (0, import_pg_core.integer)("review_count").default(0),
-  isOpen: (0, import_pg_core.boolean)("is_open").default(true),
-  openHours: (0, import_pg_core.text)("open_hours").default("9:00 AM - 9:00 PM"),
-  phone: (0, import_pg_core.text)("phone").default(""),
-  about: (0, import_pg_core.text)("about").default(""),
-  website: (0, import_pg_core.text)("website").default(""),
-  latitude: (0, import_pg_core.doublePrecision)("latitude").default(0),
-  longitude: (0, import_pg_core.doublePrecision)("longitude").default(0),
-  gallery: (0, import_pg_core.jsonb)("gallery").$type().default([]),
-  status: (0, import_pg_core.text)("status").default("active"),
+var salons = (0, import_mysql_core.mysqlTable)("salons", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  name: (0, import_mysql_core.text)("name").notNull(),
+  image: (0, import_mysql_core.text)("image").notNull(),
+  address: (0, import_mysql_core.text)("address").notNull(),
+  distance: (0, import_mysql_core.text)("distance").default("0 km"),
+  rating: (0, import_mysql_core.double)("rating").default(0),
+  reviewCount: (0, import_mysql_core.int)("review_count").default(0),
+  isOpen: (0, import_mysql_core.boolean)("is_open").default(true),
+  openHours: (0, import_mysql_core.text)("open_hours").default("9:00 AM - 9:00 PM"),
+  phone: (0, import_mysql_core.text)("phone").default(""),
+  about: (0, import_mysql_core.text)("about").default(""),
+  website: (0, import_mysql_core.text)("website").default(""),
+  latitude: (0, import_mysql_core.double)("latitude").default(0),
+  longitude: (0, import_mysql_core.double)("longitude").default(0),
+  gallery: (0, import_mysql_core.json)("gallery").$type().default([]),
+  status: (0, import_mysql_core.text)("status").default("active"),
   // active | suspended | deactivated
-  ownerId: (0, import_pg_core.varchar)("owner_id", { length: 255 }).default(""),
+  ownerId: (0, import_mysql_core.varchar)("owner_id", { length: 255 }).default(""),
   // salon_admin user id
-  landingEnabled: (0, import_pg_core.boolean)("landing_enabled").default(false),
-  landingSlug: (0, import_pg_core.text)("landing_slug").default(""),
-  landingViews: (0, import_pg_core.integer)("landing_views").default(0),
-  landingTheme: (0, import_pg_core.text)("landing_theme").default("dark"),
+  landingEnabled: (0, import_mysql_core.boolean)("landing_enabled").default(false),
+  landingSlug: (0, import_mysql_core.text)("landing_slug").default(""),
+  landingViews: (0, import_mysql_core.int)("landing_views").default(0),
+  landingTheme: (0, import_mysql_core.text)("landing_theme").default("dark"),
   // dark | light
-  landingAccentColor: (0, import_pg_core.text)("landing_accent_color").default("#F4A460"),
-  landingBookingUrl: (0, import_pg_core.text)("landing_booking_url").default("")
+  landingAccentColor: (0, import_mysql_core.text)("landing_accent_color").default("#F4A460"),
+  landingBookingUrl: (0, import_mysql_core.text)("landing_booking_url").default("")
 });
-var salonStaff = (0, import_pg_core.pgTable)("salon_staff", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  userId: (0, import_pg_core.varchar)("user_id", { length: 255 }).notNull(),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  role: (0, import_pg_core.text)("role").notNull().default("staff"),
+var salonStaff = (0, import_mysql_core.mysqlTable)("salon_staff", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  userId: (0, import_mysql_core.varchar)("user_id", { length: 255 }).notNull(),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  role: (0, import_mysql_core.text)("role").notNull().default("staff"),
   // salon_admin | staff
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var plans = (0, import_pg_core.pgTable)("plans", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  name: (0, import_pg_core.text)("name").notNull(),
+var plans = (0, import_mysql_core.mysqlTable)("plans", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  name: (0, import_mysql_core.text)("name").notNull(),
   // Basic | Pro | Enterprise
-  price: (0, import_pg_core.doublePrecision)("price").notNull().default(0),
-  billingCycle: (0, import_pg_core.text)("billing_cycle").notNull().default("monthly"),
+  price: (0, import_mysql_core.double)("price").notNull().default(0),
+  billingCycle: (0, import_mysql_core.text)("billing_cycle").notNull().default("monthly"),
   // monthly | annual
-  features: (0, import_pg_core.jsonb)("features").$type().default([]),
-  commissionRate: (0, import_pg_core.doublePrecision)("commission_rate").default(5),
+  features: (0, import_mysql_core.json)("features").$type().default([]),
+  commissionRate: (0, import_mysql_core.double)("commission_rate").default(5),
   // platform commission %
-  maxBookings: (0, import_pg_core.integer)("max_bookings").default(0),
+  maxBookings: (0, import_mysql_core.int)("max_bookings").default(0),
   // 0 = unlimited
-  maxStaff: (0, import_pg_core.integer)("max_staff").default(0),
+  maxStaff: (0, import_mysql_core.int)("max_staff").default(0),
   // 0 = unlimited
-  isActive: (0, import_pg_core.boolean)("is_active").default(true),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  isActive: (0, import_mysql_core.boolean)("is_active").default(true),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var subscriptions = (0, import_pg_core.pgTable)("subscriptions", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  planId: (0, import_pg_core.varchar)("plan_id", { length: 255 }).notNull(),
-  status: (0, import_pg_core.text)("status").notNull().default("active"),
+var subscriptions = (0, import_mysql_core.mysqlTable)("subscriptions", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  planId: (0, import_mysql_core.varchar)("plan_id", { length: 255 }).notNull(),
+  status: (0, import_mysql_core.text)("status").notNull().default("active"),
   // active | expired | suspended | cancelled
-  startDate: (0, import_pg_core.text)("start_date").notNull(),
-  endDate: (0, import_pg_core.text)("end_date").notNull(),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow(),
-  updatedAt: (0, import_pg_core.timestamp)("updated_at").defaultNow()
+  startDate: (0, import_mysql_core.text)("start_date").notNull(),
+  endDate: (0, import_mysql_core.text)("end_date").notNull(),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow(),
+  updatedAt: (0, import_mysql_core.timestamp)("updated_at").defaultNow()
 });
-var licenseKeys = (0, import_pg_core.pgTable)("license_keys", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  key: (0, import_pg_core.text)("key").notNull().unique(),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).default(""),
+var licenseKeys = (0, import_mysql_core.mysqlTable)("license_keys", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  key: (0, import_mysql_core.varchar)("key", { length: 255 }).notNull().unique(),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).default(""),
   // empty = unassigned
-  planId: (0, import_pg_core.varchar)("plan_id", { length: 255 }).default(""),
-  status: (0, import_pg_core.text)("status").notNull().default("unused"),
+  planId: (0, import_mysql_core.varchar)("plan_id", { length: 255 }).default(""),
+  status: (0, import_mysql_core.text)("status").notNull().default("unused"),
   // unused | active | revoked
-  expiresAt: (0, import_pg_core.text)("expires_at").default(""),
-  maxActivations: (0, import_pg_core.integer)("max_activations").default(0),
+  expiresAt: (0, import_mysql_core.text)("expires_at").default(""),
+  maxActivations: (0, import_mysql_core.int)("max_activations").default(0),
   // 0 = unlimited
-  activationCount: (0, import_pg_core.integer)("activation_count").default(0),
+  activationCount: (0, import_mysql_core.int)("activation_count").default(0),
   // how many devices activated
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var licenseActivations = (0, import_pg_core.pgTable)("license_activations", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  licenseKeyId: (0, import_pg_core.varchar)("license_key_id", { length: 255 }).notNull(),
-  deviceId: (0, import_pg_core.text)("device_id").notNull(),
-  email: (0, import_pg_core.text)("email").default(""),
-  activatedAt: (0, import_pg_core.timestamp)("activated_at").defaultNow()
+var licenseActivations = (0, import_mysql_core.mysqlTable)("license_activations", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  licenseKeyId: (0, import_mysql_core.varchar)("license_key_id", { length: 255 }).notNull(),
+  deviceId: (0, import_mysql_core.text)("device_id").notNull(),
+  email: (0, import_mysql_core.text)("email").default(""),
+  activatedAt: (0, import_mysql_core.timestamp)("activated_at").defaultNow()
 });
-var activityLogs = (0, import_pg_core.pgTable)("activity_logs", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  userId: (0, import_pg_core.varchar)("user_id", { length: 255 }).default(""),
-  userRole: (0, import_pg_core.text)("user_role").default(""),
-  action: (0, import_pg_core.text)("action").notNull(),
+var activityLogs = (0, import_mysql_core.mysqlTable)("activity_logs", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  userId: (0, import_mysql_core.varchar)("user_id", { length: 255 }).default(""),
+  userRole: (0, import_mysql_core.text)("user_role").default(""),
+  action: (0, import_mysql_core.text)("action").notNull(),
   // e.g. "user.login", "booking.created", "salon.deactivated"
-  entityType: (0, import_pg_core.text)("entity_type").default(""),
+  entityType: (0, import_mysql_core.text)("entity_type").default(""),
   // user | salon | booking | subscription
-  entityId: (0, import_pg_core.varchar)("entity_id", { length: 255 }).default(""),
-  metadata: (0, import_pg_core.jsonb)("metadata").$type().default({}),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  entityId: (0, import_mysql_core.varchar)("entity_id", { length: 255 }).default(""),
+  metadata: (0, import_mysql_core.json)("metadata").$type().default({}),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var commissions = (0, import_pg_core.pgTable)("commissions", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  bookingId: (0, import_pg_core.varchar)("booking_id", { length: 255 }).notNull(),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  amount: (0, import_pg_core.doublePrecision)("amount").notNull().default(0),
-  rate: (0, import_pg_core.doublePrecision)("rate").notNull().default(5),
-  status: (0, import_pg_core.text)("status").notNull().default("pending"),
+var commissions = (0, import_mysql_core.mysqlTable)("commissions", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  bookingId: (0, import_mysql_core.varchar)("booking_id", { length: 255 }).notNull(),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  amount: (0, import_mysql_core.double)("amount").notNull().default(0),
+  rate: (0, import_mysql_core.double)("rate").notNull().default(5),
+  status: (0, import_mysql_core.text)("status").notNull().default("pending"),
   // pending | paid
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var expenses = (0, import_pg_core.pgTable)("expenses", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  description: (0, import_pg_core.text)("description").notNull(),
-  amount: (0, import_pg_core.doublePrecision)("amount").notNull(),
-  category: (0, import_pg_core.text)("category").default("general"),
+var expenses = (0, import_mysql_core.mysqlTable)("expenses", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  description: (0, import_mysql_core.text)("description").notNull(),
+  amount: (0, import_mysql_core.double)("amount").notNull(),
+  category: (0, import_mysql_core.text)("category").default("general"),
   // rent | supplies | utilities | salaries | general
-  date: (0, import_pg_core.text)("date").notNull(),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  date: (0, import_mysql_core.text)("date").notNull(),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var shifts = (0, import_pg_core.pgTable)("shifts", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  staffId: (0, import_pg_core.varchar)("staff_id", { length: 255 }).notNull(),
+var shifts = (0, import_mysql_core.mysqlTable)("shifts", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  staffId: (0, import_mysql_core.varchar)("staff_id", { length: 255 }).notNull(),
   // references users.id
-  dayOfWeek: (0, import_pg_core.integer)("day_of_week").notNull(),
+  dayOfWeek: (0, import_mysql_core.int)("day_of_week").notNull(),
   // 0=Sunday, 6=Saturday
-  startTime: (0, import_pg_core.text)("start_time").notNull(),
+  startTime: (0, import_mysql_core.text)("start_time").notNull(),
   // "09:00"
-  endTime: (0, import_pg_core.text)("end_time").notNull(),
+  endTime: (0, import_mysql_core.text)("end_time").notNull(),
   // "17:00"
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var services = (0, import_pg_core.pgTable)("services", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  name: (0, import_pg_core.text)("name").notNull(),
-  price: (0, import_pg_core.doublePrecision)("price").notNull(),
-  duration: (0, import_pg_core.text)("duration").notNull(),
-  image: (0, import_pg_core.text)("image").default(""),
-  category: (0, import_pg_core.text)("category").default("")
+var services = (0, import_mysql_core.mysqlTable)("services", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  name: (0, import_mysql_core.text)("name").notNull(),
+  price: (0, import_mysql_core.double)("price").notNull(),
+  duration: (0, import_mysql_core.text)("duration").notNull(),
+  image: (0, import_mysql_core.text)("image").default(""),
+  category: (0, import_mysql_core.text)("category").default("")
 });
-var packages = (0, import_pg_core.pgTable)("packages", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  name: (0, import_pg_core.text)("name").notNull(),
-  price: (0, import_pg_core.doublePrecision)("price").notNull(),
-  originalPrice: (0, import_pg_core.doublePrecision)("original_price").notNull(),
-  services: (0, import_pg_core.jsonb)("services").$type().default([]),
-  image: (0, import_pg_core.text)("image").default("")
+var packages = (0, import_mysql_core.mysqlTable)("packages", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  name: (0, import_mysql_core.text)("name").notNull(),
+  price: (0, import_mysql_core.double)("price").notNull(),
+  originalPrice: (0, import_mysql_core.double)("original_price").notNull(),
+  services: (0, import_mysql_core.json)("services").$type().default([]),
+  image: (0, import_mysql_core.text)("image").default("")
 });
-var specialists = (0, import_pg_core.pgTable)("specialists", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  name: (0, import_pg_core.text)("name").notNull(),
-  role: (0, import_pg_core.text)("role").notNull(),
-  image: (0, import_pg_core.text)("image").default(""),
-  rating: (0, import_pg_core.doublePrecision)("rating").default(0)
+var specialists = (0, import_mysql_core.mysqlTable)("specialists", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  name: (0, import_mysql_core.text)("name").notNull(),
+  role: (0, import_mysql_core.text)("role").notNull(),
+  image: (0, import_mysql_core.text)("image").default(""),
+  rating: (0, import_mysql_core.double)("rating").default(0)
 });
-var reviews = (0, import_pg_core.pgTable)("reviews", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  userId: (0, import_pg_core.varchar)("user_id", { length: 255 }),
-  userName: (0, import_pg_core.text)("user_name").notNull(),
-  userImage: (0, import_pg_core.text)("user_image").default(""),
-  rating: (0, import_pg_core.integer)("rating").notNull(),
-  comment: (0, import_pg_core.text)("comment").default(""),
-  date: (0, import_pg_core.text)("date").default(""),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+var reviews = (0, import_mysql_core.mysqlTable)("reviews", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  userId: (0, import_mysql_core.varchar)("user_id", { length: 255 }),
+  userName: (0, import_mysql_core.text)("user_name").notNull(),
+  userImage: (0, import_mysql_core.text)("user_image").default(""),
+  rating: (0, import_mysql_core.int)("rating").notNull(),
+  comment: (0, import_mysql_core.text)("comment").default(""),
+  date: (0, import_mysql_core.text)("date").default(""),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var bookings = (0, import_pg_core.pgTable)("bookings", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  userId: (0, import_pg_core.varchar)("user_id", { length: 255 }).notNull(),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  salonName: (0, import_pg_core.text)("salon_name").notNull(),
-  salonImage: (0, import_pg_core.text)("salon_image").default(""),
-  services: (0, import_pg_core.jsonb)("services_list").$type().default([]),
-  date: (0, import_pg_core.text)("date").notNull(),
-  time: (0, import_pg_core.text)("time").notNull(),
-  totalPrice: (0, import_pg_core.doublePrecision)("total_price").notNull(),
-  status: (0, import_pg_core.text)("status").notNull().default("upcoming"),
-  paymentMethod: (0, import_pg_core.text)("payment_method").default(""),
-  specialistId: (0, import_pg_core.varchar)("specialist_id", { length: 255 }).default(""),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+var bookings = (0, import_mysql_core.mysqlTable)("bookings", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  userId: (0, import_mysql_core.varchar)("user_id", { length: 255 }).notNull(),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  salonName: (0, import_mysql_core.text)("salon_name").notNull(),
+  salonImage: (0, import_mysql_core.text)("salon_image").default(""),
+  services: (0, import_mysql_core.json)("services_list").$type().default([]),
+  date: (0, import_mysql_core.text)("date").notNull(),
+  time: (0, import_mysql_core.text)("time").notNull(),
+  totalPrice: (0, import_mysql_core.double)("total_price").notNull(),
+  status: (0, import_mysql_core.text)("status").notNull().default("upcoming"),
+  paymentMethod: (0, import_mysql_core.text)("payment_method").default(""),
+  specialistId: (0, import_mysql_core.varchar)("specialist_id", { length: 255 }).default(""),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var bookmarkTable = (0, import_pg_core.pgTable)("bookmarks", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  userId: (0, import_pg_core.varchar)("user_id", { length: 255 }).notNull(),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+var bookmarkTable = (0, import_mysql_core.mysqlTable)("bookmarks", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  userId: (0, import_mysql_core.varchar)("user_id", { length: 255 }).notNull(),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var messages = (0, import_pg_core.pgTable)("messages", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  userId: (0, import_pg_core.varchar)("user_id", { length: 255 }).notNull(),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  salonName: (0, import_pg_core.text)("salon_name").notNull(),
-  salonImage: (0, import_pg_core.text)("salon_image").default(""),
-  content: (0, import_pg_core.text)("content").notNull(),
-  sender: (0, import_pg_core.text)("sender").notNull().default("salon"),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+var messages = (0, import_mysql_core.mysqlTable)("messages", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  userId: (0, import_mysql_core.varchar)("user_id", { length: 255 }).notNull(),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  salonName: (0, import_mysql_core.text)("salon_name").notNull(),
+  salonImage: (0, import_mysql_core.text)("salon_image").default(""),
+  content: (0, import_mysql_core.text)("content").notNull(),
+  sender: (0, import_mysql_core.text)("sender").notNull().default("salon"),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var notifications = (0, import_pg_core.pgTable)("notifications", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  userId: (0, import_pg_core.varchar)("user_id", { length: 255 }).notNull(),
-  title: (0, import_pg_core.text)("title").notNull(),
-  message: (0, import_pg_core.text)("message").notNull(),
-  type: (0, import_pg_core.text)("type").notNull().default("system"),
-  read: (0, import_pg_core.boolean)("read").default(false),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+var notifications = (0, import_mysql_core.mysqlTable)("notifications", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  userId: (0, import_mysql_core.varchar)("user_id", { length: 255 }).notNull(),
+  title: (0, import_mysql_core.text)("title").notNull(),
+  message: (0, import_mysql_core.text)("message").notNull(),
+  type: (0, import_mysql_core.text)("type").notNull().default("system"),
+  read: (0, import_mysql_core.boolean)("read").default(false),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var session = (0, import_pg_core.pgTable)("session", {
-  sid: (0, import_pg_core.varchar)("sid").primaryKey(),
-  sess: (0, import_pg_core.jsonb)("sess").notNull(),
-  expire: (0, import_pg_core.timestamp)("expire").notNull()
+var coupons = (0, import_mysql_core.mysqlTable)("coupons", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  code: (0, import_mysql_core.varchar)("code", { length: 255 }).notNull().unique(),
+  discount: (0, import_mysql_core.double)("discount").notNull(),
+  type: (0, import_mysql_core.text)("type").notNull().default("percentage"),
+  expiryDate: (0, import_mysql_core.text)("expiry_date").notNull(),
+  usageLimit: (0, import_mysql_core.int)("usage_limit").default(0),
+  usedCount: (0, import_mysql_core.int)("used_count").default(0),
+  active: (0, import_mysql_core.boolean)("active").default(true),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var coupons = (0, import_pg_core.pgTable)("coupons", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  code: (0, import_pg_core.text)("code").notNull().unique(),
-  discount: (0, import_pg_core.doublePrecision)("discount").notNull(),
-  type: (0, import_pg_core.text)("type").notNull().default("percentage"),
-  expiryDate: (0, import_pg_core.text)("expiry_date").notNull(),
-  usageLimit: (0, import_pg_core.integer)("usage_limit").default(0),
-  usedCount: (0, import_pg_core.integer)("used_count").default(0),
-  active: (0, import_pg_core.boolean)("active").default(true),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
-});
-var inventory = (0, import_pg_core.pgTable)("inventory", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  name: (0, import_pg_core.text)("name").notNull(),
-  category: (0, import_pg_core.text)("category").default("general"),
+var inventory = (0, import_mysql_core.mysqlTable)("inventory", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  name: (0, import_mysql_core.text)("name").notNull(),
+  category: (0, import_mysql_core.text)("category").default("general"),
   // tools | products | supplies
-  quantity: (0, import_pg_core.integer)("quantity").default(0),
-  minQuantity: (0, import_pg_core.integer)("min_quantity").default(5),
-  unit: (0, import_pg_core.text)("unit").default("pcs"),
-  price: (0, import_pg_core.doublePrecision)("price").default(0),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  quantity: (0, import_mysql_core.int)("quantity").default(0),
+  minQuantity: (0, import_mysql_core.int)("min_quantity").default(5),
+  unit: (0, import_mysql_core.text)("unit").default("pcs"),
+  price: (0, import_mysql_core.double)("price").default(0),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var tips = (0, import_pg_core.pgTable)("tips", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  bookingId: (0, import_pg_core.varchar)("booking_id", { length: 255 }).notNull(),
-  staffId: (0, import_pg_core.varchar)("staff_id", { length: 255 }).notNull(),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  amount: (0, import_pg_core.doublePrecision)("amount").notNull(),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+var tips = (0, import_mysql_core.mysqlTable)("tips", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  bookingId: (0, import_mysql_core.varchar)("booking_id", { length: 255 }).notNull(),
+  staffId: (0, import_mysql_core.varchar)("staff_id", { length: 255 }).notNull(),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  amount: (0, import_mysql_core.double)("amount").notNull(),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var customerNotes = (0, import_pg_core.pgTable)("customer_notes", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).notNull(),
-  customerId: (0, import_pg_core.varchar)("customer_id", { length: 255 }).notNull(),
-  note: (0, import_pg_core.text)("note").notNull(),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+var customerNotes = (0, import_mysql_core.mysqlTable)("customer_notes", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).notNull(),
+  customerId: (0, import_mysql_core.varchar)("customer_id", { length: 255 }).notNull(),
+  note: (0, import_mysql_core.text)("note").notNull(),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var loyaltyTransactions = (0, import_pg_core.pgTable)("loyalty_transactions", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  userId: (0, import_pg_core.varchar)("user_id", { length: 255 }).notNull(),
-  salonId: (0, import_pg_core.varchar)("salon_id", { length: 255 }).default(""),
-  points: (0, import_pg_core.integer)("points").notNull(),
+var loyaltyTransactions = (0, import_mysql_core.mysqlTable)("loyalty_transactions", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  userId: (0, import_mysql_core.varchar)("user_id", { length: 255 }).notNull(),
+  salonId: (0, import_mysql_core.varchar)("salon_id", { length: 255 }).default(""),
+  points: (0, import_mysql_core.int)("points").notNull(),
   // positive = earned, negative = redeemed
-  type: (0, import_pg_core.text)("type").notNull().default("earned"),
+  type: (0, import_mysql_core.text)("type").notNull().default("earned"),
   // earned | redeemed
-  description: (0, import_pg_core.text)("description").default(""),
-  createdAt: (0, import_pg_core.timestamp)("created_at").defaultNow()
+  description: (0, import_mysql_core.text)("description").default(""),
+  createdAt: (0, import_mysql_core.timestamp)("created_at").defaultNow()
 });
-var appSettings = (0, import_pg_core.pgTable)("app_settings", {
-  id: (0, import_pg_core.varchar)("id", { length: 255 }).primaryKey().default(import_drizzle_orm.sql`gen_random_uuid()`),
-  key: (0, import_pg_core.text)("key").notNull().unique(),
-  value: (0, import_pg_core.text)("value").notNull(),
-  description: (0, import_pg_core.text)("description").default(""),
-  updatedAt: (0, import_pg_core.timestamp)("updated_at").defaultNow()
+var appSettings = (0, import_mysql_core.mysqlTable)("app_settings", {
+  id: (0, import_mysql_core.varchar)("id", { length: 255 }).primaryKey().$defaultFn(() => import_crypto.default.randomUUID()),
+  key: (0, import_mysql_core.varchar)("key", { length: 255 }).notNull().unique(),
+  value: (0, import_mysql_core.text)("value").notNull(),
+  description: (0, import_mysql_core.text)("description").default(""),
+  updatedAt: (0, import_mysql_core.timestamp)("updated_at").defaultNow()
 });
 var insertUserSchema = (0, import_drizzle_zod.createInsertSchema)(users).pick({
   fullName: true,
@@ -367,16 +362,16 @@ var insertUserSchema = (0, import_drizzle_zod.createInsertSchema)(users).pick({
 });
 
 // server/db.ts
-console.log("--- DB.TS DEBUG START ---");
-console.log("CWD:", process.cwd());
 dotenv.config({ path: import_path.default.resolve(process.cwd(), ".env") });
-console.log("DB_TS_ENV_LOADED. DATABASE_URL present:", !!process.env.DATABASE_URL);
-import_serverless.neonConfig.webSocketConstructor = import_ws.default;
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set");
-}
-var pool = new import_serverless.Pool({ connectionString: process.env.DATABASE_URL });
-var db = (0, import_neon_serverless.drizzle)(pool, { schema: schema_exports });
+var pool = import_promise.default.createPool({
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10
+});
+var db = (0, import_mysql2.drizzle)(pool, { schema: schema_exports, mode: "default" });
 
 // server/seed.ts
 var salonHeroImages = [
@@ -927,23 +922,27 @@ async function seedDatabase() {
 }
 
 // server/storage.ts
-var import_drizzle_orm2 = require("drizzle-orm");
+var import_crypto2 = __toESM(require("crypto"));
+var import_drizzle_orm = require("drizzle-orm");
 var import_bcryptjs = __toESM(require("bcryptjs"));
 async function createUser(data) {
   const hashed = await import_bcryptjs.default.hash(data.password, 10);
-  const [user] = await db.insert(users).values({ ...data, password: hashed }).returning();
+  const id = import_crypto2.default.randomUUID();
+  await db.insert(users).values({ ...data, password: hashed, id });
+  const [user] = await db.select().from(users).where((0, import_drizzle_orm.eq)(users.id, id));
   return user;
 }
 async function getUserByEmail(email) {
-  const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.email, email));
+  const [user] = await db.select().from(users).where((0, import_drizzle_orm.eq)(users.email, email));
   return user;
 }
 async function getUserById(id) {
-  const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, id));
+  const [user] = await db.select().from(users).where((0, import_drizzle_orm.eq)(users.id, id));
   return user;
 }
 async function updateUser(id, data) {
-  const [user] = await db.update(users).set(data).where((0, import_drizzle_orm2.eq)(users.id, id)).returning();
+  await db.update(users).set(data).where((0, import_drizzle_orm.eq)(users.id, id));
+  const [user] = await db.select().from(users).where((0, import_drizzle_orm.eq)(users.id, id));
   return user;
 }
 async function verifyPassword(plaintext, hashed) {
@@ -953,55 +952,60 @@ async function getAllSalons() {
   return db.select().from(salons);
 }
 async function getSalonById(id) {
-  const [salon] = await db.select().from(salons).where((0, import_drizzle_orm2.eq)(salons.id, id));
+  const [salon] = await db.select().from(salons).where((0, import_drizzle_orm.eq)(salons.id, id));
   return salon;
 }
 async function searchSalons(query) {
   return db.select().from(salons).where(
-    (0, import_drizzle_orm2.or)((0, import_drizzle_orm2.ilike)(salons.name, `%${query}%`), (0, import_drizzle_orm2.ilike)(salons.address, `%${query}%`))
+    (0, import_drizzle_orm.or)((0, import_drizzle_orm.like)(salons.name, `%${query}%`), (0, import_drizzle_orm.like)(salons.address, `%${query}%`))
   );
 }
 async function getSalonServices(salonId) {
-  return db.select().from(services).where((0, import_drizzle_orm2.eq)(services.salonId, salonId));
+  return db.select().from(services).where((0, import_drizzle_orm.eq)(services.salonId, salonId));
 }
 async function getSalonsByCategory(category) {
-  const matchingServices = await db.select({ salonId: services.salonId }).from(services).where((0, import_drizzle_orm2.ilike)(services.category, category));
+  const matchingServices = await db.select({ salonId: services.salonId }).from(services).where((0, import_drizzle_orm.like)(services.category, category));
   const salonIds = [...new Set(matchingServices.map((s) => s.salonId))];
   if (salonIds.length === 0) return [];
-  return db.select().from(salons).where((0, import_drizzle_orm2.inArray)(salons.id, salonIds));
+  return db.select().from(salons).where((0, import_drizzle_orm.inArray)(salons.id, salonIds));
 }
 async function getSalonPackages(salonId) {
-  return db.select().from(packages).where((0, import_drizzle_orm2.eq)(packages.salonId, salonId));
+  return db.select().from(packages).where((0, import_drizzle_orm.eq)(packages.salonId, salonId));
 }
 async function getSalonSpecialists(salonId) {
-  return db.select().from(specialists).where((0, import_drizzle_orm2.eq)(specialists.salonId, salonId));
+  return db.select().from(specialists).where((0, import_drizzle_orm.eq)(specialists.salonId, salonId));
 }
 async function getSalonReviews(salonId) {
-  return db.select().from(reviews).where((0, import_drizzle_orm2.eq)(reviews.salonId, salonId));
+  return db.select().from(reviews).where((0, import_drizzle_orm.eq)(reviews.salonId, salonId));
 }
 async function createReview(data) {
-  const [review] = await db.insert(reviews).values({ ...data, date: "Just now" }).returning();
+  const id = import_crypto2.default.randomUUID();
+  await db.insert(reviews).values({ ...data, date: "Just now", id });
+  const [review] = await db.select().from(reviews).where((0, import_drizzle_orm.eq)(reviews.id, id));
   return review;
 }
 async function getUserBookings(userId) {
-  return db.select().from(bookings).where((0, import_drizzle_orm2.eq)(bookings.userId, userId)).orderBy((0, import_drizzle_orm2.desc)(bookings.createdAt));
+  return db.select().from(bookings).where((0, import_drizzle_orm.eq)(bookings.userId, userId)).orderBy((0, import_drizzle_orm.desc)(bookings.createdAt));
 }
 async function createBooking(data) {
-  const [booking] = await db.insert(bookings).values(data).returning();
+  const id = import_crypto2.default.randomUUID();
+  await db.insert(bookings).values({ ...data, id });
+  const [booking] = await db.select().from(bookings).where((0, import_drizzle_orm.eq)(bookings.id, id));
   return booking;
 }
 async function cancelBooking(id, userId) {
-  const [booking] = await db.update(bookings).set({ status: "cancelled" }).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.id, id), (0, import_drizzle_orm2.eq)(bookings.userId, userId))).returning();
+  await db.update(bookings).set({ status: "cancelled" }).where((0, import_drizzle_orm.and)((0, import_drizzle_orm.eq)(bookings.id, id), (0, import_drizzle_orm.eq)(bookings.userId, userId)));
+  const [booking] = await db.select().from(bookings).where((0, import_drizzle_orm.eq)(bookings.id, id));
   return booking;
 }
 async function getUserBookmarks(userId) {
-  const bm = await db.select().from(bookmarkTable).where((0, import_drizzle_orm2.eq)(bookmarkTable.userId, userId));
+  const bm = await db.select().from(bookmarkTable).where((0, import_drizzle_orm.eq)(bookmarkTable.userId, userId));
   return bm.map((b) => b.salonId);
 }
 async function toggleBookmark(userId, salonId) {
-  const [existing] = await db.select().from(bookmarkTable).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookmarkTable.userId, userId), (0, import_drizzle_orm2.eq)(bookmarkTable.salonId, salonId)));
+  const [existing] = await db.select().from(bookmarkTable).where((0, import_drizzle_orm.and)((0, import_drizzle_orm.eq)(bookmarkTable.userId, userId), (0, import_drizzle_orm.eq)(bookmarkTable.salonId, salonId)));
   if (existing) {
-    await db.delete(bookmarkTable).where((0, import_drizzle_orm2.eq)(bookmarkTable.id, existing.id));
+    await db.delete(bookmarkTable).where((0, import_drizzle_orm.eq)(bookmarkTable.id, existing.id));
     return false;
   } else {
     await db.insert(bookmarkTable).values({ userId, salonId });
@@ -1009,40 +1013,44 @@ async function toggleBookmark(userId, salonId) {
   }
 }
 async function getUserMessages(userId) {
-  return db.select().from(messages).where((0, import_drizzle_orm2.eq)(messages.userId, userId)).orderBy((0, import_drizzle_orm2.desc)(messages.createdAt));
+  return db.select().from(messages).where((0, import_drizzle_orm.eq)(messages.userId, userId)).orderBy((0, import_drizzle_orm.desc)(messages.createdAt));
 }
 async function getConversation(userId, salonId) {
-  return db.select().from(messages).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(messages.userId, userId), (0, import_drizzle_orm2.eq)(messages.salonId, salonId))).orderBy(messages.createdAt);
+  return db.select().from(messages).where((0, import_drizzle_orm.and)((0, import_drizzle_orm.eq)(messages.userId, userId), (0, import_drizzle_orm.eq)(messages.salonId, salonId))).orderBy(messages.createdAt);
 }
 async function sendMessage(data) {
-  const [msg] = await db.insert(messages).values(data).returning();
+  const id = import_crypto2.default.randomUUID();
+  await db.insert(messages).values({ ...data, id });
+  const [msg] = await db.select().from(messages).where((0, import_drizzle_orm.eq)(messages.id, id));
   return msg;
 }
 async function getUserNotifications(userId) {
-  return db.select().from(notifications).where((0, import_drizzle_orm2.eq)(notifications.userId, userId)).orderBy((0, import_drizzle_orm2.desc)(notifications.createdAt));
+  return db.select().from(notifications).where((0, import_drizzle_orm.eq)(notifications.userId, userId)).orderBy((0, import_drizzle_orm.desc)(notifications.createdAt));
 }
 async function markNotificationRead(id, userId) {
-  await db.update(notifications).set({ read: true }).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(notifications.id, id), (0, import_drizzle_orm2.eq)(notifications.userId, userId)));
+  await db.update(notifications).set({ read: true }).where((0, import_drizzle_orm.and)((0, import_drizzle_orm.eq)(notifications.id, id), (0, import_drizzle_orm.eq)(notifications.userId, userId)));
 }
 async function createNotification(data) {
-  const [notif] = await db.insert(notifications).values(data).returning();
+  const id = import_crypto2.default.randomUUID();
+  await db.insert(notifications).values({ ...data, id });
+  const [notif] = await db.select().from(notifications).where((0, import_drizzle_orm.eq)(notifications.id, id));
   return notif;
 }
 async function getActiveCoupons() {
   const now = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
   return db.select().from(coupons).where(
-    (0, import_drizzle_orm2.and)(
-      (0, import_drizzle_orm2.eq)(coupons.active, true),
-      import_drizzle_orm2.sql`${coupons.expiryDate} >= ${now}`
+    (0, import_drizzle_orm.and)(
+      (0, import_drizzle_orm.eq)(coupons.active, true),
+      import_drizzle_orm.sql`${coupons.expiryDate} >= ${now}`
     )
   );
 }
 async function getCouponByCode(code) {
-  const [coupon] = await db.select().from(coupons).where((0, import_drizzle_orm2.eq)(import_drizzle_orm2.sql`upper(${coupons.code})`, code.toUpperCase()));
+  const [coupon] = await db.select().from(coupons).where((0, import_drizzle_orm.eq)(import_drizzle_orm.sql`upper(${coupons.code})`, code.toUpperCase()));
   return coupon;
 }
 async function updateCouponUsage(id) {
-  await db.update(coupons).set({ usedCount: import_drizzle_orm2.sql`${coupons.usedCount} + 1` }).where((0, import_drizzle_orm2.eq)(coupons.id, id));
+  await db.update(coupons).set({ usedCount: import_drizzle_orm.sql`${coupons.usedCount} + 1` }).where((0, import_drizzle_orm.eq)(coupons.id, id));
 }
 
 // server/stripeClient.ts
@@ -1091,28 +1099,13 @@ async function getStripePublishableKey() {
   const { publishableKey } = await getCredentials();
   return publishableKey;
 }
-async function getStripeSecretKey() {
-  const { secretKey } = await getCredentials();
-  return secretKey;
-}
-var stripeSync = null;
 async function getStripeSync() {
-  if (!stripeSync) {
-    const { StripeSync } = await import("stripe-replit-sync");
-    const secretKey = await getStripeSecretKey();
-    stripeSync = new StripeSync({
-      poolConfig: {
-        connectionString: process.env.DATABASE_URL,
-        max: 2
-      },
-      stripeSecretKey: secretKey
-    });
-  }
-  return stripeSync;
+  return null;
 }
 
 // server/adminRoutes.ts
-var import_drizzle_orm3 = require("drizzle-orm");
+var import_crypto3 = __toESM(require("crypto"));
+var import_drizzle_orm2 = require("drizzle-orm");
 var import_bcryptjs2 = __toESM(require("bcryptjs"));
 var import_multer = __toESM(require("multer"));
 var import_path2 = __toESM(require("path"));
@@ -1138,7 +1131,7 @@ var import_os = __toESM(require("os"));
 async function requireSuperAdmin(req, res, next) {
   const userId = req.session?.userId;
   if (!userId) return res.status(401).json({ message: "Not authenticated" });
-  const [user] = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.id, userId));
+  const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, userId));
   if (!user || user.role !== "super_admin" && user.role !== "admin") {
     return res.status(403).json({ message: "Super admin access required" });
   }
@@ -1148,12 +1141,16 @@ async function requireSuperAdmin(req, res, next) {
 async function requireSalonAdmin(req, res, next) {
   const userId = req.session?.userId;
   if (!userId) return res.status(401).json({ message: "Not authenticated" });
-  const [user] = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.id, userId));
+  const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, userId));
   if (!user || user.role !== "salon_admin") {
     return res.status(403).json({ message: "Salon admin access required" });
   }
-  const [link] = await db.select().from(salonStaff).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salonStaff.userId, userId), (0, import_drizzle_orm3.eq)(salonStaff.role, "salon_admin")));
+  const [link] = await db.select().from(salonStaff).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(salonStaff.userId, userId), (0, import_drizzle_orm2.eq)(salonStaff.role, "salon_admin")));
   if (!link) return res.status(403).json({ message: "No salon linked to this admin" });
+  const [salon] = await db.select().from(salons).where((0, import_drizzle_orm2.eq)(salons.id, link.salonId));
+  if (salon && salon.status === "deactivated") {
+    return res.status(403).json({ message: "Your salon has been deactivated. Contact support." });
+  }
   req.currentUser = user;
   req.salonId = link.salonId;
   next();
@@ -1161,14 +1158,20 @@ async function requireSalonAdmin(req, res, next) {
 async function requireStaff(req, res, next) {
   const userId = req.session?.userId;
   if (!userId) return res.status(401).json({ message: "Not authenticated" });
-  const [user] = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.id, userId));
+  const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, userId));
   if (!user || user.role !== "staff") {
     return res.status(403).json({ message: "Staff access required" });
   }
-  const [link] = await db.select().from(salonStaff).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salonStaff.userId, userId), (0, import_drizzle_orm3.eq)(salonStaff.role, "staff")));
+  const [link] = await db.select().from(salonStaff).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(salonStaff.userId, userId), (0, import_drizzle_orm2.eq)(salonStaff.role, "staff")));
   req.currentUser = user;
   req.salonId = link?.salonId || "";
   next();
+}
+function getPagination(req) {
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+  const offset = (page - 1) * limit;
+  return { page, limit, offset };
 }
 function registerAdminRoutes(app2) {
   const uploadsDir = import_path2.default.join(process.cwd(), "public", "uploads");
@@ -1183,17 +1186,17 @@ function registerAdminRoutes(app2) {
   const upload = (0, import_multer.default)({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
   app2.get("/api/admin/stats", requireSuperAdmin, async (req, res) => {
     try {
-      const [usersCount] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(users);
-      const [salonsCount] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(salons);
-      const [bookingsCount] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(bookings);
-      const [revenue] = await db.select({ sum: import_drizzle_orm3.sql`coalesce(sum(${bookings.totalPrice}),0)` }).from(bookings);
-      const [couponsCount] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(coupons);
-      const [servicesCount] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(services);
-      const [messagesCount] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(messages);
-      const [pendingBookings] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm3.eq)(bookings.status, "pending"));
-      const [completedBookings] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm3.eq)(bookings.status, "completed"));
-      const [activeSubscriptions] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(subscriptions).where((0, import_drizzle_orm3.eq)(subscriptions.status, "active"));
-      const [commissionTotal] = await db.select({ sum: import_drizzle_orm3.sql`coalesce(sum(${commissions.amount}),0)` }).from(commissions);
+      const [usersCount] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(users);
+      const [salonsCount] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(salons);
+      const [bookingsCount] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(bookings);
+      const [revenue] = await db.select({ sum: import_drizzle_orm2.sql`coalesce(sum(${bookings.totalPrice}),0)` }).from(bookings);
+      const [couponsCount] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(coupons);
+      const [servicesCount] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(services);
+      const [messagesCount] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(messages);
+      const [pendingBookings] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm2.eq)(bookings.status, "pending"));
+      const [completedBookings] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm2.eq)(bookings.status, "completed"));
+      const [activeSubscriptions] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(subscriptions).where((0, import_drizzle_orm2.eq)(subscriptions.status, "active"));
+      const [commissionTotal] = await db.select({ sum: import_drizzle_orm2.sql`coalesce(sum(${commissions.amount}),0)` }).from(commissions);
       res.json({
         totalUsers: usersCount.count,
         totalSalons: salonsCount.count,
@@ -1211,13 +1214,30 @@ function registerAdminRoutes(app2) {
       res.status(500).json({ message: err.message });
     }
   });
+  app2.get("/api/admin/weekly-activity", requireSuperAdmin, async (_req, res) => {
+    try {
+      const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const now = /* @__PURE__ */ new Date();
+      const weekData = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(now.getDate() - i);
+        const dateStr = date.toISOString().split("T")[0];
+        const [count] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm2.eq)(bookings.date, dateStr));
+        weekData.push({ name: days[date.getDay()], bookings: Number(count.count) || 0, date: dateStr });
+      }
+      res.json(weekData);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
   app2.get("/api/admin/system-health", requireSuperAdmin, async (req, res) => {
     const start = Date.now();
     let dbStatus = "ok";
     let dbLatency = 0;
     try {
       const t0 = Date.now();
-      await db.execute(import_drizzle_orm3.sql`SELECT 1`);
+      await db.execute(import_drizzle_orm2.sql`SELECT 1`);
       dbLatency = Date.now() - t0;
     } catch {
       dbStatus = "error";
@@ -1234,10 +1254,12 @@ function registerAdminRoutes(app2) {
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
     });
   });
-  app2.get("/api/admin/users", requireSuperAdmin, async (_req, res) => {
+  app2.get("/api/admin/users", requireSuperAdmin, async (req, res) => {
     try {
-      const allUsers = await db.select().from(users);
-      res.json(allUsers);
+      const { page, limit, offset } = getPagination(req);
+      const [countResult] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(users);
+      const allUsers = await db.select().from(users).limit(limit).offset(offset).orderBy((0, import_drizzle_orm2.desc)(users.createdAt));
+      res.json({ data: allUsers, total: Number(countResult.count), page, limit });
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -1246,7 +1268,9 @@ function registerAdminRoutes(app2) {
     try {
       const { fullName, email, password, role } = req.body;
       const hashed = await import_bcryptjs2.default.hash(password || "password123", 10);
-      const [user] = await db.insert(users).values({ fullName, email, password: hashed, role: role || "user" }).returning();
+      const userId = import_crypto3.default.randomUUID();
+      await db.insert(users).values({ fullName, email, password: hashed, role: role || "user", id: userId });
+      const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, userId));
       await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: "user.created", entityType: "user", entityId: user.id });
       res.json(user);
     } catch (err) {
@@ -1256,7 +1280,8 @@ function registerAdminRoutes(app2) {
   app2.put("/api/admin/users/:id", requireSuperAdmin, async (req, res) => {
     try {
       const { fullName, email, role } = req.body;
-      const [user] = await db.update(users).set({ fullName, email, role }).where((0, import_drizzle_orm3.eq)(users.id, String(req.params.id))).returning();
+      await db.update(users).set({ fullName, email, role }).where((0, import_drizzle_orm2.eq)(users.id, String(req.params.id)));
+      const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, String(req.params.id)));
       res.json(user);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1264,7 +1289,17 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/users/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(users).where((0, import_drizzle_orm3.eq)(users.id, String(req.params.id)));
+      const targetId = String(req.params.id);
+      const currentUserId = req.currentUser?.id;
+      if (targetId === currentUserId) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+      const [target] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, targetId));
+      if (target?.role === "super_admin" && target.id !== currentUserId) {
+        return res.status(403).json({ message: "Cannot delete another super admin" });
+      }
+      await db.delete(users).where((0, import_drizzle_orm2.eq)(users.id, targetId));
+      await logActivity({ userId: currentUserId, userRole: "super_admin", action: "user.deleted", entityType: "user", entityId: targetId });
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1289,13 +1324,15 @@ function registerAdminRoutes(app2) {
     try {
       const { ownerEmail, ...salonData2 } = req.body;
       if (ownerEmail) {
-        const [ownerUser] = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.email, ownerEmail)).limit(1);
+        const [ownerUser] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.email, ownerEmail)).limit(1);
         if (!ownerUser) return res.status(400).json({ message: `No user found with email "${ownerEmail}". Ask them to register first.` });
         salonData2.ownerId = ownerUser.id;
       }
-      const [salon] = await db.insert(salons).values(salonData2).returning();
+      const salonId2 = import_crypto3.default.randomUUID();
+      await db.insert(salons).values({ ...salonData2, id: salonId2 });
+      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm2.eq)(salons.id, salonId2));
       if (salonData2.ownerId) {
-        const existing = await db.select().from(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salon.id)).limit(1);
+        const existing = await db.select().from(salonStaff).where((0, import_drizzle_orm2.eq)(salonStaff.salonId, salon.id)).limit(1);
         if (existing.length === 0) {
           await db.insert(salonStaff).values({ salonId: salon.id, userId: salonData2.ownerId, role: "salon_admin" });
         }
@@ -1313,20 +1350,21 @@ function registerAdminRoutes(app2) {
       if (ownerEmail !== void 0) {
         if (ownerEmail === "") {
           salonData2.ownerId = null;
-          await db.delete(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId));
+          await db.delete(salonStaff).where((0, import_drizzle_orm2.eq)(salonStaff.salonId, salonId));
         } else {
-          const [ownerUser] = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.email, ownerEmail)).limit(1);
+          const [ownerUser] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.email, ownerEmail)).limit(1);
           if (!ownerUser) return res.status(400).json({ message: `No user found with email "${ownerEmail}". Ask them to register first.` });
           salonData2.ownerId = ownerUser.id;
-          const existing = await db.select().from(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId)).limit(1);
+          const existing = await db.select().from(salonStaff).where((0, import_drizzle_orm2.eq)(salonStaff.salonId, salonId)).limit(1);
           if (existing.length === 0) {
             await db.insert(salonStaff).values({ salonId, userId: ownerUser.id, role: "salon_admin" });
           } else {
-            await db.update(salonStaff).set({ userId: ownerUser.id, role: "salon_admin" }).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId));
+            await db.update(salonStaff).set({ userId: ownerUser.id, role: "salon_admin" }).where((0, import_drizzle_orm2.eq)(salonStaff.salonId, salonId));
           }
         }
       }
-      const [salon] = await db.update(salons).set(salonData2).where((0, import_drizzle_orm3.eq)(salons.id, salonId)).returning();
+      await db.update(salons).set(salonData2).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
+      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
       if (req.body.status) {
         await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: `salon.${req.body.status}`, entityType: "salon", entityId: salonId });
       }
@@ -1337,7 +1375,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/salons/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(salons).where((0, import_drizzle_orm3.eq)(salons.id, String(req.params.id)));
+      await db.delete(salons).where((0, import_drizzle_orm2.eq)(salons.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1346,32 +1384,35 @@ function registerAdminRoutes(app2) {
   app2.post("/api/admin/salons/:id/create-default-account", requireSuperAdmin, async (req, res) => {
     try {
       const salonId = String(req.params.id);
-      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
       if (!salon) return res.status(404).json({ message: "Salon not found" });
       const slug = salon.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30);
       const email = `${slug}@barmagly.com`;
       const defaultPassword = "salon123";
-      const existing = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.email, email)).limit(1);
+      const existing = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.email, email)).limit(1);
       let user = existing[0];
       if (!user) {
         const hashed = await import_bcryptjs2.default.hash(defaultPassword, 10);
-        const [created] = await db.insert(users).values({
+        const newUserId = import_crypto3.default.randomUUID();
+        await db.insert(users).values({
+          id: newUserId,
           fullName: salon.name,
           email,
           password: hashed,
           role: "salon_admin",
           phone: "",
           avatar: ""
-        }).returning();
+        });
+        const [created] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, newUserId));
         user = created;
       }
-      const staffExisting = await db.select().from(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId)).limit(1);
+      const staffExisting = await db.select().from(salonStaff).where((0, import_drizzle_orm2.eq)(salonStaff.salonId, salonId)).limit(1);
       if (staffExisting.length === 0) {
         await db.insert(salonStaff).values({ salonId, userId: user.id, role: "salon_admin" });
       } else {
-        await db.update(salonStaff).set({ userId: user.id, role: "salon_admin" }).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId));
+        await db.update(salonStaff).set({ userId: user.id, role: "salon_admin" }).where((0, import_drizzle_orm2.eq)(salonStaff.salonId, salonId));
       }
-      await db.update(salons).set({ ownerId: user.id }).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+      await db.update(salons).set({ ownerId: user.id }).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
       await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: "salon.owner.created", entityType: "salon", entityId: salonId, metadata: { email } });
       res.json({ email, password: defaultPassword, userId: user.id });
     } catch (err) {
@@ -1393,17 +1434,21 @@ function registerAdminRoutes(app2) {
       res.status(500).json({ message: err.message });
     }
   });
-  app2.get("/api/admin/bookings", requireSuperAdmin, async (_req, res) => {
+  app2.get("/api/admin/bookings", requireSuperAdmin, async (req, res) => {
     try {
-      const all = await db.select().from(bookings).orderBy((0, import_drizzle_orm3.desc)(bookings.createdAt));
-      res.json(all);
+      const { page, limit, offset } = getPagination(req);
+      const [countResult] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(bookings);
+      const all = await db.select().from(bookings).orderBy((0, import_drizzle_orm2.desc)(bookings.createdAt)).limit(limit).offset(offset);
+      res.json({ data: all, total: Number(countResult.count), page, limit });
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
   });
   app2.post("/api/admin/bookings", requireSuperAdmin, async (req, res) => {
     try {
-      const [booking] = await db.insert(bookings).values({ ...req.body, status: req.body.status || "upcoming" }).returning();
+      const bookingId = import_crypto3.default.randomUUID();
+      await db.insert(bookings).values({ ...req.body, status: req.body.status || "upcoming", id: bookingId });
+      const [booking] = await db.select().from(bookings).where((0, import_drizzle_orm2.eq)(bookings.id, bookingId));
       res.json(booking);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1411,7 +1456,8 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/bookings/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [booking] = await db.update(bookings).set(req.body).where((0, import_drizzle_orm3.eq)(bookings.id, String(req.params.id))).returning();
+      await db.update(bookings).set(req.body).where((0, import_drizzle_orm2.eq)(bookings.id, String(req.params.id)));
+      const [booking] = await db.select().from(bookings).where((0, import_drizzle_orm2.eq)(bookings.id, String(req.params.id)));
       res.json(booking);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1419,7 +1465,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/bookings/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(bookings).where((0, import_drizzle_orm3.eq)(bookings.id, String(req.params.id)));
+      await db.delete(bookings).where((0, import_drizzle_orm2.eq)(bookings.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1434,7 +1480,9 @@ function registerAdminRoutes(app2) {
   });
   app2.post("/api/admin/coupons", requireSuperAdmin, async (req, res) => {
     try {
-      const [c] = await db.insert(coupons).values(req.body).returning();
+      const couponId = import_crypto3.default.randomUUID();
+      await db.insert(coupons).values({ ...req.body, id: couponId });
+      const [c] = await db.select().from(coupons).where((0, import_drizzle_orm2.eq)(coupons.id, couponId));
       res.json(c);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1442,7 +1490,8 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/coupons/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [c] = await db.update(coupons).set(req.body).where((0, import_drizzle_orm3.eq)(coupons.id, String(req.params.id))).returning();
+      await db.update(coupons).set(req.body).where((0, import_drizzle_orm2.eq)(coupons.id, String(req.params.id)));
+      const [c] = await db.select().from(coupons).where((0, import_drizzle_orm2.eq)(coupons.id, String(req.params.id)));
       res.json(c);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1450,7 +1499,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/coupons/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(coupons).where((0, import_drizzle_orm3.eq)(coupons.id, String(req.params.id)));
+      await db.delete(coupons).where((0, import_drizzle_orm2.eq)(coupons.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1458,7 +1507,7 @@ function registerAdminRoutes(app2) {
   });
   app2.get("/api/admin/payments", requireSuperAdmin, async (_req, res) => {
     try {
-      const payments = await db.select().from(bookings).where(import_drizzle_orm3.sql`${bookings.paymentMethod} != ''`);
+      const payments = await db.select().from(bookings).where(import_drizzle_orm2.sql`${bookings.paymentMethod} != ''`);
       res.json(payments);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1477,12 +1526,14 @@ function registerAdminRoutes(app2) {
       const adminIdentity = { salonId: "admin", salonName: "Barmagly Platform", salonImage: "" };
       if (targetUserId === "all") {
         const allUsers = await db.select().from(users);
-        const msgs = await Promise.all(allUsers.map(
-          (u) => db.insert(messages).values({ userId: u.id, ...adminIdentity, content, sender: "salon" }).returning()
+        await Promise.all(allUsers.map(
+          (u) => db.insert(messages).values({ userId: u.id, ...adminIdentity, content, sender: "salon" })
         ));
-        res.json({ success: true, count: msgs.length });
+        res.json({ success: true, count: allUsers.length });
       } else {
-        const [msg] = await db.insert(messages).values({ userId: targetUserId, ...adminIdentity, content, sender: "salon" }).returning();
+        const msgId = import_crypto3.default.randomUUID();
+        await db.insert(messages).values({ id: msgId, userId: targetUserId, ...adminIdentity, content, sender: "salon" });
+        const [msg] = await db.select().from(messages).where((0, import_drizzle_orm2.eq)(messages.id, msgId));
         res.json(msg);
       }
     } catch (err) {
@@ -1492,7 +1543,9 @@ function registerAdminRoutes(app2) {
   app2.post("/api/admin/messages/reply", requireSuperAdmin, async (req, res) => {
     try {
       const { userId, salonId, salonName, salonImage, content } = req.body;
-      const [msg] = await db.insert(messages).values({ userId, salonId, salonName, salonImage, content, sender: "salon" }).returning();
+      const replyMsgId = import_crypto3.default.randomUUID();
+      await db.insert(messages).values({ id: replyMsgId, userId, salonId, salonName, salonImage, content, sender: "salon" });
+      const [msg] = await db.select().from(messages).where((0, import_drizzle_orm2.eq)(messages.id, replyMsgId));
       res.json(msg);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1508,13 +1561,13 @@ function registerAdminRoutes(app2) {
   app2.post("/api/admin/settings", requireSuperAdmin, async (req, res) => {
     try {
       const { key, value, description } = req.body;
-      const existing = await db.select().from(appSettings).where((0, import_drizzle_orm3.eq)(appSettings.key, key));
-      let setting;
+      const existing = await db.select().from(appSettings).where((0, import_drizzle_orm2.eq)(appSettings.key, key));
       if (existing.length > 0) {
-        [setting] = await db.update(appSettings).set({ value, description, updatedAt: /* @__PURE__ */ new Date() }).where((0, import_drizzle_orm3.eq)(appSettings.key, key)).returning();
+        await db.update(appSettings).set({ value, description, updatedAt: /* @__PURE__ */ new Date() }).where((0, import_drizzle_orm2.eq)(appSettings.key, key));
       } else {
-        [setting] = await db.insert(appSettings).values({ key, value, description }).returning();
+        await db.insert(appSettings).values({ key, value, description });
       }
+      const [setting] = await db.select().from(appSettings).where((0, import_drizzle_orm2.eq)(appSettings.key, key));
       res.json(setting);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1529,7 +1582,9 @@ function registerAdminRoutes(app2) {
   });
   app2.post("/api/admin/services", requireSuperAdmin, async (req, res) => {
     try {
-      const [s] = await db.insert(services).values(req.body).returning();
+      const svcId = import_crypto3.default.randomUUID();
+      await db.insert(services).values({ ...req.body, id: svcId });
+      const [s] = await db.select().from(services).where((0, import_drizzle_orm2.eq)(services.id, svcId));
       res.json(s);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1537,7 +1592,8 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/services/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [s] = await db.update(services).set(req.body).where((0, import_drizzle_orm3.eq)(services.id, String(req.params.id))).returning();
+      await db.update(services).set(req.body).where((0, import_drizzle_orm2.eq)(services.id, String(req.params.id)));
+      const [s] = await db.select().from(services).where((0, import_drizzle_orm2.eq)(services.id, String(req.params.id)));
       res.json(s);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1545,7 +1601,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/services/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(services).where((0, import_drizzle_orm3.eq)(services.id, String(req.params.id)));
+      await db.delete(services).where((0, import_drizzle_orm2.eq)(services.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1568,7 +1624,9 @@ function registerAdminRoutes(app2) {
   });
   app2.post("/api/admin/plans", requireSuperAdmin, async (req, res) => {
     try {
-      const [plan] = await db.insert(plans).values(req.body).returning();
+      const planId = import_crypto3.default.randomUUID();
+      await db.insert(plans).values({ ...req.body, id: planId });
+      const [plan] = await db.select().from(plans).where((0, import_drizzle_orm2.eq)(plans.id, planId));
       res.json(plan);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1576,7 +1634,8 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/plans/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [plan] = await db.update(plans).set(req.body).where((0, import_drizzle_orm3.eq)(plans.id, String(req.params.id))).returning();
+      await db.update(plans).set(req.body).where((0, import_drizzle_orm2.eq)(plans.id, String(req.params.id)));
+      const [plan] = await db.select().from(plans).where((0, import_drizzle_orm2.eq)(plans.id, String(req.params.id)));
       res.json(plan);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1584,7 +1643,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/plans/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(plans).where((0, import_drizzle_orm3.eq)(plans.id, String(req.params.id)));
+      await db.delete(plans).where((0, import_drizzle_orm2.eq)(plans.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1592,14 +1651,16 @@ function registerAdminRoutes(app2) {
   });
   app2.get("/api/admin/subscriptions", requireSuperAdmin, async (_req, res) => {
     try {
-      res.json(await db.select().from(subscriptions).orderBy((0, import_drizzle_orm3.desc)(subscriptions.createdAt)));
+      res.json(await db.select().from(subscriptions).orderBy((0, import_drizzle_orm2.desc)(subscriptions.createdAt)));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
   });
   app2.post("/api/admin/subscriptions", requireSuperAdmin, async (req, res) => {
     try {
-      const [sub] = await db.insert(subscriptions).values(req.body).returning();
+      const subId = import_crypto3.default.randomUUID();
+      await db.insert(subscriptions).values({ ...req.body, id: subId });
+      const [sub] = await db.select().from(subscriptions).where((0, import_drizzle_orm2.eq)(subscriptions.id, subId));
       await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: "subscription.created", entityType: "subscription", entityId: sub.id, metadata: { salonId: sub.salonId, planId: sub.planId } });
       res.json(sub);
     } catch (err) {
@@ -1608,7 +1669,8 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/subscriptions/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [sub] = await db.update(subscriptions).set({ ...req.body, updatedAt: /* @__PURE__ */ new Date() }).where((0, import_drizzle_orm3.eq)(subscriptions.id, String(req.params.id))).returning();
+      await db.update(subscriptions).set({ ...req.body, updatedAt: /* @__PURE__ */ new Date() }).where((0, import_drizzle_orm2.eq)(subscriptions.id, String(req.params.id)));
+      const [sub] = await db.select().from(subscriptions).where((0, import_drizzle_orm2.eq)(subscriptions.id, String(req.params.id)));
       await logActivity({ userId: req.currentUser?.id, userRole: "super_admin", action: "subscription.updated", entityType: "subscription", entityId: String(req.params.id) });
       res.json(sub);
     } catch (err) {
@@ -1617,7 +1679,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/subscriptions/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(subscriptions).where((0, import_drizzle_orm3.eq)(subscriptions.id, String(req.params.id)));
+      await db.delete(subscriptions).where((0, import_drizzle_orm2.eq)(subscriptions.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1625,7 +1687,7 @@ function registerAdminRoutes(app2) {
   });
   app2.get("/api/admin/license-keys", requireSuperAdmin, async (_req, res) => {
     try {
-      res.json(await db.select().from(licenseKeys).orderBy((0, import_drizzle_orm3.desc)(licenseKeys.createdAt)));
+      res.json(await db.select().from(licenseKeys).orderBy((0, import_drizzle_orm2.desc)(licenseKeys.createdAt)));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -1633,7 +1695,9 @@ function registerAdminRoutes(app2) {
   app2.post("/api/admin/license-keys", requireSuperAdmin, async (req, res) => {
     try {
       const key = req.body.key || `BRMG-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      const [lk] = await db.insert(licenseKeys).values({ ...req.body, key }).returning();
+      const lkId = import_crypto3.default.randomUUID();
+      await db.insert(licenseKeys).values({ ...req.body, key, id: lkId });
+      const [lk] = await db.select().from(licenseKeys).where((0, import_drizzle_orm2.eq)(licenseKeys.id, lkId));
       res.json(lk);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1641,7 +1705,8 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/admin/license-keys/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [lk] = await db.update(licenseKeys).set(req.body).where((0, import_drizzle_orm3.eq)(licenseKeys.id, String(req.params.id))).returning();
+      await db.update(licenseKeys).set(req.body).where((0, import_drizzle_orm2.eq)(licenseKeys.id, String(req.params.id)));
+      const [lk] = await db.select().from(licenseKeys).where((0, import_drizzle_orm2.eq)(licenseKeys.id, String(req.params.id)));
       res.json(lk);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1649,7 +1714,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/license-keys/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(licenseKeys).where((0, import_drizzle_orm3.eq)(licenseKeys.id, String(req.params.id)));
+      await db.delete(licenseKeys).where((0, import_drizzle_orm2.eq)(licenseKeys.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1658,7 +1723,7 @@ function registerAdminRoutes(app2) {
   app2.get("/api/admin/activity-logs", requireSuperAdmin, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit) || 100;
-      const logs = await db.select().from(activityLogs).orderBy((0, import_drizzle_orm3.desc)(activityLogs.createdAt)).limit(limit);
+      const logs = await db.select().from(activityLogs).orderBy((0, import_drizzle_orm2.desc)(activityLogs.createdAt)).limit(limit);
       res.json(logs);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1666,14 +1731,15 @@ function registerAdminRoutes(app2) {
   });
   app2.get("/api/admin/commissions", requireSuperAdmin, async (_req, res) => {
     try {
-      res.json(await db.select().from(commissions).orderBy((0, import_drizzle_orm3.desc)(commissions.createdAt)));
+      res.json(await db.select().from(commissions).orderBy((0, import_drizzle_orm2.desc)(commissions.createdAt)));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
   });
   app2.put("/api/admin/commissions/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const [c] = await db.update(commissions).set(req.body).where((0, import_drizzle_orm3.eq)(commissions.id, String(req.params.id))).returning();
+      await db.update(commissions).set(req.body).where((0, import_drizzle_orm2.eq)(commissions.id, String(req.params.id)));
+      const [c] = await db.select().from(commissions).where((0, import_drizzle_orm2.eq)(commissions.id, String(req.params.id)));
       res.json(c);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1681,7 +1747,7 @@ function registerAdminRoutes(app2) {
   });
   app2.get("/api/admin/expenses", requireSuperAdmin, async (_req, res) => {
     try {
-      res.json(await db.select().from(expenses).orderBy((0, import_drizzle_orm3.desc)(expenses.createdAt)));
+      res.json(await db.select().from(expenses).orderBy((0, import_drizzle_orm2.desc)(expenses.createdAt)));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -1702,7 +1768,9 @@ function registerAdminRoutes(app2) {
   });
   app2.post("/api/admin/salon-staff", requireSuperAdmin, async (req, res) => {
     try {
-      const [link] = await db.insert(salonStaff).values(req.body).returning();
+      const linkId = import_crypto3.default.randomUUID();
+      await db.insert(salonStaff).values({ ...req.body, id: linkId });
+      const [link] = await db.select().from(salonStaff).where((0, import_drizzle_orm2.eq)(salonStaff.id, linkId));
       res.json(link);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1710,7 +1778,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/admin/salon-staff/:id", requireSuperAdmin, async (req, res) => {
     try {
-      await db.delete(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.id, String(req.params.id)));
+      await db.delete(salonStaff).where((0, import_drizzle_orm2.eq)(salonStaff.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1722,7 +1790,7 @@ function registerAdminRoutes(app2) {
   app2.get("/api/salon/me", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
       res.json(salon);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1731,7 +1799,8 @@ function registerAdminRoutes(app2) {
   app2.put("/api/salon/me", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [salon] = await db.update(salons).set(req.body).where((0, import_drizzle_orm3.eq)(salons.id, salonId)).returning();
+      await db.update(salons).set(req.body).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
+      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
       res.json(salon);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1740,9 +1809,9 @@ function registerAdminRoutes(app2) {
   app2.get("/api/salon/subscription", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [sub] = await db.select().from(subscriptions).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(subscriptions.salonId, salonId), (0, import_drizzle_orm3.eq)(subscriptions.status, "active")));
+      const [sub] = await db.select().from(subscriptions).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(subscriptions.salonId, salonId), (0, import_drizzle_orm2.eq)(subscriptions.status, "active")));
       if (!sub) return res.json(null);
-      const [plan] = await db.select().from(plans).where((0, import_drizzle_orm3.eq)(plans.id, sub.planId));
+      const [plan] = await db.select().from(plans).where((0, import_drizzle_orm2.eq)(plans.id, sub.planId));
       res.json({ ...sub, plan });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1752,11 +1821,11 @@ function registerAdminRoutes(app2) {
     try {
       const salonId = req.salonId;
       const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
-      const [todayBookings] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.salonId, salonId), (0, import_drizzle_orm3.eq)(bookings.date, today)));
-      const [totalBookings] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm3.eq)(bookings.salonId, salonId));
-      const [revenue] = await db.select({ sum: import_drizzle_orm3.sql`coalesce(sum(${bookings.totalPrice}),0)` }).from(bookings).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.salonId, salonId), (0, import_drizzle_orm3.eq)(bookings.status, "completed")));
-      const [staffCount] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId));
-      const [pendingCount] = await db.select({ count: import_drizzle_orm3.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.salonId, salonId), (0, import_drizzle_orm3.eq)(bookings.status, "upcoming")));
+      const [todayBookings] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.salonId, salonId), (0, import_drizzle_orm2.eq)(bookings.date, today)));
+      const [totalBookings] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm2.eq)(bookings.salonId, salonId));
+      const [revenue] = await db.select({ sum: import_drizzle_orm2.sql`coalesce(sum(${bookings.totalPrice}),0)` }).from(bookings).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.salonId, salonId), (0, import_drizzle_orm2.eq)(bookings.status, "completed")));
+      const [staffCount] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(salonStaff).where((0, import_drizzle_orm2.eq)(salonStaff.salonId, salonId));
+      const [pendingCount] = await db.select({ count: import_drizzle_orm2.sql`count(*)` }).from(bookings).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.salonId, salonId), (0, import_drizzle_orm2.eq)(bookings.status, "upcoming")));
       res.json({
         todayBookings: todayBookings.count,
         totalBookings: totalBookings.count,
@@ -1771,7 +1840,7 @@ function registerAdminRoutes(app2) {
   app2.get("/api/salon/bookings", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const all = await db.select().from(bookings).where((0, import_drizzle_orm3.eq)(bookings.salonId, salonId)).orderBy((0, import_drizzle_orm3.desc)(bookings.createdAt));
+      const all = await db.select().from(bookings).where((0, import_drizzle_orm2.eq)(bookings.salonId, salonId)).orderBy((0, import_drizzle_orm2.desc)(bookings.createdAt));
       res.json(all);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1780,16 +1849,17 @@ function registerAdminRoutes(app2) {
   app2.put("/api/salon/bookings/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [booking] = await db.update(bookings).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(bookings.salonId, salonId))).returning();
+      await db.update(bookings).set(req.body).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.id, String(req.params.id)), (0, import_drizzle_orm2.eq)(bookings.salonId, salonId)));
+      const [booking] = await db.select().from(bookings).where((0, import_drizzle_orm2.eq)(bookings.id, String(req.params.id)));
       if (req.body.status === "completed" && booking) {
-        const sub = await db.select().from(subscriptions).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(subscriptions.salonId, salonId), (0, import_drizzle_orm3.eq)(subscriptions.status, "active")));
+        const sub = await db.select().from(subscriptions).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(subscriptions.salonId, salonId), (0, import_drizzle_orm2.eq)(subscriptions.status, "active")));
         const planId = sub[0]?.planId;
         let rate = 5;
         if (planId) {
-          const [plan] = await db.select().from(plans).where((0, import_drizzle_orm3.eq)(plans.id, planId));
+          const [plan] = await db.select().from(plans).where((0, import_drizzle_orm2.eq)(plans.id, planId));
           if (plan) rate = plan.commissionRate ?? 5;
         }
-        await db.insert(commissions).values({ bookingId: booking.id, salonId, amount: booking.totalPrice * (rate / 100), rate }).returning();
+        await db.insert(commissions).values({ bookingId: booking.id, salonId, amount: booking.totalPrice * (rate / 100), rate });
       }
       res.json(booking);
     } catch (err) {
@@ -1799,7 +1869,7 @@ function registerAdminRoutes(app2) {
   app2.get("/api/salon/services", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      res.json(await db.select().from(services).where((0, import_drizzle_orm3.eq)(services.salonId, salonId)));
+      res.json(await db.select().from(services).where((0, import_drizzle_orm2.eq)(services.salonId, salonId)));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -1807,7 +1877,9 @@ function registerAdminRoutes(app2) {
   app2.post("/api/salon/services", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [s] = await db.insert(services).values({ ...req.body, salonId }).returning();
+      const svcId2 = import_crypto3.default.randomUUID();
+      await db.insert(services).values({ ...req.body, salonId, id: svcId2 });
+      const [s] = await db.select().from(services).where((0, import_drizzle_orm2.eq)(services.id, svcId2));
       res.json(s);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1816,7 +1888,8 @@ function registerAdminRoutes(app2) {
   app2.put("/api/salon/services/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [s] = await db.update(services).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(services.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(services.salonId, salonId))).returning();
+      await db.update(services).set(req.body).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(services.id, String(req.params.id)), (0, import_drizzle_orm2.eq)(services.salonId, salonId)));
+      const [s] = await db.select().from(services).where((0, import_drizzle_orm2.eq)(services.id, String(req.params.id)));
       res.json(s);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1825,7 +1898,7 @@ function registerAdminRoutes(app2) {
   app2.delete("/api/salon/services/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      await db.delete(services).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(services.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(services.salonId, salonId)));
+      await db.delete(services).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(services.id, String(req.params.id)), (0, import_drizzle_orm2.eq)(services.salonId, salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1834,9 +1907,9 @@ function registerAdminRoutes(app2) {
   app2.get("/api/salon/staff", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const links = await db.select().from(salonStaff).where((0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId));
+      const links = await db.select().from(salonStaff).where((0, import_drizzle_orm2.eq)(salonStaff.salonId, salonId));
       const staffUsers = await Promise.all(links.map(async (l) => {
-        const [u] = await db.select({ id: users.id, fullName: users.fullName, email: users.email, phone: users.phone, avatar: users.avatar, role: users.role }).from(users).where((0, import_drizzle_orm3.eq)(users.id, l.userId));
+        const [u] = await db.select({ id: users.id, fullName: users.fullName, email: users.email, phone: users.phone, avatar: users.avatar, role: users.role }).from(users).where((0, import_drizzle_orm2.eq)(users.id, l.userId));
         return { ...u, linkId: l.id, staffRole: l.role };
       }));
       res.json(staffUsers.filter(Boolean));
@@ -1849,8 +1922,12 @@ function registerAdminRoutes(app2) {
       const salonId = req.salonId;
       const { fullName, email, password, staffRole = "staff" } = req.body;
       const hashed = await import_bcryptjs2.default.hash(password || "password123", 10);
-      const [newUser] = await db.insert(users).values({ fullName, email, password: hashed, role: staffRole === "salon_admin" ? "salon_admin" : "staff" }).returning();
-      const [link] = await db.insert(salonStaff).values({ userId: newUser.id, salonId, role: staffRole }).returning();
+      const newUserId2 = import_crypto3.default.randomUUID();
+      await db.insert(users).values({ id: newUserId2, fullName, email, password: hashed, role: staffRole === "salon_admin" ? "salon_admin" : "staff" });
+      const [newUser] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, newUserId2));
+      const linkId2 = import_crypto3.default.randomUUID();
+      await db.insert(salonStaff).values({ id: linkId2, userId: newUser.id, salonId, role: staffRole });
+      const [link] = await db.select().from(salonStaff).where((0, import_drizzle_orm2.eq)(salonStaff.id, linkId2));
       res.json({ ...newUser, linkId: link.id, staffRole: link.role });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1859,7 +1936,7 @@ function registerAdminRoutes(app2) {
   app2.delete("/api/salon/staff/:linkId", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      await db.delete(salonStaff).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salonStaff.id, String(req.params.linkId)), (0, import_drizzle_orm3.eq)(salonStaff.salonId, salonId)));
+      await db.delete(salonStaff).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(salonStaff.id, String(req.params.linkId)), (0, import_drizzle_orm2.eq)(salonStaff.salonId, salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1870,12 +1947,12 @@ function registerAdminRoutes(app2) {
       const salonId = req.salonId;
       const rows = await db.select({
         userId: bookings.userId,
-        count: import_drizzle_orm3.sql`count(*)`,
-        lastVisit: import_drizzle_orm3.sql`max(${bookings.date})`,
-        totalSpent: import_drizzle_orm3.sql`sum(${bookings.totalPrice})`
-      }).from(bookings).where((0, import_drizzle_orm3.eq)(bookings.salonId, salonId)).groupBy(bookings.userId);
+        count: import_drizzle_orm2.sql`count(*)`,
+        lastVisit: import_drizzle_orm2.sql`max(${bookings.date})`,
+        totalSpent: import_drizzle_orm2.sql`sum(${bookings.totalPrice})`
+      }).from(bookings).where((0, import_drizzle_orm2.eq)(bookings.salonId, salonId)).groupBy(bookings.userId);
       const customers = await Promise.all(rows.map(async (r) => {
-        const [u] = await db.select({ id: users.id, fullName: users.fullName, email: users.email, phone: users.phone, avatar: users.avatar, loyaltyPoints: users.loyaltyPoints }).from(users).where((0, import_drizzle_orm3.eq)(users.id, r.userId));
+        const [u] = await db.select({ id: users.id, fullName: users.fullName, email: users.email, phone: users.phone, avatar: users.avatar, loyaltyPoints: users.loyaltyPoints }).from(users).where((0, import_drizzle_orm2.eq)(users.id, r.userId));
         return u ? { ...u, bookingCount: r.count, lastVisit: r.lastVisit, totalSpent: r.totalSpent } : null;
       }));
       res.json(customers.filter(Boolean));
@@ -1886,7 +1963,7 @@ function registerAdminRoutes(app2) {
   app2.get("/api/salon/expenses", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      res.json(await db.select().from(expenses).where((0, import_drizzle_orm3.eq)(expenses.salonId, salonId)).orderBy((0, import_drizzle_orm3.desc)(expenses.createdAt)));
+      res.json(await db.select().from(expenses).where((0, import_drizzle_orm2.eq)(expenses.salonId, salonId)).orderBy((0, import_drizzle_orm2.desc)(expenses.createdAt)));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -1894,7 +1971,9 @@ function registerAdminRoutes(app2) {
   app2.post("/api/salon/expenses", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [e] = await db.insert(expenses).values({ ...req.body, salonId }).returning();
+      const expId = import_crypto3.default.randomUUID();
+      await db.insert(expenses).values({ ...req.body, salonId, id: expId });
+      const [e] = await db.select().from(expenses).where((0, import_drizzle_orm2.eq)(expenses.id, expId));
       res.json(e);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1903,7 +1982,8 @@ function registerAdminRoutes(app2) {
   app2.put("/api/salon/expenses/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [e] = await db.update(expenses).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(expenses.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(expenses.salonId, salonId))).returning();
+      await db.update(expenses).set(req.body).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(expenses.id, String(req.params.id)), (0, import_drizzle_orm2.eq)(expenses.salonId, salonId)));
+      const [e] = await db.select().from(expenses).where((0, import_drizzle_orm2.eq)(expenses.id, String(req.params.id)));
       res.json(e);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1912,7 +1992,7 @@ function registerAdminRoutes(app2) {
   app2.delete("/api/salon/expenses/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      await db.delete(expenses).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(expenses.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(expenses.salonId, salonId)));
+      await db.delete(expenses).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(expenses.id, String(req.params.id)), (0, import_drizzle_orm2.eq)(expenses.salonId, salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1921,7 +2001,7 @@ function registerAdminRoutes(app2) {
   app2.get("/api/salon/shifts", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      res.json(await db.select().from(shifts).where((0, import_drizzle_orm3.eq)(shifts.salonId, salonId)));
+      res.json(await db.select().from(shifts).where((0, import_drizzle_orm2.eq)(shifts.salonId, salonId)));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -1929,7 +2009,9 @@ function registerAdminRoutes(app2) {
   app2.post("/api/salon/shifts", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [s] = await db.insert(shifts).values({ ...req.body, salonId }).returning();
+      const shiftId = import_crypto3.default.randomUUID();
+      await db.insert(shifts).values({ ...req.body, salonId, id: shiftId });
+      const [s] = await db.select().from(shifts).where((0, import_drizzle_orm2.eq)(shifts.id, shiftId));
       res.json(s);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1938,7 +2020,8 @@ function registerAdminRoutes(app2) {
   app2.put("/api/salon/shifts/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [s] = await db.update(shifts).set(req.body).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(shifts.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(shifts.salonId, salonId))).returning();
+      await db.update(shifts).set(req.body).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(shifts.id, String(req.params.id)), (0, import_drizzle_orm2.eq)(shifts.salonId, salonId)));
+      const [s] = await db.select().from(shifts).where((0, import_drizzle_orm2.eq)(shifts.id, String(req.params.id)));
       res.json(s);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1947,7 +2030,7 @@ function registerAdminRoutes(app2) {
   app2.delete("/api/salon/shifts/:id", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      await db.delete(shifts).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(shifts.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(shifts.salonId, salonId)));
+      await db.delete(shifts).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(shifts.id, String(req.params.id)), (0, import_drizzle_orm2.eq)(shifts.salonId, salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1966,8 +2049,8 @@ function registerAdminRoutes(app2) {
       const userId = req.session?.userId;
       const salonId = req.salonId;
       const all = await db.select().from(bookings).where(
-        salonId ? (0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.salonId, salonId), (0, import_drizzle_orm3.eq)(bookings.specialistId, userId)) : (0, import_drizzle_orm3.eq)(bookings.specialistId, userId)
-      ).orderBy((0, import_drizzle_orm3.desc)(bookings.date));
+        salonId ? (0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.salonId, salonId), (0, import_drizzle_orm2.eq)(bookings.specialistId, userId)) : (0, import_drizzle_orm2.eq)(bookings.specialistId, userId)
+      ).orderBy((0, import_drizzle_orm2.desc)(bookings.date));
       res.json(all);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1980,7 +2063,8 @@ function registerAdminRoutes(app2) {
       if (!allowed.includes(req.body.status)) {
         return res.status(400).json({ message: "Staff can only mark bookings as completed or no-show" });
       }
-      const [booking] = await db.update(bookings).set({ status: req.body.status }).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.id, String(req.params.id)), (0, import_drizzle_orm3.eq)(bookings.specialistId, userId))).returning();
+      await db.update(bookings).set({ status: req.body.status }).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.id, String(req.params.id)), (0, import_drizzle_orm2.eq)(bookings.specialistId, userId)));
+      const [booking] = await db.select().from(bookings).where((0, import_drizzle_orm2.eq)(bookings.id, String(req.params.id)));
       res.json(booking);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -1991,8 +2075,8 @@ function registerAdminRoutes(app2) {
       const userId = req.session?.userId;
       const salonId = req.salonId;
       const all = await db.select().from(bookings).where(
-        salonId ? (0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.salonId, salonId), (0, import_drizzle_orm3.eq)(bookings.specialistId, userId)) : (0, import_drizzle_orm3.eq)(bookings.specialistId, userId)
-      ).orderBy((0, import_drizzle_orm3.desc)(bookings.date));
+        salonId ? (0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.salonId, salonId), (0, import_drizzle_orm2.eq)(bookings.specialistId, userId)) : (0, import_drizzle_orm2.eq)(bookings.specialistId, userId)
+      ).orderBy((0, import_drizzle_orm2.desc)(bookings.date));
       res.json(all);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2002,7 +2086,8 @@ function registerAdminRoutes(app2) {
     try {
       const userId = req.session?.userId;
       const { name, email, phone } = req.body;
-      const [user] = await db.update(users).set({ fullName: name, email, phone }).where((0, import_drizzle_orm3.eq)(users.id, userId)).returning();
+      await db.update(users).set({ fullName: name, email, phone }).where((0, import_drizzle_orm2.eq)(users.id, userId));
+      const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, userId));
       res.json(user);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2012,7 +2097,7 @@ function registerAdminRoutes(app2) {
     try {
       const userId = req.session?.userId;
       const salonId = req.salonId;
-      res.json(await db.select().from(shifts).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(shifts.staffId, userId), (0, import_drizzle_orm3.eq)(shifts.salonId, salonId))));
+      res.json(await db.select().from(shifts).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(shifts.staffId, userId), (0, import_drizzle_orm2.eq)(shifts.salonId, salonId))));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -2032,14 +2117,14 @@ function registerAdminRoutes(app2) {
         start = new Date(now.getFullYear(), now.getMonth(), 1);
       }
       const myBookings = await db.select().from(bookings).where(
-        (0, import_drizzle_orm3.and)(
-          (0, import_drizzle_orm3.eq)(bookings.specialistId, userId),
-          (0, import_drizzle_orm3.eq)(bookings.status, "completed"),
-          (0, import_drizzle_orm3.gte)(bookings.createdAt, start)
+        (0, import_drizzle_orm2.and)(
+          (0, import_drizzle_orm2.eq)(bookings.specialistId, userId),
+          (0, import_drizzle_orm2.eq)(bookings.status, "completed"),
+          (0, import_drizzle_orm2.gte)(bookings.createdAt, start)
         )
       );
       const myTips = await db.select().from(tips).where(
-        (0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(tips.staffId, userId), (0, import_drizzle_orm3.gte)(tips.createdAt, start))
+        (0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(tips.staffId, userId), (0, import_drizzle_orm2.gte)(tips.createdAt, start))
       );
       const totalEarnings = myBookings.reduce((s, b) => s + (b.totalPrice || 0), 0);
       const totalTips = myTips.reduce((s, t) => s + (t.amount || 0), 0);
@@ -2066,7 +2151,7 @@ function registerAdminRoutes(app2) {
     try {
       const { email, licenseKey, deviceId } = req.body;
       if (!email || !licenseKey) return res.status(400).json({ message: "Email and license key are required" });
-      const [lk] = await db.select().from(licenseKeys).where((0, import_drizzle_orm3.eq)(licenseKeys.key, licenseKey.toUpperCase()));
+      const [lk] = await db.select().from(licenseKeys).where((0, import_drizzle_orm2.eq)(licenseKeys.key, licenseKey.toUpperCase()));
       if (!lk) return res.status(404).json({ message: "Invalid license key" });
       if (lk.status === "revoked") return res.status(403).json({ message: "License key has been revoked" });
       if (lk.status === "suspended") return res.status(403).json({ message: "License key is suspended" });
@@ -2074,7 +2159,7 @@ function registerAdminRoutes(app2) {
         return res.status(403).json({ message: "License key has expired" });
       }
       const effectiveDeviceId = deviceId || `web-${email}`;
-      const existingActivations = await db.select().from(licenseActivations).where((0, import_drizzle_orm3.eq)(licenseActivations.licenseKeyId, lk.id));
+      const existingActivations = await db.select().from(licenseActivations).where((0, import_drizzle_orm2.eq)(licenseActivations.licenseKeyId, lk.id));
       const alreadyActivated = existingActivations.some((a) => a.deviceId === effectiveDeviceId);
       if (!alreadyActivated) {
         const maxAct = lk.maxActivations ?? 0;
@@ -2086,11 +2171,11 @@ function registerAdminRoutes(app2) {
         await db.update(licenseKeys).set({
           activationCount: currentCount + 1,
           status: "active"
-        }).where((0, import_drizzle_orm3.eq)(licenseKeys.id, lk.id));
+        }).where((0, import_drizzle_orm2.eq)(licenseKeys.id, lk.id));
       }
       let salonName = "";
       if (lk.salonId) {
-        const [salon] = await db.select().from(salons).where((0, import_drizzle_orm3.eq)(salons.id, lk.salonId));
+        const [salon] = await db.select().from(salons).where((0, import_drizzle_orm2.eq)(salons.id, lk.salonId));
         if (salon) salonName = salon.name;
       }
       const updatedCount = alreadyActivated ? lk.activationCount ?? 0 : (lk.activationCount ?? 0) + 1;
@@ -2152,11 +2237,11 @@ function registerAdminRoutes(app2) {
       else if (period === "year") start = new Date(now.getFullYear(), 0, 1);
       else start = new Date(now.getFullYear(), now.getMonth(), 1);
       const myBookings = await db.select().from(bookings).where(
-        (0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.salonId, salonId), (0, import_drizzle_orm3.gte)(bookings.createdAt, start))
+        (0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.salonId, salonId), (0, import_drizzle_orm2.gte)(bookings.createdAt, start))
       );
       const prevStart = new Date(start.getTime() - (now.getTime() - start.getTime()));
       const prevBookings = await db.select().from(bookings).where(
-        (0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(bookings.salonId, salonId), (0, import_drizzle_orm3.gte)(bookings.createdAt, prevStart), (0, import_drizzle_orm3.lte)(bookings.createdAt, start))
+        (0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(bookings.salonId, salonId), (0, import_drizzle_orm2.gte)(bookings.createdAt, prevStart), (0, import_drizzle_orm2.lte)(bookings.createdAt, start))
       );
       const totalRevenue = myBookings.reduce((s, b) => s + (b.totalPrice || 0), 0);
       const avgBookingValue = myBookings.length > 0 ? totalRevenue / myBookings.length : 0;
@@ -2191,8 +2276,8 @@ function registerAdminRoutes(app2) {
     try {
       const salonId = req.salonId;
       const notes = await db.select().from(customerNotes).where(
-        (0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(customerNotes.salonId, salonId), (0, import_drizzle_orm3.eq)(customerNotes.customerId, String(req.params.customerId)))
-      ).orderBy((0, import_drizzle_orm3.desc)(customerNotes.createdAt));
+        (0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(customerNotes.salonId, salonId), (0, import_drizzle_orm2.eq)(customerNotes.customerId, String(req.params.customerId)))
+      ).orderBy((0, import_drizzle_orm2.desc)(customerNotes.createdAt));
       res.json(notes);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2201,11 +2286,14 @@ function registerAdminRoutes(app2) {
   app2.post("/api/salon/customers/:customerId/notes", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [note] = await db.insert(customerNotes).values({
+      const noteId = import_crypto3.default.randomUUID();
+      await db.insert(customerNotes).values({
+        id: noteId,
         salonId,
         customerId: String(req.params.customerId),
         note: req.body.note
-      }).returning();
+      });
+      const [note] = await db.select().from(customerNotes).where((0, import_drizzle_orm2.eq)(customerNotes.id, noteId));
       res.json(note);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2214,7 +2302,7 @@ function registerAdminRoutes(app2) {
   app2.get("/api/salon/inventory", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      res.json(await db.select().from(inventory).where((0, import_drizzle_orm3.eq)(inventory.salonId, salonId)).orderBy((0, import_drizzle_orm3.desc)(inventory.createdAt)));
+      res.json(await db.select().from(inventory).where((0, import_drizzle_orm2.eq)(inventory.salonId, salonId)).orderBy((0, import_drizzle_orm2.desc)(inventory.createdAt)));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -2222,7 +2310,9 @@ function registerAdminRoutes(app2) {
   app2.post("/api/salon/inventory", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [item] = await db.insert(inventory).values({ ...req.body, salonId }).returning();
+      const invId = import_crypto3.default.randomUUID();
+      await db.insert(inventory).values({ ...req.body, salonId, id: invId });
+      const [item] = await db.select().from(inventory).where((0, import_drizzle_orm2.eq)(inventory.id, invId));
       res.json(item);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2230,7 +2320,8 @@ function registerAdminRoutes(app2) {
   });
   app2.put("/api/salon/inventory/:id", requireSalonAdmin, async (req, res) => {
     try {
-      const [item] = await db.update(inventory).set(req.body).where((0, import_drizzle_orm3.eq)(inventory.id, String(req.params.id))).returning();
+      await db.update(inventory).set(req.body).where((0, import_drizzle_orm2.eq)(inventory.id, String(req.params.id)));
+      const [item] = await db.select().from(inventory).where((0, import_drizzle_orm2.eq)(inventory.id, String(req.params.id)));
       res.json(item);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2238,7 +2329,7 @@ function registerAdminRoutes(app2) {
   });
   app2.delete("/api/salon/inventory/:id", requireSalonAdmin, async (req, res) => {
     try {
-      await db.delete(inventory).where((0, import_drizzle_orm3.eq)(inventory.id, String(req.params.id)));
+      await db.delete(inventory).where((0, import_drizzle_orm2.eq)(inventory.id, String(req.params.id)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2247,7 +2338,9 @@ function registerAdminRoutes(app2) {
   app2.post("/api/salon/tips", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      const [tip] = await db.insert(tips).values({ ...req.body, salonId }).returning();
+      const tipId = import_crypto3.default.randomUUID();
+      await db.insert(tips).values({ ...req.body, salonId, id: tipId });
+      const [tip] = await db.select().from(tips).where((0, import_drizzle_orm2.eq)(tips.id, tipId));
       res.json(tip);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2256,7 +2349,7 @@ function registerAdminRoutes(app2) {
   app2.get("/api/salon/tips", requireSalonAdmin, async (req, res) => {
     try {
       const salonId = req.salonId;
-      res.json(await db.select().from(tips).where((0, import_drizzle_orm3.eq)(tips.salonId, salonId)).orderBy((0, import_drizzle_orm3.desc)(tips.createdAt)));
+      res.json(await db.select().from(tips).where((0, import_drizzle_orm2.eq)(tips.salonId, salonId)).orderBy((0, import_drizzle_orm2.desc)(tips.createdAt)));
     } catch (err) {
       res.status(500).json({ message: err.message });
     }
@@ -2265,8 +2358,8 @@ function registerAdminRoutes(app2) {
     try {
       const userId = req.session?.userId;
       if (!userId) return res.status(401).json({ message: "Not authenticated" });
-      const txns = await db.select().from(loyaltyTransactions).where((0, import_drizzle_orm3.eq)(loyaltyTransactions.userId, userId)).orderBy((0, import_drizzle_orm3.desc)(loyaltyTransactions.createdAt));
-      const [user] = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.id, userId));
+      const txns = await db.select().from(loyaltyTransactions).where((0, import_drizzle_orm2.eq)(loyaltyTransactions.userId, userId)).orderBy((0, import_drizzle_orm2.desc)(loyaltyTransactions.createdAt));
+      const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, userId));
       res.json({ points: user?.loyaltyPoints ?? 0, transactions: txns });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2278,11 +2371,11 @@ function registerAdminRoutes(app2) {
       if (!userId) return res.status(401).json({ message: "Not authenticated" });
       const { points } = req.body;
       if (!points || points <= 0) return res.status(400).json({ message: "Invalid points amount" });
-      const [user] = await db.select().from(users).where((0, import_drizzle_orm3.eq)(users.id, userId));
+      const [user] = await db.select().from(users).where((0, import_drizzle_orm2.eq)(users.id, userId));
       if (!user || (user.loyaltyPoints ?? 0) < points) {
         return res.status(400).json({ message: "Insufficient loyalty points" });
       }
-      await db.update(users).set({ loyaltyPoints: (user.loyaltyPoints ?? 0) - points }).where((0, import_drizzle_orm3.eq)(users.id, userId));
+      await db.update(users).set({ loyaltyPoints: (user.loyaltyPoints ?? 0) - points }).where((0, import_drizzle_orm2.eq)(users.id, userId));
       await db.insert(loyaltyTransactions).values({
         userId,
         points: -points,
@@ -2308,23 +2401,23 @@ function registerAdminRoutes(app2) {
       const { landingEnabled, landingSlug, landingTheme, landingAccentColor, landingBookingUrl } = req.body;
       if (landingSlug !== void 0) {
         const slug = String(landingSlug).trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-        const [existing] = await db.select().from(salons).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salons.landingSlug, slug), import_drizzle_orm3.sql`id != ${salonId}`));
+        const [existing] = await db.select().from(salons).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(salons.landingSlug, slug), import_drizzle_orm2.sql`id != ${salonId}`));
         if (existing) return res.status(400).json({ message: "This slug is already in use by another salon." });
         const updates = { landingSlug: slug };
         if (landingEnabled !== void 0) updates.landingEnabled = landingEnabled;
         if (landingTheme !== void 0) updates.landingTheme = landingTheme;
         if (landingAccentColor !== void 0) updates.landingAccentColor = landingAccentColor;
         if (landingBookingUrl !== void 0) updates.landingBookingUrl = landingBookingUrl;
-        await db.update(salons).set(updates).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+        await db.update(salons).set(updates).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
       } else {
         const updates = {};
         if (landingEnabled !== void 0) updates.landingEnabled = landingEnabled;
         if (landingTheme !== void 0) updates.landingTheme = landingTheme;
         if (landingAccentColor !== void 0) updates.landingAccentColor = landingAccentColor;
         if (landingBookingUrl !== void 0) updates.landingBookingUrl = landingBookingUrl;
-        if (Object.keys(updates).length) await db.update(salons).set(updates).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+        if (Object.keys(updates).length) await db.update(salons).set(updates).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
       }
-      const [updated] = await db.select().from(salons).where((0, import_drizzle_orm3.eq)(salons.id, salonId));
+      const [updated] = await db.select().from(salons).where((0, import_drizzle_orm2.eq)(salons.id, salonId));
       res.json(updated);
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2332,7 +2425,7 @@ function registerAdminRoutes(app2) {
   });
   app2.post("/api/admin/landing-pages/:salonId/reset-views", requireSuperAdmin, async (req, res) => {
     try {
-      await db.update(salons).set({ landingViews: 0 }).where((0, import_drizzle_orm3.eq)(salons.id, String(req.params.salonId)));
+      await db.update(salons).set({ landingViews: 0 }).where((0, import_drizzle_orm2.eq)(salons.id, String(req.params.salonId)));
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ message: err.message });
@@ -2341,11 +2434,11 @@ function registerAdminRoutes(app2) {
   app2.get("/salon/:slug", async (req, res) => {
     try {
       const slug = String(req.params.slug).toLowerCase();
-      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm3.and)((0, import_drizzle_orm3.eq)(salons.landingSlug, slug), (0, import_drizzle_orm3.eq)(salons.landingEnabled, true)));
+      const [salon] = await db.select().from(salons).where((0, import_drizzle_orm2.and)((0, import_drizzle_orm2.eq)(salons.landingSlug, slug), (0, import_drizzle_orm2.eq)(salons.landingEnabled, true)));
       if (!salon) {
         return res.status(404).send(`<!DOCTYPE html><html><head><title>Not Found</title><style>body{background:#181A20;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column}</style></head><body><h1 style="font-size:3rem">404</h1><p>Salon page not found or not yet published.</p></body></html>`);
       }
-      await db.update(salons).set({ landingViews: (salon.landingViews ?? 0) + 1 }).where((0, import_drizzle_orm3.eq)(salons.id, salon.id));
+      await db.update(salons).set({ landingViews: (salon.landingViews ?? 0) + 1 }).where((0, import_drizzle_orm2.eq)(salons.id, salon.id));
       const isDark = (salon.landingTheme || "dark") === "dark";
       const accent = salon.landingAccentColor || "#F4A460";
       const bg = isDark ? "#181A20" : "#f5f5f5";
@@ -2439,15 +2532,44 @@ function registerAdminRoutes(app2) {
 }
 
 // server/routes.ts
-var PgSession = (0, import_connect_pg_simple.default)(import_express_session.default);
+var import_zod = require("zod");
+var signupSchema = import_zod.z.object({
+  fullName: import_zod.z.string().min(2, "Full name must be at least 2 characters").max(100),
+  email: import_zod.z.string().email("Invalid email address"),
+  password: import_zod.z.string().min(8, "Password must be at least 8 characters")
+});
+var signinSchema = import_zod.z.object({
+  email: import_zod.z.string().email("Invalid email address"),
+  password: import_zod.z.string().min(1, "Password is required")
+});
+var bookingSchema = import_zod.z.object({
+  salonId: import_zod.z.string().min(1, "Salon ID is required"),
+  salonName: import_zod.z.string().min(1, "Salon name is required"),
+  salonImage: import_zod.z.string().optional().default(""),
+  services: import_zod.z.array(import_zod.z.string()).default([]),
+  date: import_zod.z.string().min(1, "Date is required"),
+  time: import_zod.z.string().min(1, "Time is required"),
+  totalPrice: import_zod.z.number().min(0, "Price must be non-negative"),
+  paymentMethod: import_zod.z.string().optional().default(""),
+  couponId: import_zod.z.string().optional()
+});
+var reviewSchema = import_zod.z.object({
+  salonId: import_zod.z.string().min(1, "Salon ID is required"),
+  rating: import_zod.z.number().int().min(1).max(5),
+  comment: import_zod.z.string().max(1e3).optional().default("")
+});
+var MySQLStore = (0, import_express_mysql_session.default)(import_express_session.default);
 async function registerRoutes(app2) {
+  const sessionStore = new MySQLStore({
+    clearExpired: true,
+    checkExpirationInterval: 9e5,
+    expiration: 30 * 24 * 60 * 60 * 1e3,
+    createDatabaseTable: true
+  }, pool);
   app2.use(
     (0, import_express_session.default)({
-      store: new PgSession({
-        conString: process.env.DATABASE_URL,
-        createTableIfMissing: true
-      }),
-      secret: process.env.SESSION_SECRET || "casca-secret-key",
+      store: sessionStore,
+      secret: process.env.SESSION_SECRET || import_node_crypto.default.randomBytes(32).toString("hex"),
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -2467,10 +2589,11 @@ async function registerRoutes(app2) {
   }
   app2.post("/api/auth/signup", async (req, res) => {
     try {
-      const { fullName, email, password } = req.body;
-      if (!fullName || !email || !password) {
-        return res.status(400).json({ message: "All fields are required" });
+      const parsed = signupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
       }
+      const { fullName, email, password } = parsed.data;
       const existing = await getUserByEmail(email);
       if (existing) {
         return res.status(409).json({ message: "Email already registered" });
@@ -2491,10 +2614,11 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/auth/signin", async (req, res) => {
     try {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password required" });
+      const parsed = signinSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
       }
+      const { email, password } = parsed.data;
       const user = await getUserByEmail(email);
       if (!user) {
         return res.status(404).json({ message: "No account found with this email" });
@@ -2788,17 +2912,21 @@ async function registerRoutes(app2) {
   app2.post("/api/bookings", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId;
-      const { salonId, salonName, salonImage, services: services2, date, time, totalPrice, paymentMethod, couponId } = req.body;
+      const parsed = bookingSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { salonId, salonName, salonImage, services: services2, date, time, totalPrice, paymentMethod, couponId } = parsed.data;
       const booking = await createBooking({
         userId,
         salonId,
         salonName,
-        salonImage: salonImage || "",
-        services: services2 || [],
+        salonImage,
+        services: services2,
         date,
         time,
         totalPrice,
-        paymentMethod: paymentMethod || ""
+        paymentMethod
       });
       if (couponId) {
         await updateCouponUsage(couponId);
@@ -2927,8 +3055,12 @@ async function registerRoutes(app2) {
   app2.post("/api/reviews", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId;
+      const parsed = reviewSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { salonId, rating, comment } = parsed.data;
       const user = await getUserById(userId);
-      const { salonId, rating, comment } = req.body;
       const review = await createReview({
         salonId,
         userId,
@@ -3066,9 +3198,6 @@ async function registerRoutes(app2) {
   return httpServer;
 }
 
-// server/index.ts
-var import_stripe_replit_sync = require("stripe-replit-sync");
-
 // server/webhookHandlers.ts
 var WebhookHandlers = class {
   static async processWebhook(payload, signature) {
@@ -3099,6 +3228,8 @@ function setupCors(app2) {
         origins.add(`https://${d.trim()}`);
       });
     }
+    origins.add("https://barber.barmagly.tech");
+    origins.add("http://barber.barmagly.tech");
     const origin = req.header("origin");
     const isLocalhost = origin?.startsWith("http://localhost:") || origin?.startsWith("http://127.0.0.1:");
     if (origin && (origins.has(origin) || isLocalhost)) {
@@ -3257,46 +3388,34 @@ function setupErrorHandler(app2) {
   });
 }
 async function initStripe() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    log("DATABASE_URL not set, skipping Stripe initialization");
-    return;
-  }
   const hasLocalKeys = process.env.STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_SECRET_KEY;
-  const isReplit = process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL;
-  if (!hasLocalKeys && !isReplit) {
-    log("Stripe credentials not found in .env, skipping Stripe initialization for local development.");
-    return;
-  }
-  try {
-    log("Initializing Stripe schema...");
-    await (0, import_stripe_replit_sync.runMigrations)({ databaseUrl, schema: "stripe" });
-    log("Stripe schema ready");
-    const stripeSync2 = await getStripeSync();
-    const domain = process.env.REPLIT_DOMAINS?.split(",")[0] || process.env.REPLIT_DEV_DOMAIN;
-    if (domain) {
-      const webhookUrl = `https://${domain}/api/stripe/webhook`;
-      try {
-        const result = await stripeSync2.findOrCreateManagedWebhook(webhookUrl);
-        if (result?.webhook?.url) {
-          log(`Stripe webhook configured: ${result.webhook.url}`);
-        } else {
-          log("Stripe webhook setup returned no URL, but continuing...");
-        }
-      } catch (webhookErr) {
-        log(`Stripe webhook setup skipped: ${webhookErr.message}`);
-      }
-    } else {
-      log("No domain found for Stripe webhook, skipping webhook setup");
-    }
-    stripeSync2.syncBackfill().then(() => log("Stripe data synced")).catch((err) => console.error("Error syncing Stripe data:", err));
-  } catch (error) {
-    console.error("Failed to initialize Stripe:", error);
+  if (hasLocalKeys) {
+    log("Stripe API keys found \u2014 payments enabled (sync disabled for MySQL)");
+  } else {
+    log("Stripe keys not found, skipping Stripe initialization");
   }
 }
 (async () => {
   log("Starting server initialization...");
   setupCors(app);
+  const apiLimiter = (0, import_express_rate_limit.default)({
+    windowMs: 15 * 60 * 1e3,
+    // 15 minutes
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many requests, please try again later" }
+  });
+  app.use("/api/", apiLimiter);
+  const authLimiter = (0, import_express_rate_limit.default)({
+    windowMs: 15 * 60 * 1e3,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many authentication attempts, please try again later" }
+  });
+  app.use("/api/auth/signin", authLimiter);
+  app.use("/api/auth/signup", authLimiter);
   app.use("/uploads", import_express.default.static(path3.join(process.cwd(), "public", "uploads")));
   app.get("/health", (req, res) => res.json({ status: "ok", version: "v2" }));
   const adminDistPath = path3.join(process.cwd(), "admin-dist");

@@ -1,23 +1,59 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "node:http";
+import crypto from "node:crypto";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
+import mysqlSessionFactory from "express-mysql-session";
+import { pool } from "./db";
 import { seedDatabase } from "./seed";
 import * as storage from "./storage";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { registerAdminRoutes } from "./adminRoutes";
 import { logActivity } from "./activityLogger";
+import { z } from "zod";
 
-const PgSession = connectPgSimple(session);
+const signupSchema = z.object({
+  fullName: z.string().min(2, "Full name must be at least 2 characters").max(100),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+const signinSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+const bookingSchema = z.object({
+  salonId: z.string().min(1, "Salon ID is required"),
+  salonName: z.string().min(1, "Salon name is required"),
+  salonImage: z.string().optional().default(""),
+  services: z.array(z.string()).default([]),
+  date: z.string().min(1, "Date is required"),
+  time: z.string().min(1, "Time is required"),
+  totalPrice: z.number().min(0, "Price must be non-negative"),
+  paymentMethod: z.string().optional().default(""),
+  couponId: z.string().optional(),
+});
+
+const reviewSchema = z.object({
+  salonId: z.string().min(1, "Salon ID is required"),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(1000).optional().default(""),
+});
+
+const MySQLStore = mysqlSessionFactory(session as any);
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  const sessionStore = new (MySQLStore as any)({
+    clearExpired: true,
+    checkExpirationInterval: 900000,
+    expiration: 30 * 24 * 60 * 60 * 1000,
+    createDatabaseTable: true,
+  }, pool);
+
   app.use(
     session({
-      store: new PgSession({
-        conString: process.env.DATABASE_URL,
-        createTableIfMissing: true,
-      }),
-      secret: process.env.SESSION_SECRET || "casca-secret-key",
+      store: sessionStore,
+      secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -40,10 +76,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/signup", async (req: Request, res: Response) => {
     try {
-      const { fullName, email, password } = req.body;
-      if (!fullName || !email || !password) {
-        return res.status(400).json({ message: "All fields are required" });
+      const parsed = signupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
       }
+      const { fullName, email, password } = parsed.data;
       const existing = await storage.getUserByEmail(email);
       if (existing) {
         return res.status(409).json({ message: "Email already registered" });
@@ -67,10 +104,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/signin", async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password required" });
+      const parsed = signinSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
       }
+      const { email, password } = parsed.data;
       const user = await storage.getUserByEmail(email);
       if (!user) {
         return res.status(404).json({ message: "No account found with this email" });
@@ -392,10 +430,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bookings", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
-      const { salonId, salonName, salonImage, services, date, time, totalPrice, paymentMethod, couponId } = req.body;
+      const parsed = bookingSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { salonId, salonName, salonImage, services, date, time, totalPrice, paymentMethod, couponId } = parsed.data;
       const booking = await storage.createBooking({
-        userId, salonId, salonName, salonImage: salonImage || "",
-        services: services || [], date, time, totalPrice, paymentMethod: paymentMethod || "",
+        userId, salonId, salonName, salonImage,
+        services, date, time, totalPrice, paymentMethod,
       });
 
       if (couponId) {
@@ -537,8 +579,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/reviews", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
+      const parsed = reviewSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { salonId, rating, comment } = parsed.data;
       const user = await storage.getUserById(userId);
-      const { salonId, rating, comment } = req.body;
       const review = await storage.createReview({
         salonId, userId, userName: user?.fullName || "Anonymous",
         userImage: user?.avatar || "", rating, comment,
