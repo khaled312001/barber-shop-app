@@ -25,7 +25,9 @@ export default function OnboardingScreen() {
 
   const handleNext = () => {
     if (activeIndex < onboardingSlides.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: activeIndex + 1, animated: true });
+      const nextIndex = activeIndex + 1;
+      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+      setActiveIndex(nextIndex); // Update immediately — onMomentumScrollEnd is unreliable on web
     } else {
       setIsOnboarded(true);
       router.replace('/license' as Href);

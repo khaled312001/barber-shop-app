@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Activity, Save, Globe, Shield, Bell, Phone, Info } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Setting {
     id: string;
@@ -11,6 +12,7 @@ interface Setting {
 }
 
 export default function Settings() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [activeTab, setActiveTab] = React.useState('general');
 
@@ -44,15 +46,15 @@ export default function Settings() {
     }
 
     const tabs = [
-        { id: 'general', label: 'General Info', icon: Globe },
-        { id: 'security', label: 'Security', icon: Shield },
-        { id: 'notifications', label: 'Notifications', icon: Bell },
-        { id: 'contact', label: 'Contact Details', icon: Phone },
+        { id: 'general', label: t('general_info'), icon: Globe },
+        { id: 'security', label: t('security'), icon: Shield },
+        { id: 'notifications', label: t('notifications'), icon: Bell },
+        { id: 'contact', label: t('contact_details'), icon: Phone },
     ];
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-6 sm:mb-8">System Settings</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-6 sm:mb-8">{t('system_settings')}</h1>
 
             <div className="flex flex-col md:flex-row gap-8">
                 {/* Sidebar Tabs */}
@@ -77,23 +79,23 @@ export default function Settings() {
                     {activeTab === 'general' && (
                         <div className="space-y-6">
                             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Globe className="text-primary" size={20} /> General Configuration
+                                <Globe className="text-primary" size={20} /> {t('general_config')}
                             </h2>
                             <div className="space-y-4">
                                 <SettingItem
-                                    label="Application Name"
+                                    label={t('app_name')}
                                     value={getSetting('app_name') || 'Casca Barber'}
                                     onSave={(val) => handleSave('app_name', val, 'Global application name.')}
                                 />
                                 <SettingItem
-                                    label="Maintenance Mode"
+                                    label={t('maintenance_mode')}
                                     value={getSetting('maintenance_mode') || 'OFF'}
                                     type="select"
-                                    options={['ON', 'OFF']}
+                                    options={[t('on'), t('off')]}
                                     onSave={(val) => handleSave('maintenance_mode', val, 'Puts the app in maintenance mode.')}
                                 />
                                 <SettingItem
-                                    label="Primary Currency"
+                                    label={t('primary_currency')}
                                     value={getSetting('currency') || 'USD'}
                                     onSave={(val) => handleSave('currency', val, 'Base currency for payments.')}
                                 />
@@ -104,16 +106,16 @@ export default function Settings() {
                     {activeTab === 'contact' && (
                         <div className="space-y-6">
                             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <Phone className="text-primary" size={20} /> Contact Information
+                                <Phone className="text-primary" size={20} /> {t('contact_info')}
                             </h2>
                             <div className="space-y-4">
                                 <SettingItem
-                                    label="Support Email"
+                                    label={t('support_email')}
                                     value={getSetting('support_email') || 'support@casca.com'}
                                     onSave={(val) => handleSave('support_email', val, 'Customer support email address.')}
                                 />
                                 <SettingItem
-                                    label="Contact Number"
+                                    label={t('contact_number')}
                                     value={getSetting('contact_phone') || '+1 234 567 890'}
                                     onSave={(val) => handleSave('contact_phone', val, 'Public contact phone.')}
                                 />
@@ -124,8 +126,8 @@ export default function Settings() {
                     {(activeTab === 'security' || activeTab === 'notifications') && (
                         <div className="flex flex-col items-center justify-center py-12 text-center">
                             <Info className="text-text-muted mb-4" size={40} />
-                            <h3 className="text-lg font-bold text-white mb-1">Coming Soon</h3>
-                            <p className="text-sm text-text-muted max-w-xs">These advanced settings are being prepared and will be available in the next update.</p>
+                            <h3 className="text-lg font-bold text-white mb-1">{t('coming_soon')}</h3>
+                            <p className="text-sm text-text-muted max-w-xs">{t('advanced_settings_soon')}</p>
                         </div>
                     )}
                 </div>

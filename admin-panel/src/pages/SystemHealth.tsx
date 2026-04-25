@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity, Server, Database, Cpu, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function SystemHealth() {
+    const { t } = useLanguage();
     const { data: health, isLoading, refetch, dataUpdatedAt } = useQuery({
         queryKey: ['system-health'],
         queryFn: async () => { const { data } = await api.get('/admin/system-health'); return data; },
@@ -18,10 +20,10 @@ export default function SystemHealth() {
     };
 
     const metrics = health ? [
-        { label: 'Server Status', value: health.status === 'ok' ? 'Operational' : 'Error', icon: Server, ok: health.status === 'ok', extra: '' },
-        { label: 'Database', value: health.dbStatus === 'ok' ? `${health.dbLatencyMs}ms latency` : 'Error', icon: Database, ok: health.dbStatus === 'ok', extra: '' },
-        { label: 'Uptime', value: formatUptime(health.uptime), icon: Activity, ok: true, extra: '' },
-        { label: 'Memory Usage', value: `${health.memoryMB} MB / ${health.totalMemoryMB} MB`, icon: Cpu, ok: health.memoryMB < health.totalMemoryMB * 0.8, extra: `${Math.round(health.memoryMB / health.totalMemoryMB * 100)}% used` },
+        { label: t('server_status'), value: health.status === 'ok' ? t('operational') : t('error'), icon: Server, ok: health.status === 'ok', extra: '' },
+        { label: t('database'), value: health.dbStatus === 'ok' ? `${health.dbLatencyMs}ms latency` : t('error'), icon: Database, ok: health.dbStatus === 'ok', extra: '' },
+        { label: t('uptime'), value: formatUptime(health.uptime), icon: Activity, ok: true, extra: '' },
+        { label: t('memory_usage'), value: `${health.memoryMB} MB / ${health.totalMemoryMB} MB`, icon: Cpu, ok: health.memoryMB < health.totalMemoryMB * 0.8, extra: `${Math.round(health.memoryMB / health.totalMemoryMB * 100)}% ${t('used')}` },
     ] : [];
 
     return (
@@ -30,12 +32,12 @@ export default function SystemHealth() {
                 <div className="flex items-center gap-3">
                     <Activity className="text-[#F4A460]" size={24} />
                     <div>
-                        <h1 className="text-2xl font-bold text-white">System Health</h1>
-                        <p className="text-zinc-400 text-sm">Real-time platform monitoring</p>
+                        <h1 className="text-2xl font-bold text-white">{t('system_health')}</h1>
+                        <p className="text-zinc-400 text-sm">{t('realtime_monitoring')}</p>
                     </div>
                 </div>
                 <button onClick={() => refetch()} className="flex items-center gap-2 border border-[#35383F] text-zinc-400 hover:text-white hover:border-zinc-500 px-4 py-2 rounded-xl text-sm transition-colors">
-                    <RefreshCw size={16} /> Refresh
+                    <RefreshCw size={16} /> {t('refresh')}
                 </button>
             </div>
 
@@ -65,12 +67,12 @@ export default function SystemHealth() {
                     </div>
 
                     <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-6">
-                        <h2 className="font-bold text-white mb-4">Environment Info</h2>
+                        <h2 className="font-bold text-white mb-4">{t('environment_info')}</h2>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                             {[
                                 { label: 'Node.js', value: health.nodeVersion },
-                                { label: 'Environment', value: health.environment },
-                                { label: 'Last checked', value: new Date(dataUpdatedAt).toLocaleTimeString() },
+                                { label: t('environment'), value: health.environment },
+                                { label: t('last_checked'), value: new Date(dataUpdatedAt).toLocaleTimeString() },
                             ].map((item, i) => (
                                 <div key={i}>
                                     <p className="text-zinc-500 mb-1">{item.label}</p>
@@ -81,7 +83,7 @@ export default function SystemHealth() {
                     </div>
                 </>
             ) : (
-                <div className="text-center py-12 text-red-400">Failed to load system health data</div>
+                <div className="text-center py-12 text-red-400">{t('failed_health')}</div>
             )}
         </div>
     );

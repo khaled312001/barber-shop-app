@@ -154,9 +154,9 @@ export async function createNotification(data: { userId: string; title: string; 
   return notif;
 }
 
-export async function getActiveCoupons(): Promise<Coupon[]> {
+export async function getActiveCoupons() {
   const now = new Date().toISOString().split('T')[0];
-  return db.select()
+  const activeCoupons = await db.select()
     .from(coupons)
     .where(
       and(
@@ -164,6 +164,19 @@ export async function getActiveCoupons(): Promise<Coupon[]> {
         sql`${coupons.expiryDate} >= ${now}`
       )
     );
+
+  // Enrich salon-specific coupons with salon name
+  const salonIds = [...new Set(activeCoupons.map(c => c.salonId).filter(Boolean).filter(id => id !== ""))];
+  if (salonIds.length === 0) return activeCoupons;
+
+  const salonList = await db.select({ id: salons.id, name: salons.name }).from(salons)
+    .where(sql`${salons.id} IN (${sql.join(salonIds.map(id => sql`${id}`), sql`, `)})`);
+  const salonMap = Object.fromEntries(salonList.map(s => [s.id, s.name]));
+
+  return activeCoupons.map(c => ({
+    ...c,
+    salonName: c.salonId ? salonMap[c.salonId] || null : null,
+  }));
 }
 
 export async function getCouponByCode(code: string): Promise<Coupon | undefined> {

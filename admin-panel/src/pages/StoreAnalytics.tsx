@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, Building2, Star } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function StoreAnalytics() {
+    const { t } = useLanguage();
     const { data: analytics, isLoading } = useQuery({
         queryKey: ['store-analytics'],
         queryFn: async () => { const { data } = await api.get('/admin/store-analytics'); return data; },
@@ -21,17 +23,17 @@ export default function StoreAnalytics() {
     return (
         <div className="p-6 space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-white">Store Analytics</h1>
-                <p className="text-gray-400 text-sm mt-1">تحليلات أداء الصالونات على المنصة</p>
+                <h1 className="text-2xl font-bold text-white">{t('store_analytics')}</h1>
+                <p className="text-gray-400 text-sm mt-1">{t('store_analytics_desc')}</p>
             </div>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: 'إجمالي الصالونات', value: analytics?.totalSalons ?? tenants.length, icon: Building2, color: '#6C63FF' },
-                    { label: 'إجمالي الحجوزات', value: analytics?.totalBookings ?? 0, icon: TrendingUp, color: '#F4A460' },
-                    { label: 'إجمالي الإيراد', value: `$${(analytics?.totalRevenue ?? 0).toFixed(0)}`, icon: TrendingUp, color: '#10B981' },
-                    { label: 'متوسط التقييم', value: `${(analytics?.avgRating ?? 4.5).toFixed(1)}★`, icon: Star, color: '#F59E0B' },
+                    { label: t('total_salons'), value: analytics?.totalSalons ?? tenants.length, icon: Building2, color: '#6C63FF' },
+                    { label: t('total_bookings'), value: analytics?.totalBookings ?? 0, icon: TrendingUp, color: '#F4A460' },
+                    { label: t('monthly_revenue'), value: `$${(analytics?.totalRevenue ?? 0).toFixed(0)}`, icon: TrendingUp, color: '#10B981' },
+                    { label: t('avg_rating'), value: `${(analytics?.avgRating ?? 4.5).toFixed(1)}★`, icon: Star, color: '#F59E0B' },
                 ].map((c, i) => (
                     <div key={i} className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-5">
                         <div className="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style={{ background: `${c.color}22` }}>
@@ -47,7 +49,7 @@ export default function StoreAnalytics() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Revenue by Month */}
                 <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-6">
-                    <h3 className="text-white font-bold mb-4">الإيراد الشهري</h3>
+                    <h3 className="text-white font-bold mb-4">{t('monthly_revenue')}</h3>
                     {revenueByMonth.length > 0 ? (
                         <ResponsiveContainer width="100%" height={220}>
                             <LineChart data={revenueByMonth}>
@@ -59,13 +61,13 @@ export default function StoreAnalytics() {
                             </LineChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="text-center text-gray-500 py-16">لا توجد بيانات إيراد بعد</div>
+                        <div className="text-center text-gray-500 py-16">{t('no_revenue_data')}</div>
                     )}
                 </div>
 
                 {/* Bookings by Month */}
                 <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-6">
-                    <h3 className="text-white font-bold mb-4">الحجوزات الشهرية</h3>
+                    <h3 className="text-white font-bold mb-4">{t('monthly_bookings')}</h3>
                     {bookingsByMonth.length > 0 ? (
                         <ResponsiveContainer width="100%" height={220}>
                             <BarChart data={bookingsByMonth}>
@@ -77,24 +79,24 @@ export default function StoreAnalytics() {
                             </BarChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="text-center text-gray-500 py-16">لا توجد بيانات حجوزات بعد</div>
+                        <div className="text-center text-gray-500 py-16">{t('no_bookings_data')}</div>
                     )}
                 </div>
             </div>
 
             {/* Top Salons Table */}
             <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-6">
-                <h3 className="text-white font-bold mb-4">أفضل الصالونات أداء</h3>
+                <h3 className="text-white font-bold mb-4">{t('top_salons')}</h3>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-gray-400 text-xs border-b border-[#35383F]">
-                                <th className="text-left pb-3">#</th>
-                                <th className="text-left pb-3">الصالون</th>
-                                <th className="text-left pb-3">الحجوزات</th>
-                                <th className="text-left pb-3">الإيراد</th>
-                                <th className="text-left pb-3">التقييم</th>
-                                <th className="text-left pb-3">الحالة</th>
+                                <th className="text-left pb-3">{t('rank')}</th>
+                                <th className="text-left pb-3">{t('salon')}</th>
+                                <th className="text-left pb-3">{t('bookings_label')}</th>
+                                <th className="text-left pb-3">{t('revenue')}</th>
+                                <th className="text-left pb-3">{t('avg_rating')}</th>
+                                <th className="text-left pb-3">{t('status')}</th>
                             </tr>
                         </thead>
                         <tbody>

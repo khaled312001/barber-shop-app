@@ -7,9 +7,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AdminServicesScreen() {
     const theme = useTheme();
+    const { t, isRTL } = useLanguage();
     const insets = useSafeAreaInsets();
     const { user } = useApp();
     const queryClient = useQueryClient();
@@ -44,14 +46,14 @@ export default function AdminServicesScreen() {
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={[styles.header, { paddingTop: topPad }]}>
-                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Manage Services</Text>
+                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('manage_services')}</Text>
                 <Pressable
                     onPress={() => setIsAdding(!isAdding)}
                     style={[styles.addButton, { backgroundColor: theme.primary }]}
                 >
                     <Ionicons name={isAdding ? "close" : "add"} size={20} color="#fff" />
                     <Text style={[styles.addButtonText, { fontFamily: 'Urbanist_600SemiBold' }]}>
-                        {isAdding ? 'Cancel' : 'Add New'}
+                        {isAdding ? t('cancel') : t('add')}
                     </Text>
                 </Pressable>
             </View>
@@ -60,10 +62,10 @@ export default function AdminServicesScreen() {
 
                 {isAdding && (
                     <View style={[styles.addForm, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.formTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Add New Service</Text>
+                        <Text style={[styles.formTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('add_new_service')}</Text>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>Service Name</Text>
+                            <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>{t('service_name_label')}</Text>
                             <TextInput
                                 style={[styles.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.inputBorder }]}
                                 placeholder="e.g. Skin Fade"
@@ -75,7 +77,7 @@ export default function AdminServicesScreen() {
 
                         <View style={styles.rowInputs}>
                             <View style={[styles.inputGroup, { flex: 1 }]}>
-                                <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>Duration</Text>
+                                <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>{t('duration')}</Text>
                                 <TextInput
                                     style={[styles.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.inputBorder }]}
                                     placeholder="e.g. 30 min"
@@ -85,7 +87,7 @@ export default function AdminServicesScreen() {
                                 />
                             </View>
                             <View style={[styles.inputGroup, { flex: 1 }]}>
-                                <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>Price ($)</Text>
+                                <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>{t('price_usd')}</Text>
                                 <TextInput
                                     style={[styles.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.inputBorder }]}
                                     placeholder="e.g. 25"
@@ -102,7 +104,7 @@ export default function AdminServicesScreen() {
                             style={[styles.submitButton, { backgroundColor: theme.primary, opacity: (!newService.name || !newService.price) ? 0.5 : 1 }]}
                             disabled={!newService.name || !newService.price}
                         >
-                            <Text style={[styles.submitButtonText, { fontFamily: 'Urbanist_700Bold' }]}>Save Service</Text>
+                            <Text style={[styles.submitButtonText, { fontFamily: 'Urbanist_700Bold' }]}>{t('save_service')}</Text>
                         </Pressable>
                     </View>
                 )}

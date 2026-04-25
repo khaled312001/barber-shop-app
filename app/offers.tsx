@@ -59,7 +59,7 @@ export default function OffersScreen() {
                                     </Text>
                                     <View style={{ height: 8 }} />
                                     <Text style={[styles.offerDesc, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
-                                        Use code {coupon.code} to get a {coupon.type === 'percentage' ? `${coupon.discount}%` : `$${coupon.discount}`} discount on your next booking!
+                                        Use code {coupon.code} to get a {coupon.type === 'percentage' ? `${coupon.discount}%` : `$${coupon.discount}`} discount on your next booking!{coupon.salonName ? `\n${t('at')} ${coupon.salonName}` : ''}
                                     </Text>
                                     <Text style={[styles.offerValid, { color: theme.textTertiary, fontFamily: 'Urbanist_500Medium' }]}>
                                         Valid until: {coupon.expiryDate}

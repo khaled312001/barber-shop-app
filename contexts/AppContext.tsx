@@ -124,11 +124,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch { }
 
       try {
-        const res = await apiRequest('GET', '/api/auth/me');
-        const data = await res.json();
-        setUser(data.user || data);
-        setIsLoggedIn(true);
-        await fetchUserData();
+        const baseUrl = getApiUrl();
+        const res = await fetch(baseUrl + '/api/auth/me', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated !== false && (data.user || data.id)) {
+            setUser(data.user || data);
+            setIsLoggedIn(true);
+            await fetchUserData();
+          } else {
+            setUser(null);
+            setIsLoggedIn(false);
+          }
+        } else {
+          setUser(null);
+          setIsLoggedIn(false);
+        }
       } catch {
         setUser(null);
         setIsLoggedIn(false);

@@ -2,19 +2,21 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CreditCard, Plus, Trash2, X } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Subscriptions() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ salonId: '', planId: '', status: 'active', startDate: '', endDate: '' });
 
     const { data: subs = [] } = useQuery({
         queryKey: ['subscriptions'],
-        queryFn: async () => { const { data } = await api.get('/admin/subscriptions'); return data; },
+        queryFn: async () => { const { data } = await api.get('/admin/subscriptions'); return Array.isArray(data) ? data : []; },
     });
     const { data: plans = [] } = useQuery({
         queryKey: ['plans'],
-        queryFn: async () => { const { data } = await api.get('/admin/plans'); return data; },
+        queryFn: async () => { const { data } = await api.get('/admin/plans'); return Array.isArray(data) ? data : []; },
     });
     const { data: salons = [] } = useQuery({
         queryKey: ['salons'],
@@ -50,12 +52,12 @@ export default function Subscriptions() {
                 <div className="flex items-center gap-3">
                     <CreditCard className="text-[#F4A460]" size={24} />
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Subscriptions</h1>
-                        <p className="text-zinc-400 text-sm">Manage salon subscriptions</p>
+                        <h1 className="text-2xl font-bold text-white">{t('subscriptions')}</h1>
+                        <p className="text-zinc-400 text-sm">{t('subscriptions_desc')}</p>
                     </div>
                 </div>
                 <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-[#F4A460] hover:bg-[#e8935a] text-[#181A20] font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors">
-                    <Plus size={18} /> Add Subscription
+                    <Plus size={18} /> {t('add_subscription')}
                 </button>
             </div>
 
@@ -63,36 +65,36 @@ export default function Subscriptions() {
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
                     <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-6 w-full max-w-md">
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-lg font-bold text-white">New Subscription</h2>
+                            <h2 className="text-lg font-bold text-white">{t('new_subscription')}</h2>
                             <button onClick={() => setShowForm(false)} className="text-zinc-400 hover:text-white"><X size={20} /></button>
                         </div>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm text-zinc-400 mb-1.5">Salon</label>
+                                <label className="block text-sm text-zinc-400 mb-1.5">{t('salon')}</label>
                                 <select value={form.salonId} onChange={e => setForm(p => ({ ...p, salonId: e.target.value }))} className="w-full bg-[#181A20] border border-[#35383F] text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#F4A460]">
-                                    <option value="">Select salon</option>
+                                    <option value="">{t('select_salon')}</option>
                                     {salons.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm text-zinc-400 mb-1.5">Plan</label>
+                                <label className="block text-sm text-zinc-400 mb-1.5">{t('plan')}</label>
                                 <select value={form.planId} onChange={e => setForm(p => ({ ...p, planId: e.target.value }))} className="w-full bg-[#181A20] border border-[#35383F] text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#F4A460]">
-                                    <option value="">Select plan</option>
+                                    <option value="">{t('select_plan')}</option>
                                     {plans.map((p: any) => <option key={p.id} value={p.id}>{p.name} - ${p.price}/{p.billingCycle}</option>)}
                                 </select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm text-zinc-400 mb-1.5">Start Date</label>
+                                    <label className="block text-sm text-zinc-400 mb-1.5">{t('start_date')}</label>
                                     <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} className="w-full bg-[#181A20] border border-[#35383F] text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#F4A460]" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-zinc-400 mb-1.5">End Date</label>
+                                    <label className="block text-sm text-zinc-400 mb-1.5">{t('end_date')}</label>
                                     <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} className="w-full bg-[#181A20] border border-[#35383F] text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#F4A460]" />
                                 </div>
                             </div>
                             <button onClick={() => create.mutate(form)} disabled={!form.salonId || !form.planId || !form.startDate || !form.endDate} className="w-full bg-[#F4A460] hover:bg-[#e8935a] text-[#181A20] font-semibold rounded-xl py-3 transition-colors disabled:opacity-50 mt-2">
-                                Create Subscription
+                                {t('create_subscription')}
                             </button>
                         </div>
                     </div>
@@ -103,12 +105,12 @@ export default function Subscriptions() {
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-[#35383F] text-zinc-400">
-                            <th className="text-left px-6 py-4 font-medium">Salon</th>
-                            <th className="text-left px-6 py-4 font-medium">Plan</th>
-                            <th className="text-left px-6 py-4 font-medium">Status</th>
-                            <th className="text-left px-6 py-4 font-medium">Start</th>
-                            <th className="text-left px-6 py-4 font-medium">End</th>
-                            <th className="text-left px-6 py-4 font-medium">Actions</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('salon')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('plan')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('status')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('start')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('end')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -121,14 +123,14 @@ export default function Subscriptions() {
                                 <td className="px-6 py-4 text-zinc-400">{s.endDate}</td>
                                 <td className="px-6 py-4">
                                     <div className="flex gap-2">
-                                        {s.status !== 'active' && <button onClick={() => update.mutate({ id: s.id, data: { status: 'active' } })} className="px-3 py-1 text-xs rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">Activate</button>}
-                                        {s.status !== 'suspended' && <button onClick={() => update.mutate({ id: s.id, data: { status: 'suspended' } })} className="px-3 py-1 text-xs rounded-lg bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/25">Suspend</button>}
+                                        {s.status !== 'active' && <button onClick={() => update.mutate({ id: s.id, data: { status: 'active' } })} className="px-3 py-1 text-xs rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">{t('activate')}</button>}
+                                        {s.status !== 'suspended' && <button onClick={() => update.mutate({ id: s.id, data: { status: 'suspended' } })} className="px-3 py-1 text-xs rounded-lg bg-yellow-500/15 text-yellow-400 hover:bg-yellow-500/25">{t('suspend')}</button>}
                                         <button onClick={() => { if (confirm('Delete this subscription?')) remove.mutate(s.id); }} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/15"><Trash2 size={14} /></button>
                                     </div>
                                 </td>
                             </tr>
                         ))}
-                        {subs.length === 0 && <tr><td colSpan={6} className="px-6 py-12 text-center text-zinc-500">No subscriptions found</td></tr>}
+                        {subs.length === 0 && <tr><td colSpan={6} className="px-6 py-12 text-center text-zinc-500">{t('no_subscriptions')}</td></tr>}
                     </tbody>
                 </table>
             </div>

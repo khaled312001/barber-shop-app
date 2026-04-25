@@ -97,9 +97,25 @@ export interface Notification {
 
 export const categories = [
   { id: '1', name: 'Haircut', icon: 'content-cut' as const, iconSet: 'MaterialCommunityIcons' as const },
-  { id: '2', name: 'Make Up', icon: 'brush' as const, iconSet: 'MaterialIcons' as const },
-  { id: '3', name: 'Manicure', icon: 'hand-heart' as const, iconSet: 'MaterialCommunityIcons' as const },
-  { id: '4', name: 'Massage', icon: 'spa' as const, iconSet: 'MaterialIcons' as const },
+  { id: '2', name: 'Beard', icon: 'face-man' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '3', name: 'Shave', icon: 'razor-double-edge' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '4', name: 'Color', icon: 'palette' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '5', name: 'Highlights', icon: 'invert-colors' as const, iconSet: 'MaterialIcons' as const },
+  { id: '6', name: 'Styling', icon: 'auto-fix' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '7', name: 'Blow Dry', icon: 'hair-dryer' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '8', name: 'Treatment', icon: 'water' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '9', name: 'Wash', icon: 'shower-head' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '10', name: 'Massage', icon: 'spa' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '11', name: 'Facial', icon: 'face-woman-shimmer' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '12', name: 'Make Up', icon: 'brush' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '13', name: 'Eyebrows', icon: 'eye' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '14', name: 'Lashes', icon: 'eye-outline' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '15', name: 'Nails', icon: 'hand-heart' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '16', name: 'Manicure', icon: 'hand-back-right' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '17', name: 'Pedicure', icon: 'foot-print' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '18', name: 'Waxing', icon: 'fire' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '19', name: 'Kids Cut', icon: 'baby-face-outline' as const, iconSet: 'MaterialCommunityIcons' as const },
+  { id: '20', name: 'Spa', icon: 'flower' as const, iconSet: 'MaterialCommunityIcons' as const },
 ];
 
 const salonImages = [

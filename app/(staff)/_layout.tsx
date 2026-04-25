@@ -5,9 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useApp } from '@/contexts/AppContext';
 import Colors from '@/constants/colors';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function StaffLayout() {
   const { user, isLoggedIn, authLoading } = useApp();
+  const { t, isRTL } = useLanguage();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -20,7 +22,7 @@ export default function StaffLayout() {
       return;
     }
     if (user.role !== 'staff') {
-      router.replace('/(tabs)');
+      router.replace('/home');
     }
   }, [user, isLoggedIn, authLoading]);
 
@@ -30,7 +32,8 @@ export default function StaffLayout() {
         headerShown: false,
         tabBarActiveTintColor: '#F4A460',
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabelStyle: { fontFamily: 'Urbanist_600SemiBold', fontSize: 11, marginTop: -2 },
+        tabBarLabelStyle: { fontFamily: 'Urbanist_700Bold', fontSize: 11, marginTop: 2, marginBottom: 4 },
+        tabBarIconStyle: { marginTop: 4 },
         tabBarStyle: {
           position: 'absolute',
           backgroundColor: Platform.select({
@@ -40,8 +43,8 @@ export default function StaffLayout() {
           }),
           borderTopWidth: 1,
           borderTopColor: '#35383F',
-          height: Platform.OS === 'web' ? 84 : 85,
-          paddingBottom: Platform.OS === 'web' ? 34 : 30,
+          height: Platform.OS === 'web' ? 72 : 80,
+          paddingBottom: Platform.OS === 'web' ? 10 : 20,
           paddingTop: 8,
         },
         tabBarBackground: () =>
@@ -50,10 +53,11 @@ export default function StaffLayout() {
           ) : null,
       }}
     >
+      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen
-        name="index"
+        name="schedule"
         options={{
-          title: 'جدولي',
+          title: (() => { const s = t('staff_schedule'); return s && s !== 'staff_schedule' ? s : 'Schedule'; })(),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
           ),
@@ -62,7 +66,7 @@ export default function StaffLayout() {
       <Tabs.Screen
         name="appointments"
         options={{
-          title: 'حجوزاتي',
+          title: (() => { const s = t('staff_appointments'); return s && s !== 'staff_appointments' ? s : 'Appointments'; })(),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'list' : 'list-outline'} size={24} color={color} />
           ),
@@ -71,16 +75,25 @@ export default function StaffLayout() {
       <Tabs.Screen
         name="earnings"
         options={{
-          title: 'أرباحي',
+          title: (() => { const s = t('staff_earnings'); return s && s !== 'staff_earnings' ? s : 'Earnings'; })(),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'cash' : 'cash-outline'} size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
+        name="messages"
+        options={{
+          title: (() => { const s = t('messages'); return s && s !== 'messages' ? s : 'Messages'; })(),
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
-          title: 'ملفي',
+          title: (() => { const s = t('staff_profile'); return s && s !== 'staff_profile' ? s : 'Profile'; })(),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
           ),

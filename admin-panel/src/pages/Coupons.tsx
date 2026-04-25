@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Activity, Search, Edit2, Plus, X, Trash2, Ticket } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Coupon {
     id: string;
@@ -15,6 +16,7 @@ interface Coupon {
 }
 
 export default function Coupons() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -32,7 +34,7 @@ export default function Coupons() {
         queryKey: ['admin-coupons'],
         queryFn: async () => {
             const { data } = await api.get('/admin/coupons');
-            return data;
+            return Array.isArray(data) ? data : [];
         },
     });
 
@@ -58,7 +60,7 @@ export default function Coupons() {
     });
 
     const handleDelete = (id: string) => {
-        if (window.confirm('Delete this coupon?')) deleteMutation.mutate(id);
+        if (window.confirm(t('delete_coupon_confirm'))) deleteMutation.mutate(id);
     };
 
     const openModal = (coupon: Coupon | null = null) => {
@@ -95,7 +97,7 @@ export default function Coupons() {
         saveMutation.mutate(formData);
     };
 
-    const filteredCoupons = coupons?.filter(c =>
+    const filteredCoupons = (Array.isArray(coupons) ? coupons : []).filter(c =>
         c.code.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -110,14 +112,14 @@ export default function Coupons() {
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Coupons & Discounts</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('coupons_discounts')}</h1>
 
                 <div className="flex gap-4 w-full sm:w-auto">
                     <div className="relative w-full sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
                         <input
                             type="text"
-                            placeholder="Search coupons..."
+                            placeholder={t('search_coupons')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
@@ -127,7 +129,7 @@ export default function Coupons() {
                         onClick={() => openModal()}
                         className="bg-primary hover:bg-primary-dark text-bg-dark px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                     >
-                        <Plus size={18} /> Add Coupon
+                        <Plus size={18} /> {t('add_coupon')}
                     </button>
                 </div>
             </div>
@@ -137,12 +139,12 @@ export default function Coupons() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-border text-text-muted text-sm">
-                                <th className="px-6 py-4 font-medium">Code</th>
-                                <th className="px-6 py-4 font-medium">Discount</th>
-                                <th className="px-6 py-4 font-medium">Expiry</th>
-                                <th className="px-6 py-4 font-medium">Usage</th>
-                                <th className="px-6 py-4 font-medium">Status</th>
-                                <th className="px-6 py-4 font-medium text-right">Actions</th>
+                                <th className="px-6 py-4 font-medium">{t('code')}</th>
+                                <th className="px-6 py-4 font-medium">{t('discount')}</th>
+                                <th className="px-6 py-4 font-medium">{t('expiry')}</th>
+                                <th className="px-6 py-4 font-medium">{t('usage')}</th>
+                                <th className="px-6 py-4 font-medium">{t('status')}</th>
+                                <th className="px-6 py-4 font-medium text-right">{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="text-sm divide-y divide-border">
@@ -160,7 +162,7 @@ export default function Coupons() {
                                         <span className="text-white font-medium">
                                             {c.type === 'percentage' ? `${c.discount}%` : `$${c.discount}`}
                                         </span>
-                                        <p className="text-text-muted text-xs mt-0.5">{c.type === 'percentage' ? 'Percentage' : 'Fixed Amount'}</p>
+                                        <p className="text-text-muted text-xs mt-0.5">{c.type === 'percentage' ? t('percentage') : t('fixed')}</p>
                                     </td>
                                     <td className="px-6 py-4 text-text-muted">
                                         {c.expiryDate}
@@ -170,7 +172,7 @@ export default function Coupons() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${c.active ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                                            {c.active ? 'ACTIVE' : 'INACTIVE'}
+                                            {c.active ? t('active') : 'INACTIVE'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
@@ -194,7 +196,7 @@ export default function Coupons() {
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
                         <div className="flex justify-between items-center p-6 border-b border-border">
-                            <h2 className="text-xl font-bold tracking-tight text-white">{editingCoupon ? 'Edit Coupon' : 'Add New Coupon'}</h2>
+                            <h2 className="text-xl font-bold tracking-tight text-white">{editingCoupon ? t('edit_coupon') : t('add_coupon')}</h2>
                             <button onClick={closeModal} className="text-text-muted hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
@@ -202,7 +204,7 @@ export default function Coupons() {
 
                         <form onSubmit={handleSave} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Coupon Code</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('coupon_code')}</label>
                                 <input
                                     type="text"
                                     required
@@ -214,7 +216,7 @@ export default function Coupons() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-text-muted mb-1.5">Discount</label>
+                                    <label className="block text-sm font-medium text-text-muted mb-1.5">{t('discount')}</label>
                                     <input
                                         type="number"
                                         required
@@ -224,20 +226,20 @@ export default function Coupons() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-text-muted mb-1.5">Type</label>
+                                    <label className="block text-sm font-medium text-text-muted mb-1.5">{t('type')}</label>
                                     <select
                                         className="w-full bg-bg-dark border border-border rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors text-white"
                                         value={formData.type}
                                         onChange={e => setFormData({ ...formData, type: e.target.value })}
                                     >
-                                        <option value="percentage">Percentage (%)</option>
-                                        <option value="fixed">Fixed ($)</option>
+                                        <option value="percentage">{t('percentage')}</option>
+                                        <option value="fixed">{t('fixed')}</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Expiry Date</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('expiry_date')}</label>
                                 <input
                                     type="date"
                                     required
@@ -248,7 +250,7 @@ export default function Coupons() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Usage Limit (0 = Unlimited)</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('usage_limit')} (0 = Unlimited)</label>
                                 <input
                                     type="number"
                                     className="w-full bg-bg-dark border border-border rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors text-white"
@@ -265,15 +267,15 @@ export default function Coupons() {
                                     checked={formData.active}
                                     onChange={e => setFormData({ ...formData, active: e.target.checked })}
                                 />
-                                <label htmlFor="active" className="text-sm font-medium text-white">Active Coupon</label>
+                                <label htmlFor="active" className="text-sm font-medium text-white">{t('active')}</label>
                             </div>
 
                             <div className="flex gap-3 pt-4">
                                 <button type="button" onClick={closeModal} className="flex-1 bg-transparent border border-border hover:bg-white/5 text-white py-2.5 rounded-lg text-sm font-medium transition-colors">
-                                    Cancel
+                                    {t('cancel')}
                                 </button>
                                 <button type="submit" disabled={saveMutation.isPending} className="flex-1 bg-primary hover:bg-primary-dark text-bg-dark py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50">
-                                    {saveMutation.isPending ? 'Saving...' : 'Save Coupon'}
+                                    {saveMutation.isPending ? t('loading') : t('save_coupon')}
                                 </button>
                             </div>
                         </form>

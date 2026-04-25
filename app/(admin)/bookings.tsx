@@ -5,8 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/colors';
 import { apiRequest } from '@/lib/query-client';
 import { Booking } from '@shared/schema';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AdminBookings() {
+    const { t, isRTL } = useLanguage();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
     const colors = isDark ? Colors.dark : Colors.light;
@@ -27,14 +29,14 @@ export default function AdminBookings() {
 
     return (
         <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
-            <Text style={[styles.title, { color: colors.text }]}>All Bookings</Text>
+            <Text style={[styles.title, { color: colors.text }]}>{t('all_bookings_admin')}</Text>
 
             <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <View style={[styles.rowHeader, { borderBottomColor: colors.border }]}>
-                    <Text style={[styles.colSalon, styles.bold, { color: colors.textSecondary }]}>Salon</Text>
-                    <Text style={[styles.colDate, styles.bold, { color: colors.textSecondary }]}>Date & Time</Text>
-                    <Text style={[styles.colPrice, styles.bold, { color: colors.textSecondary }]}>Total</Text>
-                    <Text style={[styles.colStatus, styles.bold, { color: colors.textSecondary }]}>Status</Text>
+                    <Text style={[styles.colSalon, styles.bold, { color: colors.textSecondary }]}>{t('salon')}</Text>
+                    <Text style={[styles.colDate, styles.bold, { color: colors.textSecondary }]}>{t('date_time')}</Text>
+                    <Text style={[styles.colPrice, styles.bold, { color: colors.textSecondary }]}>{t('total')}</Text>
+                    <Text style={[styles.colStatus, styles.bold, { color: colors.textSecondary }]}>{t('status')}</Text>
                 </View>
 
                 {bookings?.reverse().map((b) => (
@@ -67,7 +69,7 @@ export default function AdminBookings() {
                     </View>
                 ))}
                 {bookings?.length === 0 && (
-                    <Text style={{ textAlign: 'center', padding: 30, color: colors.textSecondary }}>No bookings found.</Text>
+                    <Text style={{ textAlign: 'center', padding: 30, color: colors.textSecondary }}>{t('no_bookings_admin')}</Text>
                 )}
             </View>
         </ScrollView>

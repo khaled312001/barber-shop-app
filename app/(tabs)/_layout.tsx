@@ -1,18 +1,20 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import React, { useEffect } from "react";
 import Colors from "@/constants/colors";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useApp } from "@/contexts/AppContext";
+import { Href } from "expo-router";
 
 function NativeTabLayout() {
   const { t } = useLanguage();
   return (
     <NativeTabs>
-      <NativeTabs.Trigger name="index">
+      <NativeTabs.Trigger name="home">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>{t('tab_home')}</Label>
       </NativeTabs.Trigger>
@@ -48,7 +50,8 @@ function ClassicTabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.tabIconDefault,
         headerShown: false,
-        tabBarLabelStyle: { fontFamily: 'Urbanist_600SemiBold', fontSize: 11, marginTop: -2 },
+        tabBarLabelStyle: { fontFamily: 'Urbanist_700Bold', fontSize: 11, marginTop: 2, marginBottom: 4 },
+        tabBarIconStyle: { marginTop: 4 },
         tabBarStyle: {
           position: "absolute",
           backgroundColor: Platform.select({
@@ -56,11 +59,11 @@ function ClassicTabLayout() {
             android: colors.background,
             web: colors.background,
           }),
-          borderTopWidth: isDark ? 0 : 1,
+          borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 0,
-          height: Platform.OS === 'web' ? 84 : 85,
-          paddingBottom: Platform.OS === 'web' ? 34 : 30,
+          height: Platform.OS === 'web' ? 72 : 80,
+          paddingBottom: Platform.OS === 'web' ? 10 : 20,
           paddingTop: 8,
         },
         tabBarBackground: () =>
@@ -76,6 +79,12 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="home"
+        options={{
           title: t('tab_home'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
@@ -88,6 +97,15 @@ function ClassicTabLayout() {
           title: t('tab_bookings'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="shop"
+        options={{
+          title: t('shop') || 'Shop',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "bag" : "bag-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -123,6 +141,19 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
+  const { user, isLoggedIn, authLoading } = useApp();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isLoggedIn || !user) return;
+    if (user.role === 'salon_admin') {
+      router.replace('/dashboard');
+    } else if (user.role === 'staff') {
+      router.replace('/schedule');
+    }
+  }, [user, isLoggedIn, authLoading]);
+
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }

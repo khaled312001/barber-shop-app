@@ -1,7 +1,15 @@
-import { fetch } from "expo/fetch";
+import { fetch as expoFetch } from "expo/fetch";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-
 import { Platform } from "react-native";
+
+/**
+ * Use the browser's native fetch on web (properly handles `credentials: "include"`
+ * + session cookies), and Expo's streaming fetch on native.
+ */
+// @ts-ignore
+const fetch: typeof globalThis.fetch = (Platform.OS === 'web' && typeof globalThis !== 'undefined' && (globalThis as any).fetch)
+  ? (globalThis as any).fetch.bind(globalThis)
+  : (expoFetch as any);
 
 /**
  * Gets the base URL for the Express API server (e.g., "http://localhost:3000")
@@ -11,9 +19,7 @@ export function getApiUrl(): string {
   // On web, always use the current window origin so the app works
   // in any environment (dev at localhost:5000, production at *.replit.app, etc.)
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    // Support subpath deployment (e.g. /barber/) — include the base path
-    const basePath = window.location.pathname.startsWith('/barber') ? '/barber' : '';
-    return window.location.origin + basePath;
+    return window.location.origin;
   }
 
   let host = process.env.EXPO_PUBLIC_DOMAIN;
@@ -61,9 +67,10 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const baseUrl = getApiUrl();
-  const url = new URL(route, baseUrl);
+  // Concatenate directly — new URL('/api/x', 'https://host/barber') drops the /barber prefix
+  const url = baseUrl + route;
 
-  const res = await fetch(url.toString(), {
+  const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -81,9 +88,10 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
     async ({ queryKey }) => {
       const baseUrl = getApiUrl();
-      const url = new URL(queryKey.join("/") as string, baseUrl);
+      const route = queryKey.join("/") as string;
+      const url = baseUrl + (route.startsWith('/') ? route : '/' + route);
 
-      const res = await fetch(url.toString(), {
+      const res = await fetch(url, {
         credentials: "include",
       });
 

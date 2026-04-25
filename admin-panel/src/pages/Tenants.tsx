@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building2, CheckCircle, XCircle } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Tenants() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const { data: tenants = [], isLoading } = useQuery({
         queryKey: ['tenants'],
-        queryFn: async () => { const { data } = await api.get('/admin/tenants'); return data; },
+        queryFn: async () => { const { data } = await api.get('/admin/tenants'); return Array.isArray(data) ? data : []; },
     });
 
     const updateStatus = useMutation({
@@ -28,8 +30,8 @@ export default function Tenants() {
             <div className="flex items-center gap-3 mb-8">
                 <Building2 className="text-[#F4A460]" size={24} />
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Tenants</h1>
-                    <p className="text-zinc-400 text-sm">All salon tenants on the platform</p>
+                    <h1 className="text-2xl font-bold text-white">{t('tenants')}</h1>
+                    <p className="text-zinc-400 text-sm">{t('tenants_desc')}</p>
                 </div>
             </div>
 
@@ -40,50 +42,50 @@ export default function Tenants() {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-[#35383F] text-zinc-400">
-                                <th className="text-left px-6 py-4 font-medium">Salon</th>
-                                <th className="text-left px-6 py-4 font-medium">Address</th>
-                                <th className="text-left px-6 py-4 font-medium">Status</th>
-                                <th className="text-left px-6 py-4 font-medium">Subscription</th>
-                                <th className="text-left px-6 py-4 font-medium">Actions</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('salon')}</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('address')}</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('status')}</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('subscription')}</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {tenants.map((t: any) => (
-                                <tr key={t.id} className="border-b border-[#35383F]/50 hover:bg-white/5 transition-colors">
+                            {tenants.map((tenant: any) => (
+                                <tr key={tenant.id} className="border-b border-[#35383F]/50 hover:bg-white/5 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-xl bg-[#F4A460]/15 flex items-center justify-center text-[#F4A460] font-bold text-sm">{t.name[0]}</div>
+                                            <div className="w-9 h-9 rounded-xl bg-[#F4A460]/15 flex items-center justify-center text-[#F4A460] font-bold text-sm">{tenant.name[0]}</div>
                                             <div>
-                                                <p className="font-medium text-white">{t.name}</p>
-                                                <p className="text-zinc-500 text-xs">{t.phone}</p>
+                                                <p className="font-medium text-white">{tenant.name}</p>
+                                                <p className="text-zinc-500 text-xs">{tenant.phone}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-zinc-400 max-w-[200px] truncate">{t.address}</td>
-                                    <td className="px-6 py-4">{statusBadge(t.status || 'active')}</td>
+                                    <td className="px-6 py-4 text-zinc-400 max-w-[200px] truncate">{tenant.address}</td>
+                                    <td className="px-6 py-4">{statusBadge(tenant.status || 'active')}</td>
                                     <td className="px-6 py-4">
-                                        {t.hasActiveSubscription
-                                            ? <span className="flex items-center gap-1.5 text-emerald-400 text-xs"><CheckCircle size={14} /> Active</span>
-                                            : <span className="flex items-center gap-1.5 text-zinc-500 text-xs"><XCircle size={14} /> None</span>
+                                        {tenant.hasActiveSubscription
+                                            ? <span className="flex items-center gap-1.5 text-emerald-400 text-xs"><CheckCircle size={14} /> {t('activate')}</span>
+                                            : <span className="flex items-center gap-1.5 text-zinc-500 text-xs"><XCircle size={14} /> {t('none')}</span>
                                         }
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex gap-2">
-                                            {t.status !== 'active' && (
-                                                <button onClick={() => updateStatus.mutate({ id: t.id, status: 'active' })} className="px-3 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 text-xs hover:bg-emerald-500/25 transition-colors">Activate</button>
+                                            {tenant.status !== 'active' && (
+                                                <button onClick={() => updateStatus.mutate({ id: tenant.id, status: 'active' })} className="px-3 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 text-xs hover:bg-emerald-500/25 transition-colors">{t('activate')}</button>
                                             )}
-                                            {t.status !== 'suspended' && (
-                                                <button onClick={() => updateStatus.mutate({ id: t.id, status: 'suspended' })} className="px-3 py-1 rounded-lg bg-yellow-500/15 text-yellow-400 text-xs hover:bg-yellow-500/25 transition-colors">Suspend</button>
+                                            {tenant.status !== 'suspended' && (
+                                                <button onClick={() => updateStatus.mutate({ id: tenant.id, status: 'suspended' })} className="px-3 py-1 rounded-lg bg-yellow-500/15 text-yellow-400 text-xs hover:bg-yellow-500/25 transition-colors">{t('suspend')}</button>
                                             )}
-                                            {t.status !== 'deactivated' && (
-                                                <button onClick={() => updateStatus.mutate({ id: t.id, status: 'deactivated' })} className="px-3 py-1 rounded-lg bg-red-500/15 text-red-400 text-xs hover:bg-red-500/25 transition-colors">Deactivate</button>
+                                            {tenant.status !== 'deactivated' && (
+                                                <button onClick={() => updateStatus.mutate({ id: tenant.id, status: 'deactivated' })} className="px-3 py-1 rounded-lg bg-red-500/15 text-red-400 text-xs hover:bg-red-500/25 transition-colors">{t('deactivate')}</button>
                                             )}
                                         </div>
                                     </td>
                                 </tr>
                             ))}
                             {tenants.length === 0 && (
-                                <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-500">No tenants found</td></tr>
+                                <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-500">{t('no_tenants')}</td></tr>
                             )}
                         </tbody>
                     </table>

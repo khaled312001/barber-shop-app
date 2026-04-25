@@ -1,0 +1,25 @@
+DirectoryIndex index.html index.php
+
+RewriteEngine On
+
+# === Explicit static file paths - NEVER rewrite these ===
+RewriteRule ^_expo/ - [L]
+RewriteRule ^super_admin/assets/ - [L]
+RewriteRule ^super_admin/vite\.svg$ - [L]
+RewriteRule ^assets/ - [L]
+RewriteRule ^favicon\.ico$ - [L]
+RewriteRule ^metadata\.json$ - [L]
+
+# === Existing files on disk - serve directly ===
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# === Admin SPA fallback ===
+RewriteRule ^super_admin$ /super_admin/index.html [L]
+RewriteRule ^super_admin/(.+)$ /super_admin/index.html [L]
+
+# === API routes -> PHP proxy to Node.js ===
+RewriteRule ^api/(.*)$ /index.php [L,QSA]
+
+# === Expo web SPA fallback (everything else) ===
+RewriteRule ^ /index.html [L]

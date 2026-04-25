@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { Activity, TrendingUp, Users, Calendar, DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Reports() {
+    const { t } = useLanguage();
     const { isLoading } = useQuery({
         queryKey: ['admin-stats'],
         queryFn: async () => {
@@ -42,24 +44,24 @@ export default function Reports() {
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Advanced Reports</h1>
-                    <p className="text-text-muted mt-1">Deep dive into your business performance and growth.</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('nav_analytics_item')}</h1>
+                    <p className="text-text-muted mt-1">{t('deep_dive_performance')}</p>
                 </div>
                 <div className="flex gap-3">
                     <select className="bg-bg-card border border-border text-white text-sm rounded-xl px-4 py-2 focus:outline-none focus:border-primary">
-                        <option>Last 6 Months</option>
-                        <option>Year to Date</option>
-                        <option>Lifetime</option>
+                        <option>{t('last_6_months')}</option>
+                        <option>{t('year_to_date')}</option>
+                        <option>{t('lifetime')}</option>
                     </select>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {[
-                    { label: 'Avg. Revenue/Day', value: '$245.80', trend: '+12%', up: true, icon: DollarSign },
-                    { label: 'Booking Conv. Rate', value: '64.2%', trend: '+5%', up: true, icon: TrendingUp },
-                    { label: 'New Customers', value: '84', trend: '-2%', up: false, icon: Users },
-                    { label: 'Repeat Customers', value: '42%', trend: '+8%', up: true, icon: Activity },
+                    { label: t('avg_booking_value'), value: '$245.80', trend: '+12%', up: true, icon: DollarSign },
+                    { label: t('total_bookings_stat'), value: '64.2%', trend: '+5%', up: true, icon: TrendingUp },
+                    { label: t('new_customers'), value: '84', trend: '-2%', up: false, icon: Users },
+                    { label: t('total_revenue_stat'), value: '42%', trend: '+8%', up: true, icon: Activity },
                 ].map((item, idx) => (
                     <div key={idx} className="bg-bg-card border border-border rounded-2xl p-6 shadow-xl relative overflow-hidden group">
                         <div className="flex justify-between items-start mb-4">
@@ -78,9 +80,9 @@ export default function Reports() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
                 <div className="lg:col-span-2 bg-bg-card border border-border rounded-2xl p-6 shadow-xl">
-                    <h3 className="text-xl font-bold text-white mb-6">Revenue & Booking Trends</h3>
+                    <h3 className="text-xl font-bold text-white mb-6">{t('revenue_chart')} & {t('bookings_chart')}</h3>
                     <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                             <AreaChart data={revenueData}>
                                 <defs>
                                     <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -102,9 +104,9 @@ export default function Reports() {
                 </div>
 
                 <div className="bg-bg-card border border-border rounded-2xl p-6 shadow-xl">
-                    <h3 className="text-xl font-bold text-white mb-6">Top Performing Salons</h3>
+                    <h3 className="text-xl font-bold text-white mb-6">{t('top_services_chart')}</h3>
                     <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                             <BarChart data={topSalons} layout="vertical">
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" stroke="#A1A1AA" fontSize={12} width={100} tickLine={false} axisLine={false} />
@@ -126,11 +128,11 @@ export default function Reports() {
             <div className="bg-bg-card border border-border rounded-2xl p-8 shadow-xl text-center">
                 <div className="max-w-md mx-auto">
                     <Calendar className="mx-auto text-primary mb-4" size={48} />
-                    <h3 className="text-2xl font-bold text-white mb-3">Custom Data Exports</h3>
-                    <p className="text-text-muted mb-6">Need a custom range or specific metrics? Generate a detailed report and download it in your preferred format.</p>
+                    <h3 className="text-2xl font-bold text-white mb-3">{t('custom_data_exports')}</h3>
+                    <p className="text-text-muted mb-6">{t('custom_data_exports_desc')}</p>
                     <div className="flex justify-center gap-4">
-                        <button className="bg-primary hover:bg-primary-dark text-bg-dark font-bold px-6 py-3 rounded-xl transition-all">Download PDF</button>
-                        <button className="bg-white/5 hover:bg-white/10 text-white border border-border px-6 py-3 rounded-xl transition-all">Download Excel</button>
+                        <button className="bg-primary hover:bg-primary-dark text-bg-dark font-bold px-6 py-3 rounded-xl transition-all">{t('download_pdf')}</button>
+                        <button className="bg-white/5 hover:bg-white/10 text-white border border-border px-6 py-3 rounded-xl transition-all">{t('download_excel')}</button>
                     </div>
                 </div>
             </div>

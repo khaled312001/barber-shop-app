@@ -39,6 +39,7 @@ export const salons = mysqlTable("salons", {
   landingEnabled: boolean("landing_enabled").default(false),
   landingSlug: text("landing_slug").default(""),
   landingViews: int("landing_views").default(0),
+  whatsappNumber: text("whatsapp_number").default(""),
   landingTheme: text("landing_theme").default("dark"), // dark | light
   landingAccentColor: text("landing_accent_color").default("#F4A460"),
   landingBookingUrl: text("landing_booking_url").default(""),
@@ -218,6 +219,9 @@ export const messages = mysqlTable("messages", {
   salonImage: text("salon_image").default(""),
   content: text("content").notNull(),
   sender: text("sender").notNull().default("salon"),
+  senderName: text("sender_name").default(""),
+  isRead: int("is_read").default(0),
+  messageType: text("message_type").default("text"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -240,6 +244,7 @@ export const coupons = mysqlTable("coupons", {
   usageLimit: int("usage_limit").default(0),
   usedCount: int("used_count").default(0),
   active: boolean("active").default(true),
+  salonId: varchar("salon_id", { length: 255 }).default(""),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -253,6 +258,36 @@ export const inventory = mysqlTable("inventory", {
   minQuantity: int("min_quantity").default(5),
   unit: text("unit").default("pcs"),
   price: double("price").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Retail products sold to customers
+export const products = mysqlTable("products", {
+  id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  salonId: varchar("salon_id", { length: 255 }).notNull(),
+  salonName: text("salon_name").default(""),
+  name: text("name").notNull(),
+  description: text("description").default(""),
+  price: double("price").notNull(),
+  image: text("image").default(""),
+  category: text("category").default("general"),
+  stock: int("stock").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Product orders (customer purchases)
+export const productOrders = mysqlTable("product_orders", {
+  id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  salonId: varchar("salon_id", { length: 255 }).notNull(),
+  items: json("items").$type<{ id: string; name: string; price: number; qty: number; image?: string }[]>().default([]),
+  totalPrice: double("total_price").notNull(),
+  status: text("status").default("pending"),
+  paymentMethod: text("payment_method").default("cash"),
+  shippingAddress: text("shipping_address").default(""),
+  phone: text("phone").default(""),
+  notes: text("notes").default(""),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -294,6 +329,20 @@ export const appSettings = mysqlTable("app_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Trial requests from new salons
+export const trialRequests = mysqlTable("trial_requests", {
+  id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  salonName: text("salon_name").notNull(),
+  ownerName: text("owner_name").notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: text("phone").notNull(),
+  city: text("city").default(""),
+  country: text("country").default(""),
+  message: text("message").default(""),
+  status: text("status").default("pending"), // pending | contacted | approved | rejected
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   fullName: true,
@@ -327,3 +376,4 @@ export type Inventory = typeof inventory.$inferSelect;
 export type Tip = typeof tips.$inferSelect;
 export type CustomerNote = typeof customerNotes.$inferSelect;
 export type LoyaltyTransaction = typeof loyaltyTransactions.$inferSelect;
+export type TrialRequest = typeof trialRequests.$inferSelect;

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiRequest } from '@/lib/query-client';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const PRIMARY = '#F4A460';
 const BG = '#181A20';
@@ -12,6 +13,7 @@ const BORDER = '#35383F';
 
 export default function SalonStaff() {
   const insets = useSafeAreaInsets();
+  const { t, isRTL } = useLanguage();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ fullName: '', email: '', password: '', staffRole: 'barber' });
@@ -34,7 +36,7 @@ export default function SalonStaff() {
       setShowForm(false);
       setForm({ fullName: '', email: '', password: '', staffRole: 'barber' });
     },
-    onError: () => Alert.alert('خطأ', 'فشل إضافة الموظف'),
+    onError: () => Alert.alert(t('error'), t('failed_add_staff')),
   });
 
   const removeStaff = useMutation({
@@ -43,12 +45,12 @@ export default function SalonStaff() {
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['salon-staff'] }),
-    onError: () => Alert.alert('خطأ', 'فشل حذف الموظف'),
+    onError: () => Alert.alert(t('error'), t('failed_delete_staff')),
   });
 
   const handleAdd = () => {
     if (!form.fullName || !form.email || !form.password) {
-      Alert.alert('تنبيه', 'يرجى تعبئة جميع الحقول');
+      Alert.alert(t('warning'), t('fill_all_fields'));
       return;
     }
     addStaff.mutate(form);
@@ -57,10 +59,10 @@ export default function SalonStaff() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <Text style={styles.pageTitle}>الموظفون</Text>
+        <Text style={styles.pageTitle}>{t('staff_title')}</Text>
         <Pressable onPress={() => setShowForm(!showForm)} style={styles.addBtn}>
           <Ionicons name={showForm ? 'close' : 'add'} size={20} color="#181A20" />
-          <Text style={styles.addBtnText}>{showForm ? 'إلغاء' : 'إضافة'}</Text>
+          <Text style={styles.addBtnText}>{showForm ? t('cancel') : t('add')}</Text>
         </Pressable>
       </View>
 
@@ -71,11 +73,11 @@ export default function SalonStaff() {
         {/* Add Form */}
         {showForm && (
           <View style={styles.form}>
-            <Text style={styles.formTitle}>إضافة موظف جديد</Text>
+            <Text style={styles.formTitle}>{t('add_staff_form')}</Text>
             {[
-              { key: 'fullName', placeholder: 'الاسم الكامل', icon: 'person-outline' },
-              { key: 'email', placeholder: 'البريد الإلكتروني', icon: 'mail-outline' },
-              { key: 'password', placeholder: 'كلمة المرور', icon: 'lock-closed-outline' },
+              { key: 'fullName', placeholder: t('full_name'), icon: 'person-outline' },
+              { key: 'email', placeholder: t('staff_email'), icon: 'mail-outline' },
+              { key: 'password', placeholder: t('staff_password'), icon: 'lock-closed-outline' },
             ].map(field => (
               <View key={field.key} style={styles.inputRow}>
                 <Ionicons name={field.icon as any} size={18} color="#888" />
@@ -99,7 +101,7 @@ export default function SalonStaff() {
                   style={[styles.roleChip, form.staffRole === role && styles.roleChipActive]}
                 >
                   <Text style={[styles.roleChipText, form.staffRole === role && styles.roleChipTextActive]}>
-                    {role === 'barber' ? 'حلاق' : role === 'receptionist' ? 'استقبال' : 'مدير'}
+                    {role === 'barber' ? t('role_barber') : role === 'receptionist' ? t('role_receptionist') : t('role_manager')}
                   </Text>
                 </Pressable>
               ))}
@@ -113,7 +115,7 @@ export default function SalonStaff() {
               {addStaff.isPending ? (
                 <ActivityIndicator size="small" color="#181A20" />
               ) : (
-                <Text style={styles.submitBtnText}>إضافة الموظف</Text>
+                <Text style={styles.submitBtnText}>{t('add_staff_btn')}</Text>
               )}
             </Pressable>
           </View>
@@ -125,7 +127,7 @@ export default function SalonStaff() {
         ) : staff.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="people-outline" size={48} color={BORDER} />
-            <Text style={styles.emptyText}>لا يوجد موظفون</Text>
+            <Text style={styles.emptyText}>{t('no_staff_salon')}</Text>
           </View>
         ) : (
           staff.map((s: any) => (
@@ -142,9 +144,9 @@ export default function SalonStaff() {
                 </View>
               </View>
               <Pressable
-                onPress={() => Alert.alert('حذف موظف', `هل تريد حذف ${s.fullName}؟`, [
-                  { text: 'إلغاء', style: 'cancel' },
-                  { text: 'حذف', style: 'destructive', onPress: () => removeStaff.mutate(s.id) },
+                onPress={() => Alert.alert(t('delete_staff'), t('delete_staff_confirm_salon'), [
+                  { text: t('cancel'), style: 'cancel' },
+                  { text: t('delete'), style: 'destructive', onPress: () => removeStaff.mutate(s.id) },
                 ])}
                 style={styles.deleteBtn}
               >

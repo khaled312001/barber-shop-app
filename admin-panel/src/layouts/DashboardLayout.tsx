@@ -8,76 +8,84 @@ import {
     Zap, TrendingUp
 } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+
+interface NavItem {
+    nameKey: string;
+    path: string;
+    icon: any;
+}
 
 interface NavSection {
-    label: string;
-    items: { name: string; path: string; icon: any }[];
+    labelKey: string;
+    items: NavItem[];
 }
 
 const navSections: NavSection[] = [
     {
-        label: 'OVERVIEW',
+        labelKey: 'nav_overview',
         items: [
-            { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+            { nameKey: 'dashboard', path: '/', icon: LayoutDashboard },
         ]
     },
     {
-        label: 'STORES',
+        labelKey: 'nav_stores',
         items: [
-            { name: 'Store Manager', path: '/salons', icon: Building2 },
-            { name: 'Landing Pages', path: '/landing-pages', icon: Globe },
+            { nameKey: 'nav_store_manager', path: '/salons', icon: Building2 },
+            { nameKey: 'landing_pages', path: '/landing-pages', icon: Globe },
         ]
     },
     {
-        label: 'PLATFORM',
+        labelKey: 'nav_platform',
         items: [
-            { name: 'Tenants', path: '/tenants', icon: UserCheck },
-            { name: 'Subscriptions', path: '/subscriptions', icon: CreditCard },
-            { name: 'License Keys', path: '/license-keys', icon: Key },
-            { name: 'Plans Manager', path: '/plans', icon: Zap },
+            { nameKey: 'tenants', path: '/tenants', icon: UserCheck },
+            { nameKey: 'subscriptions', path: '/subscriptions', icon: CreditCard },
+            { nameKey: 'license_keys', path: '/license-keys', icon: Key },
+            { nameKey: 'nav_plans_manager', path: '/plans', icon: Zap },
         ]
     },
     {
-        label: 'ANALYTICS',
+        labelKey: 'nav_analytics',
         items: [
-            { name: 'Store Analytics', path: '/store-analytics', icon: TrendingUp },
-            { name: 'Analytics', path: '/reports', icon: BarChart3 },
-            { name: 'Commissions', path: '/commissions', icon: DollarSign },
-            { name: 'System Health', path: '/system-health', icon: Activity },
+            { nameKey: 'store_analytics', path: '/store-analytics', icon: TrendingUp },
+            { nameKey: 'nav_analytics_item', path: '/reports', icon: BarChart3 },
+            { nameKey: 'commissions_title', path: '/commissions', icon: DollarSign },
+            { nameKey: 'system_health', path: '/system-health', icon: Activity },
         ]
     },
     {
-        label: 'OPERATIONS',
+        labelKey: 'nav_operations',
         items: [
-            { name: 'Notifications', path: '/notifications', icon: Bell },
-            { name: 'Reports', path: '/admin-reports', icon: FileText },
-            { name: 'Activity Log', path: '/activity-log', icon: ClipboardList },
-            { name: 'Expenses', path: '/expenses', icon: Wallet },
-            { name: 'Shifts', path: '/shifts', icon: CalendarCheck },
+            { nameKey: 'notifications', path: '/notifications', icon: Bell },
+            { nameKey: 'admin_reports', path: '/admin-reports', icon: FileText },
+            { nameKey: 'activity_log', path: '/activity-log', icon: ClipboardList },
+            { nameKey: 'admin_expenses', path: '/expenses', icon: Wallet },
+            { nameKey: 'admin_shifts', path: '/shifts', icon: CalendarCheck },
         ]
     },
     {
-        label: 'MANAGEMENT',
+        labelKey: 'nav_management',
         items: [
-            { name: 'Users', path: '/users', icon: Users },
-            { name: 'Bookings', path: '/bookings', icon: CalendarCheck },
-            { name: 'Services', path: '/services', icon: Scissors },
-            { name: 'Coupons', path: '/coupons', icon: Ticket },
-            { name: 'Payments', path: '/payments', icon: CreditCard },
-            { name: 'Messages', path: '/messages', icon: MessageSquare },
+            { nameKey: 'users', path: '/users', icon: Users },
+            { nameKey: 'tab_bookings', path: '/bookings', icon: CalendarCheck },
+            { nameKey: 'services', path: '/services', icon: Scissors },
+            { nameKey: 'nav_coupons', path: '/coupons', icon: Ticket },
+            { nameKey: 'payments', path: '/payments', icon: CreditCard },
+            { nameKey: 'nav_messages', path: '/messages', icon: MessageSquare },
         ]
     },
     {
-        label: 'SYSTEM',
+        labelKey: 'nav_system',
         items: [
-            { name: 'Backup & Restore', path: '/backup', icon: Database },
-            { name: 'WhatsApp', path: '/whatsapp', icon: MessageCircle },
+            { nameKey: 'backup_restore', path: '/backup', icon: Database },
+            { nameKey: 'whatsapp', path: '/whatsapp', icon: MessageCircle },
         ]
     },
     {
-        label: 'ACCOUNT',
+        labelKey: 'nav_account',
         items: [
-            { name: 'Settings', path: '/settings', icon: SettingsIcon },
+            { nameKey: 'settings', path: '/settings', icon: SettingsIcon },
         ]
     },
 ];
@@ -85,6 +93,7 @@ const navSections: NavSection[] = [
 export default function DashboardLayout() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { t } = useLanguage();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -117,17 +126,21 @@ export default function DashboardLayout() {
                 </button>
             </div>
 
+            <div className="px-4 pt-3">
+                <LanguageSwitcher />
+            </div>
+
             <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                 {navSections.map((section) => (
-                    <div key={section.label} className="mb-2">
+                    <div key={section.labelKey} className="mb-2">
                         <button
-                            onClick={() => toggleSection(section.label)}
+                            onClick={() => toggleSection(section.labelKey)}
                             className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-zinc-500 uppercase tracking-widest hover:text-zinc-400 transition-colors"
                         >
-                            <span>{section.label}</span>
-                            <ChevronDown size={14} className={`transition-transform ${collapsed[section.label] ? '-rotate-90' : ''}`} />
+                            <span>{t(section.labelKey)}</span>
+                            <ChevronDown size={14} className={`transition-transform ${collapsed[section.labelKey] ? '-rotate-90' : ''}`} />
                         </button>
-                        {!collapsed[section.label] && (
+                        {!collapsed[section.labelKey] && (
                             <div className="space-y-0.5 mt-1">
                                 {section.items.map((item) => {
                                     const Icon = item.icon;
@@ -144,7 +157,7 @@ export default function DashboardLayout() {
                                             }
                                         >
                                             <Icon size={18} className="shrink-0" />
-                                            <span className="truncate text-sm">{item.name}</span>
+                                            <span className="truncate text-sm">{t(item.nameKey)}</span>
                                         </NavLink>
                                     );
                                 })}
@@ -160,7 +173,7 @@ export default function DashboardLayout() {
                     className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors"
                 >
                     <LogOut size={18} className="shrink-0" />
-                    <span className="text-sm">Logout</span>
+                    <span className="text-sm">{t('logout')}</span>
                 </button>
             </div>
         </>

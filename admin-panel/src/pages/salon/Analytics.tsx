@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import api from '../../lib/api';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function SalonAnalytics() {
+    const { t } = useLanguage();
     const { data: bookings = [] } = useQuery({
         queryKey: ['salon-bookings'],
         queryFn: async () => { const { data } = await api.get('/salon/bookings'); return data; },
@@ -26,14 +28,14 @@ export default function SalonAnalytics() {
         <div className="p-6">
             <div className="flex items-center gap-3 mb-8">
                 <BarChart3 className="text-[#F4A460]" size={24} />
-                <div><h1 className="text-2xl font-bold text-white">Analytics</h1><p className="text-zinc-400 text-sm">Salon performance overview</p></div>
+                <div><h1 className="text-2xl font-bold text-white">{t('salon_analytics')}</h1><p className="text-zinc-400 text-sm">{t('salon_performance')}</p></div>
             </div>
 
             <div className="grid grid-cols-3 gap-4 mb-8">
                 {[
-                    { label: 'Completed', value: byStatus.completed, color: 'text-emerald-400' },
-                    { label: 'Pending', value: byStatus.pending, color: 'text-yellow-400' },
-                    { label: 'Cancelled', value: byStatus.cancelled, color: 'text-red-400' },
+                    { label: t('status_completed'), value: byStatus.completed, color: 'text-emerald-400' },
+                    { label: t('status_pending'), value: byStatus.pending, color: 'text-yellow-400' },
+                    { label: t('status_cancelled'), value: byStatus.cancelled, color: 'text-red-400' },
                 ].map((s, i) => (
                     <div key={i} className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-5">
                         <p className="text-zinc-400 text-sm mb-1">{s.label}</p>
@@ -44,9 +46,9 @@ export default function SalonAnalytics() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-6">
-                    <h2 className="font-bold text-white mb-4">Bookings by Month</h2>
+                    <h2 className="font-bold text-white mb-4">{t('bookings_by_month')}</h2>
                     <div className="h-[220px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                             <BarChart data={chartData}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#35383F" vertical={false} />
                                 <XAxis dataKey="month" stroke="#B0B0B0" fontSize={11} tickLine={false} axisLine={false} />
@@ -59,9 +61,9 @@ export default function SalonAnalytics() {
                 </div>
 
                 <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-6">
-                    <h2 className="font-bold text-white mb-4">Revenue Trend</h2>
+                    <h2 className="font-bold text-white mb-4">{t('revenue_trend')}</h2>
                     <div className="h-[220px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                             <LineChart data={chartData}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#35383F" vertical={false} />
                                 <XAxis dataKey="month" stroke="#B0B0B0" fontSize={11} tickLine={false} axisLine={false} />

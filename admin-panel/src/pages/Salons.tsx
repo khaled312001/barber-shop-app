@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Activity, Trash2, Search, Star, Edit2, Plus, X, Copy, Check, Mail, UserPlus, KeyRound } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Salon {
     id: string;
@@ -14,6 +15,7 @@ interface Salon {
 }
 
 export default function Salons() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -36,7 +38,7 @@ export default function Salons() {
         queryKey: ['admin-salons'],
         queryFn: async () => {
             const { data } = await api.get('/admin/salons');
-            return data;
+            return Array.isArray(data) ? data : [];
         },
     });
 
@@ -81,8 +83,8 @@ export default function Salons() {
         setTimeout(() => setCopiedCred(''), 2000);
     };
 
-    const handleDelete = (id: string, name: string) => {
-        if (window.confirm(`Delete salon "${name}"?`)) deleteMutation.mutate(id);
+    const handleDelete = (id: string, _name: string) => {
+        if (window.confirm(t('delete_salon_confirm'))) deleteMutation.mutate(id);
     };
 
     const openModal = (salon: Salon | null = null) => {
@@ -141,7 +143,7 @@ export default function Salons() {
         }
     };
 
-    const filteredSalons = salons?.filter(s =>
+    const filteredSalons = (Array.isArray(salons) ? salons : []).filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (s.ownerEmail || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -158,14 +160,14 @@ export default function Salons() {
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Manage Salons</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('manage_salons')}</h1>
 
                 <div className="flex gap-4 w-full sm:w-auto mt-4 sm:mt-0">
                     <div className="relative w-full sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
                         <input
                             type="text"
-                            placeholder="Search salons..."
+                            placeholder={t('search_salons_admin')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
@@ -175,7 +177,7 @@ export default function Salons() {
                         onClick={() => openModal()}
                         className="bg-primary hover:bg-primary-dark text-bg-dark px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                     >
-                        <Plus size={18} /> Add Salon
+                        <Plus size={18} /> {t('add_salon')}
                     </button>
                 </div>
             </div>
@@ -185,11 +187,11 @@ export default function Salons() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-border text-text-muted text-sm">
-                                <th className="px-6 py-4 font-medium w-16">Image</th>
-                                <th className="px-6 py-4 font-medium">Salon Details</th>
-                                <th className="px-6 py-4 font-medium">Owner Login Email</th>
-                                <th className="px-6 py-4 font-medium">Rating</th>
-                                <th className="px-6 py-4 font-medium text-right">Actions</th>
+                                <th className="px-6 py-4 font-medium w-16">{t('image')}</th>
+                                <th className="px-6 py-4 font-medium">{t('salon_details')}</th>
+                                <th className="px-6 py-4 font-medium">{t('owner_email')}</th>
+                                <th className="px-6 py-4 font-medium">{t('rating')}</th>
+                                <th className="px-6 py-4 font-medium text-right">{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="text-sm divide-y divide-[#27272a]">
@@ -218,7 +220,7 @@ export default function Salons() {
                                                 </button>
                                             </div>
                                         ) : (
-                                            <span className="text-zinc-600 text-xs italic">No owner assigned</span>
+                                            <span className="text-zinc-600 text-xs italic">{t('no_owner_assigned')}</span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
@@ -268,7 +270,7 @@ export default function Salons() {
                             {filteredSalons?.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
-                                        No salons found matching your search.
+                                        {t('no_salons_admin')}
                                     </td>
                                 </tr>
                             )}
@@ -282,7 +284,7 @@ export default function Salons() {
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
                         <div className="flex justify-between items-center p-6 border-b border-border">
-                            <h2 className="text-xl font-bold tracking-tight text-white">{editingSalon ? 'Edit Salon' : 'Add New Salon'}</h2>
+                            <h2 className="text-xl font-bold tracking-tight text-white">{editingSalon ? t('edit_salon') : t('add_new_salon')}</h2>
                             <button onClick={closeModal} className="text-text-muted hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
@@ -290,7 +292,7 @@ export default function Salons() {
 
                         <form onSubmit={handleSave} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Salon Name</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('salon_name')}</label>
                                 <input
                                     type="text"
                                     required
@@ -301,7 +303,7 @@ export default function Salons() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Address</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('address')}</label>
                                 <input
                                     type="text"
                                     required
@@ -313,8 +315,8 @@ export default function Salons() {
 
                             <div>
                                 <label className="block text-sm font-medium text-text-muted mb-1.5">
-                                    Owner Login Email
-                                    <span className="ml-1.5 text-zinc-600 font-normal text-xs">(optional – user must already be registered)</span>
+                                    {t('owner_email')}
+                                    <span className="ml-1.5 text-zinc-600 font-normal text-xs">(optional)</span>
                                 </label>
                                 <div className="relative">
                                     <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -329,7 +331,7 @@ export default function Salons() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Salon Image</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('image')}</label>
                                 <div className="flex flex-col gap-2">
                                     <input
                                         type="file"
@@ -338,7 +340,7 @@ export default function Salons() {
                                         disabled={isUploading}
                                         className="w-full bg-bg-dark border border-border rounded-lg px-4 py-2 text-sm focus:border-primary focus:outline-none transition-colors text-white file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-bg-dark hover:file:bg-primary-dark"
                                     />
-                                    {isUploading && <p className="text-xs text-primary">Uploading image...</p>}
+                                    {isUploading && <p className="text-xs text-primary">{t('loading')}</p>}
                                     {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
                                     {formData.image && !isUploading && (
                                         <div className="mt-2 h-24 w-24 rounded-xl overflow-hidden border border-[#27272a] relative group">
@@ -350,7 +352,7 @@ export default function Salons() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Rating (0-5)</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('rating')} (0-5)</label>
                                 <input
                                     type="number"
                                     min="0"
@@ -369,14 +371,14 @@ export default function Salons() {
                                     onClick={closeModal}
                                     className="flex-1 bg-transparent border border-border hover:bg-white/5 text-white py-2.5 rounded-lg text-sm font-medium transition-colors"
                                 >
-                                    Cancel
+                                    {t('cancel')}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={saveMutation.isPending}
                                     className="flex-1 bg-primary hover:bg-primary-dark text-bg-dark py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                                 >
-                                    {saveMutation.isPending ? 'Saving...' : 'Save Salon'}
+                                    {saveMutation.isPending ? t('loading') : t('save_salon')}
                                 </button>
                             </div>
                         </form>
@@ -394,7 +396,7 @@ export default function Salons() {
                                     <KeyRound size={18} className="text-[#F4A460]" />
                                 </div>
                                 <div>
-                                    <h2 className="text-base font-bold text-white">Account Created</h2>
+                                    <h2 className="text-base font-bold text-white">{t('account_created')}</h2>
                                     <p className="text-xs text-zinc-500">{credsModal.salonName}</p>
                                 </div>
                             </div>
@@ -403,11 +405,11 @@ export default function Salons() {
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <p className="text-xs text-zinc-400">Share these login credentials with the salon owner. The password is <span className="text-yellow-400">salon123</span> — remind them to change it after first login.</p>
+                            <p className="text-xs text-zinc-400">{t('share_credentials_msg')}</p>
 
                             <div className="space-y-3">
                                 <div>
-                                    <label className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 block">Email</label>
+                                    <label className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 block">{t('email')}</label>
                                     <div className="flex items-center gap-2 bg-[#181A20] border border-[#35383F] rounded-xl px-3 py-2.5">
                                         <Mail size={14} className="text-[#F4A460] shrink-0" />
                                         <span className="flex-1 text-sm text-white font-mono">{credsModal.email}</span>
@@ -417,7 +419,7 @@ export default function Salons() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 block">Password</label>
+                                    <label className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-1.5 block">{t('password')}</label>
                                     <div className="flex items-center gap-2 bg-[#181A20] border border-[#35383F] rounded-xl px-3 py-2.5">
                                         <KeyRound size={14} className="text-[#F4A460] shrink-0" />
                                         <span className="flex-1 text-sm text-white font-mono">{credsModal.password}</span>
@@ -434,7 +436,7 @@ export default function Salons() {
                                 }}
                                 className="w-full bg-[#F4A460] hover:opacity-90 text-black font-bold py-2.5 rounded-xl text-sm transition-opacity flex items-center justify-center gap-2"
                             >
-                                {copiedCred === 'all' ? <><Check size={15} /> Copied!</> : <><Copy size={15} /> Copy Both</>}
+                                {copiedCred === 'all' ? <><Check size={15} /> {t('copied')}</> : <><Copy size={15} /> {t('copy_both')}</>}
                             </button>
                         </div>
                     </div>

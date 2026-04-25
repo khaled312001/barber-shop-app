@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { ClipboardList, RefreshCw } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const actionColors: Record<string, string> = {
     'user.login': 'text-blue-400',
@@ -17,6 +18,7 @@ const actionColors: Record<string, string> = {
 };
 
 export default function ActivityLog() {
+    const { t } = useLanguage();
     const { data: logs = [], isLoading, refetch } = useQuery({
         queryKey: ['activity-logs'],
         queryFn: async () => { const { data } = await api.get('/admin/activity-logs?limit=200'); return data; },
@@ -28,10 +30,10 @@ export default function ActivityLog() {
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                     <ClipboardList className="text-[#F4A460]" size={24} />
-                    <div><h1 className="text-2xl font-bold text-white">Activity Log</h1><p className="text-zinc-400 text-sm">All platform events</p></div>
+                    <div><h1 className="text-2xl font-bold text-white">{t('activity_log')}</h1><p className="text-zinc-400 text-sm">{t('all_platform_events')}</p></div>
                 </div>
                 <button onClick={() => refetch()} className="flex items-center gap-2 border border-[#35383F] text-zinc-400 hover:text-white hover:border-zinc-500 px-4 py-2 rounded-xl text-sm transition-colors">
-                    <RefreshCw size={16} /> Refresh
+                    <RefreshCw size={16} /> {t('refresh')}
                 </button>
             </div>
 
@@ -42,11 +44,11 @@ export default function ActivityLog() {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-[#35383F] text-zinc-400">
-                                <th className="text-left px-6 py-4 font-medium">Time</th>
-                                <th className="text-left px-6 py-4 font-medium">Action</th>
-                                <th className="text-left px-6 py-4 font-medium">Role</th>
-                                <th className="text-left px-6 py-4 font-medium">Entity</th>
-                                <th className="text-left px-6 py-4 font-medium">Details</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('date')}</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('action')}</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('role')}</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('entity')}</th>
+                                <th className="text-left px-6 py-4 font-medium">{t('details')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -67,7 +69,7 @@ export default function ActivityLog() {
                                     </td>
                                 </tr>
                             ))}
-                            {logs.length === 0 && <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-500">No activity logged yet</td></tr>}
+                            {logs.length === 0 && <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-500">{t('no_activity')}</td></tr>}
                         </tbody>
                     </table>
                 </div>

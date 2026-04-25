@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Activity, Search, Edit2, Plus, X, Trash2, Scissors } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Service {
     id: string;
@@ -19,6 +20,7 @@ interface Salon {
 }
 
 export default function Services() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -36,7 +38,7 @@ export default function Services() {
         queryKey: ['admin-services'],
         queryFn: async () => {
             const { data } = await api.get('/admin/services');
-            return data;
+            return Array.isArray(data) ? data : [];
         },
     });
 
@@ -44,7 +46,7 @@ export default function Services() {
         queryKey: ['admin-salons'],
         queryFn: async () => {
             const { data } = await api.get('/admin/salons');
-            return data;
+            return Array.isArray(data) ? data : [];
         },
     });
 
@@ -70,7 +72,7 @@ export default function Services() {
     });
 
     const handleDelete = (id: string) => {
-        if (window.confirm('Delete this service?')) deleteMutation.mutate(id);
+        if (window.confirm(t('delete_service_admin'))) deleteMutation.mutate(id);
     };
 
     const openModal = (service: Service | null = null) => {
@@ -107,7 +109,7 @@ export default function Services() {
         saveMutation.mutate(formData);
     };
 
-    const filteredServices = services?.filter(s =>
+    const filteredServices = (Array.isArray(services) ? services : []).filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.category?.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -124,8 +126,8 @@ export default function Services() {
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Salon Services</h1>
-                    <p className="text-text-muted mt-1">Manage individual haircuts, treatments and beard styles.</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('manage_services')}</h1>
+                    <p className="text-text-muted mt-1">{t('manage_services_desc')}</p>
                 </div>
 
                 <div className="flex gap-4 w-full sm:w-auto">
@@ -133,7 +135,7 @@ export default function Services() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
                         <input
                             type="text"
-                            placeholder="Search services..."
+                            placeholder={t('search_services')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors text-white"
@@ -143,7 +145,7 @@ export default function Services() {
                         onClick={() => openModal()}
                         className="bg-primary hover:bg-primary-dark text-bg-dark px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                     >
-                        <Plus size={18} /> Add Service
+                        <Plus size={18} /> {t('add_new_service')}
                     </button>
                 </div>
             </div>
@@ -153,12 +155,12 @@ export default function Services() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-border text-text-muted text-sm">
-                                <th className="px-6 py-4 font-medium">Service Name</th>
-                                <th className="px-6 py-4 font-medium">Salon</th>
-                                <th className="px-6 py-4 font-medium">Category</th>
-                                <th className="px-6 py-4 font-medium">Price</th>
-                                <th className="px-6 py-4 font-medium">Duration</th>
-                                <th className="px-6 py-4 font-medium text-right">Actions</th>
+                                <th className="px-6 py-4 font-medium">{t('name')}</th>
+                                <th className="px-6 py-4 font-medium">{t('salon')}</th>
+                                <th className="px-6 py-4 font-medium">{t('category')}</th>
+                                <th className="px-6 py-4 font-medium">{t('price_usd')}</th>
+                                <th className="px-6 py-4 font-medium">{t('duration')}</th>
+                                <th className="px-6 py-4 font-medium text-right">{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="text-sm divide-y divide-border text-white">
@@ -177,7 +179,7 @@ export default function Services() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-text-muted">
-                                        {salons?.find(salon => salon.id === s.salonId)?.name || 'Unknown Salon'}
+                                        {salons?.find(salon => salon.id === s.salonId)?.name || t('unknown_salon')}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className="px-2 py-1 rounded-md bg-white/5 border border-border text-xs uppercase tracking-wider text-text-muted">
@@ -211,7 +213,7 @@ export default function Services() {
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
                         <div className="flex justify-between items-center p-6 border-b border-border">
-                            <h2 className="text-xl font-bold tracking-tight text-white">{editingService ? 'Edit Service' : 'Add New Service'}</h2>
+                            <h2 className="text-xl font-bold tracking-tight text-white">{editingService ? t('edit_service') : t('add_new_service')}</h2>
                             <button onClick={closeModal} className="text-text-muted hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
@@ -219,14 +221,14 @@ export default function Services() {
 
                         <form onSubmit={handleSave} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Salon</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('salon')}</label>
                                 <select
                                     required
                                     className="w-full bg-bg-dark border border-border rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors text-white"
                                     value={formData.salonId}
                                     onChange={e => setFormData({ ...formData, salonId: e.target.value })}
                                 >
-                                    <option value="" disabled>Select a Salon</option>
+                                    <option value="" disabled>{t('select_salon')}</option>
                                     {salons?.map(salon => (
                                         <option key={salon.id} value={salon.id}>{salon.name}</option>
                                     )) || null}
@@ -234,7 +236,7 @@ export default function Services() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Service Name</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('name')}</label>
                                 <input
                                     type="text"
                                     required
@@ -246,7 +248,7 @@ export default function Services() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-text-muted mb-1.5">Price ($)</label>
+                                    <label className="block text-sm font-medium text-text-muted mb-1.5">{t('price_usd')}</label>
                                     <input
                                         type="number"
                                         required
@@ -257,7 +259,7 @@ export default function Services() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-text-muted mb-1.5">Duration (e.g. 30 min)</label>
+                                    <label className="block text-sm font-medium text-text-muted mb-1.5">{t('duration')}</label>
                                     <input
                                         type="text"
                                         required
@@ -269,7 +271,7 @@ export default function Services() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Category</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('category')}</label>
                                 <input
                                     type="text"
                                     placeholder="e.g. Haircut, Beard"
@@ -280,7 +282,7 @@ export default function Services() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Image URL</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('image')}</label>
                                 <input
                                     type="text"
                                     className="w-full bg-bg-dark border border-border rounded-lg px-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors text-white"
@@ -291,10 +293,10 @@ export default function Services() {
 
                             <div className="flex gap-3 pt-4">
                                 <button type="button" onClick={closeModal} className="flex-1 bg-transparent border border-border hover:bg-white/5 text-white py-2.5 rounded-lg text-sm font-medium transition-colors">
-                                    Cancel
+                                    {t('cancel')}
                                 </button>
                                 <button type="submit" disabled={saveMutation.isPending} className="flex-1 bg-primary hover:bg-primary-dark text-bg-dark py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50">
-                                    {saveMutation.isPending ? 'Saving...' : 'Save Service'}
+                                    {saveMutation.isPending ? t('loading') : t('save_service')}
                                 </button>
                             </div>
                         </form>

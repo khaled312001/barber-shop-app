@@ -4,7 +4,7 @@ import { db } from "./db";
 import {
   users, salons, bookings, reviews, coupons, appSettings, messages, services,
   salonStaff, plans, subscriptions, licenseKeys, licenseActivations, activityLogs, commissions, expenses, shifts,
-  inventory, tips, customerNotes, loyaltyTransactions,
+  inventory, tips, customerNotes, loyaltyTransactions, notifications, products, productOrders,
 } from "@shared/schema";
 import { eq, sql, and, desc, gte, lte } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -91,6 +91,20 @@ export function registerAdminRoutes(app: Express) {
     },
   });
   const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+  const chatUpload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB for chat media
+
+  // ── Chat Media Upload (all authenticated users) ────────────────────────────
+  app.post("/api/chat/upload", chatUpload.single("file"), (req: any, res: Response) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const videoExts = ['.mp4', '.webm', '.mov'];
+    let mediaType = 'file';
+    if (imageExts.includes(ext)) mediaType = 'image';
+    else if (videoExts.includes(ext)) mediaType = 'video';
+    res.json({ url: `/uploads/${req.file.filename}`, type: mediaType, name: req.file.originalname, size: req.file.size });
+  });
 
   // ── Super Admin: Dashboard stats ────────────────────────────────────────────
   app.get("/api/admin/stats", requireSuperAdmin, async (req: Request, res: Response) => {
@@ -470,6 +484,66 @@ export function registerAdminRoutes(app: Express) {
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
+  // ── WhatsApp Configuration ──────────────────────────────────────────────────
+  app.get("/api/admin/whatsapp/config", requireSuperAdmin, async (_req, res) => {
+    try {
+      const allSettings = await db.select().from(appSettings);
+      const waSettings: Record<string, string> = {};
+      for (const s of allSettings) {
+        if (s.key.startsWith('whatsapp_')) waSettings[s.key] = s.value;
+      }
+      res.json(waSettings);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/whatsapp/config", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const updates = req.body; // { whatsapp_enabled: 'true', whatsapp_admin_number: '+41...', ... }
+      for (const [key, value] of Object.entries(updates)) {
+        if (!key.startsWith('whatsapp_')) continue;
+        const existing = await db.select().from(appSettings).where(eq(appSettings.key, key));
+        if (existing.length > 0) {
+          await db.update(appSettings).set({ value: String(value), updatedAt: new Date() }).where(eq(appSettings.key, key));
+        } else {
+          await db.insert(appSettings).values({ key, value: String(value), description: `WhatsApp config: ${key}` });
+        }
+      }
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/whatsapp/test", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { phone, message } = req.body;
+      const { sendWhatsAppMessage } = require("./whatsappService");
+      const result = await sendWhatsAppMessage({ to: phone, message: message || 'Test message from Barmagly Salon!' });
+      res.json({ success: result, message: result ? 'Message sent successfully' : 'Message queued (check WhatsApp config)' });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/admin/whatsapp/broadcast", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { content, targetUserId } = req.body;
+      const { sendWhatsAppMessage, notifySuperAdminViaWhatsApp } = require("./whatsappService");
+      // Also broadcast via in-app messages
+      const adminIdentity = { salonId: "admin", salonName: "Barmagly Platform", salonImage: "" };
+      if (targetUserId === "all") {
+        const allUsers = await db.select().from(users);
+        await Promise.all(allUsers.map(u =>
+          db.insert(messages).values({ userId: u.id, ...adminIdentity, content, sender: "salon" })
+        ));
+        // Also send via WhatsApp to admin
+        await notifySuperAdminViaWhatsApp(`[Broadcast] ${content}`);
+        res.json({ success: true, count: allUsers.length });
+      } else {
+        const msgId = crypto.randomUUID();
+        await db.insert(messages).values({ id: msgId, userId: targetUserId, ...adminIdentity, content, sender: "salon" });
+        const [msg] = await db.select().from(messages).where(eq(messages.id, msgId));
+        res.json(msg);
+      }
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
   // ── Settings ────────────────────────────────────────────────────────────────
   app.get("/api/admin/settings", requireSuperAdmin, async (_req, res) => {
     try { res.json(await db.select().from(appSettings)); }
@@ -598,7 +672,16 @@ export function registerAdminRoutes(app: Express) {
   // License Keys CRUD
   // ════════════════════════════════════════════════════════════════════════════
   app.get("/api/admin/license-keys", requireSuperAdmin, async (_req, res) => {
-    try { res.json(await db.select().from(licenseKeys).orderBy(desc(licenseKeys.createdAt))); }
+    try {
+      const keys = await db.select().from(licenseKeys).orderBy(desc(licenseKeys.createdAt));
+      const activations = await db.select().from(licenseActivations);
+      const keysWithEmails = keys.map(k => ({
+        ...k,
+        activatedEmails: activations.filter(a => a.licenseKeyId === k.id).map(a => a.email).filter(Boolean),
+        activations: activations.filter(a => a.licenseKeyId === k.id).map(a => ({ id: a.id, email: a.email, deviceId: a.deviceId, activatedAt: a.activatedAt })),
+      }));
+      res.json(keysWithEmails);
+    }
     catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
@@ -617,6 +700,34 @@ export function registerAdminRoutes(app: Express) {
       await db.update(licenseKeys).set(req.body).where(eq(licenseKeys.id, String(req.params.id)));
       const [lk] = await db.select().from(licenseKeys).where(eq(licenseKeys.id, String(req.params.id)));
       res.json(lk);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Add activation email to a license key
+  app.post("/api/admin/license-keys/:id/activations", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ message: "Email is required" });
+      await db.insert(licenseActivations).values({
+        licenseKeyId: String(req.params.id),
+        deviceId: "manual-admin",
+        email,
+      });
+      await db.update(licenseKeys)
+        .set({ activationCount: sql`activation_count + 1` })
+        .where(eq(licenseKeys.id, String(req.params.id)));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Remove activation from a license key
+  app.delete("/api/admin/license-keys/:id/activations/:activationId", requireSuperAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(licenseActivations).where(eq(licenseActivations.id, String(req.params.activationId)));
+      await db.update(licenseKeys)
+        .set({ activationCount: sql`GREATEST(activation_count - 1, 0)` })
+        .where(eq(licenseKeys.id, String(req.params.id)));
+      res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
@@ -759,7 +870,14 @@ export function registerAdminRoutes(app: Express) {
     try {
       const salonId = (req as any).salonId;
       const all = await db.select().from(bookings).where(eq(bookings.salonId, salonId)).orderBy(desc(bookings.createdAt));
-      res.json(all);
+      // Parse services JSON
+      const parsed = all.map(b => {
+        let svcs = b.services;
+        if (typeof svcs === 'string') { try { svcs = JSON.parse(svcs as any); } catch { svcs = []; } }
+        if (!Array.isArray(svcs)) svcs = [];
+        return { ...b, services: svcs };
+      });
+      res.json(parsed);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
@@ -768,19 +886,59 @@ export function registerAdminRoutes(app: Express) {
       const salonId = (req as any).salonId;
       await db.update(bookings).set(req.body).where(and(eq(bookings.id, String(req.params.id)), eq(bookings.salonId, salonId)));
       const [booking] = await db.select().from(bookings).where(eq(bookings.id, String(req.params.id)));
-      // Auto-create commission on completion
+      // Auto-create commission on completion using global rate from settings
       if (req.body.status === "completed" && booking) {
-        const sub = await db.select().from(subscriptions).where(and(eq(subscriptions.salonId, salonId), eq(subscriptions.status, "active")));
-        const planId = sub[0]?.planId;
         let rate = 5;
-        if (planId) {
-          const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
-          if (plan) rate = plan.commissionRate ?? 5;
-        }
-        await db.insert(commissions).values({ bookingId: booking.id, salonId, amount: booking.totalPrice * (rate / 100), rate });
+        const [rateSetting] = await db.select().from(appSettings).where(eq(appSettings.key, "default_commission_rate"));
+        if (rateSetting) rate = parseFloat(rateSetting.value) || 5;
+        const amount = Math.ceil(booking.totalPrice * (rate / 100));
+        await db.insert(commissions).values({ bookingId: booking.id, salonId, amount, rate });
       }
       res.json(booking);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Create walk-in / manual booking (salon admin)
+  app.post("/api/salon/bookings", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
+      const id = crypto.randomUUID();
+      const payload: any = {
+        id,
+        salonId,
+        salonName: salon?.name || 'Salon',
+        salonImage: salon?.image || '',
+        userId: req.body.userId || '',
+        clientName: req.body.clientName || 'Walk-in',
+        clientPhone: req.body.clientPhone || '',
+        serviceName: req.body.serviceName || '',
+        services: req.body.services || (req.body.serviceName ? [req.body.serviceName] : []),
+        date: req.body.date,
+        time: req.body.time,
+        totalPrice: req.body.totalPrice || 0,
+        status: req.body.status || 'confirmed',
+        paymentMethod: req.body.paymentMethod || 'cash',
+        notes: req.body.notes || '',
+      };
+      await db.insert(bookings).values(payload);
+      const [created] = await db.select().from(bookings).where(eq(bookings.id, id));
+      res.json(created);
+    } catch (err: any) {
+      console.error('POST /api/salon/bookings error:', err);
+      res.status(500).json({ message: err?.message || 'Failed to create booking' });
+    }
+  });
+
+  // Delete booking (salon admin)
+  app.delete("/api/salon/bookings/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      await db.delete(bookings).where(and(eq(bookings.id, String(req.params.id)), eq(bookings.salonId, salonId)));
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || 'Failed to delete booking' });
+    }
   });
 
   // Salon services
@@ -903,6 +1061,41 @@ export function registerAdminRoutes(app: Express) {
     try {
       const salonId = (req as any).salonId;
       await db.delete(expenses).where(and(eq(expenses.id, String(req.params.id)), eq(expenses.salonId, salonId)));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Salon Coupons CRUD ──────────────────────────────────────────────────────
+  app.get("/api/salon/coupons", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      res.json(await db.select().from(coupons).where(eq(coupons.salonId, salonId)));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/salon/coupons", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const couponId = crypto.randomUUID();
+      await db.insert(coupons).values({ ...req.body, salonId, id: couponId });
+      const [c] = await db.select().from(coupons).where(eq(coupons.id, couponId));
+      res.json(c);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/salon/coupons/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      await db.update(coupons).set(req.body).where(and(eq(coupons.id, String(req.params.id)), eq(coupons.salonId, salonId)));
+      const [c] = await db.select().from(coupons).where(eq(coupons.id, String(req.params.id)));
+      res.json(c);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/salon/coupons/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      await db.delete(coupons).where(and(eq(coupons.id, String(req.params.id)), eq(coupons.salonId, salonId)));
       res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -1059,6 +1252,47 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // ════════════════════════════════════════════════════════════════════════════
+  // Check if current device has any active license (public)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.post("/api/auth/check-device-license", async (req: Request, res: Response) => {
+    try {
+      const { deviceId } = req.body || {};
+      if (!deviceId) return res.json({ active: false, activations: [] });
+
+      const activations = await db.select().from(licenseActivations).where(eq(licenseActivations.deviceId, deviceId));
+      if (activations.length === 0) return res.json({ active: false, activations: [] });
+
+      const now = new Date();
+      const results: any[] = [];
+      for (const act of activations) {
+        const [lk] = await db.select().from(licenseKeys).where(eq(licenseKeys.id, act.licenseKeyId));
+        if (!lk) continue;
+        if (lk.status === 'revoked' || lk.status === 'suspended') continue;
+        if (lk.expiresAt && new Date(lk.expiresAt) < now) continue;
+
+        let salonName = '';
+        if (lk.salonId) {
+          const [salon] = await db.select().from(salons).where(eq(salons.id, lk.salonId));
+          if (salon) salonName = salon.name;
+        }
+
+        results.push({
+          activationId: act.id,
+          licenseKeyId: lk.id,
+          email: act.email || '',
+          salonId: lk.salonId || '',
+          salonName,
+          activatedAt: act.activatedAt,
+        });
+      }
+
+      res.json({ active: results.length > 0, activations: results });
+    } catch (err: any) {
+      res.status(500).json({ active: false, message: err?.message });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
   // Verify License (public)
   // ════════════════════════════════════════════════════════════════════════════
   app.post("/api/auth/verify-license", async (req: Request, res: Response) => {
@@ -1186,8 +1420,12 @@ export function registerAdminRoutes(app: Express) {
       // Top services
       const serviceCount: Record<string, number> = {};
       myBookings.forEach((b: any) => {
-        (b.services || []).forEach((svc: string) => {
-          serviceCount[svc] = (serviceCount[svc] || 0) + 1;
+        let svcs = b.services || [];
+        if (typeof svcs === 'string') { try { svcs = JSON.parse(svcs); } catch { svcs = []; } }
+        if (!Array.isArray(svcs)) svcs = [];
+        svcs.forEach((svc: string) => {
+          const name = typeof svc === 'object' ? (svc as any).name || String(svc) : String(svc);
+          serviceCount[name] = (serviceCount[name] || 0) + 1;
         });
       });
       const topServices = Object.entries(serviceCount).sort(([, a], [, b]) => b - a).slice(0, 5).map(([name, count]) => ({ name, count }));
@@ -1260,6 +1498,293 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // ════════════════════════════════════════════════════════════════════════════
+  // Products (Salon Admin retail products + Customer browse/order)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/salon/products", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      res.json(await db.select().from(products).where(eq(products.salonId, salonId)).orderBy(desc(products.createdAt)));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/salon/products", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
+      const productId = crypto.randomUUID();
+      await db.insert(products).values({ ...req.body, salonId, salonName: salon?.name || '', id: productId });
+      const [p] = await db.select().from(products).where(eq(products.id, productId));
+      res.json(p);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/salon/products/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.update(products).set(req.body).where(eq(products.id, String(req.params.id)));
+      const [p] = await db.select().from(products).where(eq(products.id, String(req.params.id)));
+      res.json(p);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/salon/products/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.delete(products).where(eq(products.id, String(req.params.id)));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Product orders for salon admin
+  app.get("/api/salon/product-orders", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const orders = await db.select().from(productOrders).where(eq(productOrders.salonId, salonId)).orderBy(desc(productOrders.createdAt));
+      res.json(orders);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/salon/product-orders/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.update(productOrders).set(req.body).where(eq(productOrders.id, String(req.params.id)));
+      const [o] = await db.select().from(productOrders).where(eq(productOrders.id, String(req.params.id)));
+      res.json(o);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Public: browse all products (for customer shop)
+  app.get("/api/products", async (_req: Request, res: Response) => {
+    try {
+      const allProducts = await db.select().from(products).where(eq(products.isActive, true));
+      res.json(allProducts);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/products/:id", async (req: Request, res: Response) => {
+    try {
+      const [p] = await db.select().from(products).where(eq(products.id, String(req.params.id)));
+      if (!p) return res.status(404).json({ message: "Product not found" });
+      res.json(p);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Customer: place product order
+  app.post("/api/product-orders", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const orderId = crypto.randomUUID();
+      const { items, salonId, totalPrice, paymentMethod, shippingAddress, phone, notes } = req.body;
+      await db.insert(productOrders).values({
+        id: orderId, userId, salonId, items, totalPrice,
+        paymentMethod: paymentMethod || 'cash',
+        shippingAddress: shippingAddress || '', phone: phone || '',
+        notes: notes || '', status: 'pending',
+      });
+      // Decrement stock
+      for (const item of items || []) {
+        await db.update(products)
+          .set({ stock: sql`GREATEST(stock - ${item.qty || 1}, 0)` })
+          .where(eq(products.id, item.id));
+      }
+      // Notify salon admin
+      try {
+        const { salonStaff: salonStaffTable } = require("@shared/schema");
+        const staffLinks = await db.select().from(salonStaffTable).where(eq(salonStaffTable.salonId, salonId));
+        for (const link of staffLinks) {
+          await db.insert(notifications).values({
+            userId: link.userId,
+            title: "New Product Order",
+            message: `New order — ${items.length} items, total CHF ${totalPrice}`,
+            type: "booking",
+          });
+        }
+      } catch { }
+      const [order] = await db.select().from(productOrders).where(eq(productOrders.id, orderId));
+      res.status(201).json(order);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Customer: get my orders
+  app.get("/api/product-orders/my", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const myOrders = await db.select().from(productOrders).where(eq(productOrders.userId, userId)).orderBy(desc(productOrders.createdAt));
+      res.json(myOrders);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Messaging (Salon Admin)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // Get all conversations for this salon (grouped by userId)
+  app.get("/api/salon/messages", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const allMsgs = await db.select().from(messages).where(eq(messages.salonId, salonId)).orderBy(desc(messages.createdAt));
+      // Group by userId
+      const convMap = new Map<string, any>();
+      for (const m of allMsgs) {
+        if (!convMap.has(m.userId)) {
+          const [u] = await db.select().from(users).where(eq(users.id, m.userId));
+          convMap.set(m.userId, {
+            userId: m.userId,
+            userName: u?.fullName || 'Unknown',
+            userAvatar: u?.avatar || '',
+            userEmail: u?.email || '',
+            lastMessage: m.content,
+            lastMessageAt: m.createdAt,
+            sender: m.sender,
+            unreadCount: allMsgs.filter(x => x.userId === m.userId && x.sender === 'user' && !x.isRead).length,
+          });
+        }
+      }
+      res.json(Array.from(convMap.values()));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Get messages in a conversation with a specific user
+  app.get("/api/salon/messages/:userId", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const userId = String(req.params.userId);
+      const msgs = await db.select().from(messages).where(
+        and(eq(messages.salonId, salonId), eq(messages.userId, userId))
+      ).orderBy(messages.createdAt);
+      // Mark user messages as read
+      await db.update(messages).set({ isRead: 1 }).where(
+        and(eq(messages.salonId, salonId), eq(messages.userId, userId), eq(messages.sender, 'user'))
+      );
+      res.json(msgs);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Send message to a user (salon admin reply)
+  app.post("/api/salon/messages/:userId", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const userId = String(req.params.userId);
+      const currentUser = (req as any).currentUser;
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
+      const msgId = crypto.randomUUID();
+      await db.insert(messages).values({
+        id: msgId,
+        userId,
+        salonId,
+        salonName: salon?.name || 'Salon',
+        salonImage: salon?.image || '',
+        content: req.body.content,
+        sender: 'salon',
+        senderName: currentUser?.fullName || 'Salon Admin',
+        messageType: req.body.messageType || 'text',
+        isRead: 0,
+      });
+      const [msg] = await db.select().from(messages).where(eq(messages.id, msgId));
+      res.json(msg);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Messaging (Staff)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  app.get("/api/staff/messages", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const allMsgs = await db.select().from(messages).where(eq(messages.salonId, salonId)).orderBy(desc(messages.createdAt));
+      const convMap = new Map<string, any>();
+      for (const m of allMsgs) {
+        if (!convMap.has(m.userId)) {
+          const [u] = await db.select().from(users).where(eq(users.id, m.userId));
+          convMap.set(m.userId, {
+            userId: m.userId,
+            userName: u?.fullName || 'Unknown',
+            userAvatar: u?.avatar || '',
+            lastMessage: m.content,
+            lastMessageAt: m.createdAt,
+            sender: m.sender,
+            unreadCount: allMsgs.filter(x => x.userId === m.userId && x.sender === 'user' && !x.isRead).length,
+          });
+        }
+      }
+      res.json(Array.from(convMap.values()));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/staff/messages/:userId", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const userId = String(req.params.userId);
+      const msgs = await db.select().from(messages).where(
+        and(eq(messages.salonId, salonId), eq(messages.userId, userId))
+      ).orderBy(messages.createdAt);
+      await db.update(messages).set({ isRead: 1 }).where(
+        and(eq(messages.salonId, salonId), eq(messages.userId, userId), eq(messages.sender, 'user'))
+      );
+      res.json(msgs);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/staff/messages/:userId", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const userId = String(req.params.userId);
+      const currentUser = (req as any).currentUser;
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
+      const msgId = crypto.randomUUID();
+      await db.insert(messages).values({
+        id: msgId, userId, salonId,
+        salonName: salon?.name || 'Salon',
+        salonImage: salon?.image || '',
+        content: req.body.content,
+        sender: 'salon',
+        senderName: currentUser?.fullName || 'Staff',
+        messageType: req.body.messageType || 'text',
+        isRead: 0,
+      });
+      const [msg] = await db.select().from(messages).where(eq(messages.id, msgId));
+      res.json(msg);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // POS Checkout (Salon Admin & Staff)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.post("/api/salon/pos-checkout", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const currentUser = (req as any).currentUser;
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
+      const { customerName, items, subtotal, discount, tax, total, paymentMethod, note, invoiceNo } = req.body;
+      const bookingId = crypto.randomUUID();
+      await db.insert(bookings).values({
+        id: bookingId,
+        userId: currentUser.id,
+        salonId,
+        salonName: salon?.name || 'Salon',
+        salonImage: salon?.image || '',
+        services: items.map((i: any) => i.name),
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        totalPrice: total,
+        status: 'completed',
+        paymentMethod: paymentMethod || 'cash',
+        specialistId: currentUser.id,
+      });
+      // Auto-create commission for POS checkout using global rate
+      let posRate = 5;
+      const [posRateSetting] = await db.select().from(appSettings).where(eq(appSettings.key, "default_commission_rate"));
+      if (posRateSetting) posRate = parseFloat(posRateSetting.value) || 5;
+      const posCommissionAmount = Math.ceil(total * (posRate / 100));
+      await db.insert(commissions).values({ bookingId, salonId, amount: posCommissionAmount, rate: posRate });
+
+      await logActivity({ userId: currentUser.id, action: 'pos.checkout', entityType: 'booking', entityId: bookingId,
+        details: { invoiceNo, customerName, items: items.length, total, paymentMethod } });
+      res.json({ success: true, bookingId, invoiceNo });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
   // Tips (Salon Admin adds tip per booking)
   // ════════════════════════════════════════════════════════════════════════════
   app.post("/api/salon/tips", requireSalonAdmin, async (req: Request, res: Response) => {
@@ -1276,6 +1801,47 @@ export function registerAdminRoutes(app: Express) {
     try {
       const salonId = (req as any).salonId;
       res.json(await db.select().from(tips).where(eq(tips.salonId, salonId)).orderBy(desc(tips.createdAt)));
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Notifications (Salon Admin & Staff)
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/salon/notifications", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).currentUser.id;
+      const notifs = await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(50);
+      res.json(notifs);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/salon/notifications/:id/read", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      await db.update(notifications).set({ read: true }).where(eq(notifications.id, String(req.params.id)));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/salon/notifications/read-all", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).currentUser.id;
+      await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userId));
+      res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/staff/notifications", requireStaff, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).currentUser.id;
+      const notifs = await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(50);
+      res.json(notifs);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.put("/api/staff/notifications/:id/read", requireStaff, async (req: Request, res: Response) => {
+    try {
+      await db.update(notifications).set({ read: true }).where(eq(notifications.id, String(req.params.id)));
+      res.json({ success: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 

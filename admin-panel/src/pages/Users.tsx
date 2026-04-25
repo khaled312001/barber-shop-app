@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Activity, Trash2, Search, Edit2, Plus, X } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface UserData {
     id: string;
@@ -12,6 +13,7 @@ interface UserData {
 }
 
 export default function Users() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -22,7 +24,7 @@ export default function Users() {
         queryKey: ['admin-users'],
         queryFn: async () => {
             const { data } = await api.get('/admin/users');
-            return data;
+            return Array.isArray(data) ? data : [];
         },
     });
     const users = Array.isArray(usersResponse) ? usersResponse : usersResponse?.data;
@@ -55,7 +57,7 @@ export default function Users() {
     });
 
     const handleDelete = (id: string) => {
-        if (window.confirm('Delete this user?')) deleteMutation.mutate(id);
+        if (window.confirm(t('delete_user_confirm'))) deleteMutation.mutate(id);
     };
 
     const openModal = (user: UserData | null = null) => {
@@ -78,7 +80,7 @@ export default function Users() {
         saveMutation.mutate(formData);
     };
 
-    const filteredUsers = users?.filter(u =>
+    const filteredUsers = (Array.isArray(users) ? users : []).filter(u =>
         u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -94,14 +96,14 @@ export default function Users() {
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Manage Users</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('manage_users')}</h1>
 
                 <div className="flex gap-4 w-full sm:w-auto mt-4 sm:mt-0">
                     <div className="relative w-full sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
                         <input
                             type="text"
-                            placeholder="Search users..."
+                            placeholder={t('search_users')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
@@ -111,7 +113,7 @@ export default function Users() {
                         onClick={() => openModal()}
                         className="bg-primary hover:bg-primary-dark text-bg-dark px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                     >
-                        <Plus size={18} /> Add User
+                        <Plus size={18} /> {t('add_user')}
                     </button>
                 </div>
             </div>
@@ -121,10 +123,10 @@ export default function Users() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-border text-text-muted text-sm">
-                                <th className="px-6 py-4 font-medium">Full Name</th>
-                                <th className="px-6 py-4 font-medium">Email Address</th>
-                                <th className="px-6 py-4 font-medium">Role</th>
-                                <th className="px-6 py-4 font-medium text-right">Actions</th>
+                                <th className="px-6 py-4 font-medium">{t('full_name')}</th>
+                                <th className="px-6 py-4 font-medium">{t('email')}</th>
+                                <th className="px-6 py-4 font-medium">{t('role')}</th>
+                                <th className="px-6 py-4 font-medium text-right">{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="text-sm divide-y divide-[#27272a]">
@@ -161,7 +163,7 @@ export default function Users() {
                             {filteredUsers?.length === 0 && (
                                 <tr>
                                     <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">
-                                        No users found matching your search.
+                                        {t('no_users_found')}
                                     </td>
                                 </tr>
                             )}
@@ -175,7 +177,7 @@ export default function Users() {
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
                         <div className="flex justify-between items-center p-6 border-b border-border">
-                            <h2 className="text-xl font-bold tracking-tight text-white">{editingUser ? 'Edit User' : 'Add New User'}</h2>
+                            <h2 className="text-xl font-bold tracking-tight text-white">{editingUser ? t('edit_user') : t('add_new_user')}</h2>
                             <button onClick={closeModal} className="text-text-muted hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
@@ -183,7 +185,7 @@ export default function Users() {
 
                         <form onSubmit={handleSave} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Full Name</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('full_name')}</label>
                                 <input
                                     type="text"
                                     required
@@ -194,7 +196,7 @@ export default function Users() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Email Address</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('email')}</label>
                                 <input
                                     type="email"
                                     required
@@ -206,7 +208,7 @@ export default function Users() {
 
                             {!editingUser && (
                                 <div>
-                                    <label className="block text-sm font-medium text-text-muted mb-1.5">Temporary Password</label>
+                                    <label className="block text-sm font-medium text-text-muted mb-1.5">{t('password')}</label>
                                     <input
                                         type="password"
                                         required
@@ -218,7 +220,7 @@ export default function Users() {
                             )}
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Role</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('role')}</label>
                                 <select
                                     value={formData.role}
                                     onChange={e => setFormData({ ...formData, role: e.target.value })}
@@ -237,14 +239,14 @@ export default function Users() {
                                     onClick={closeModal}
                                     className="flex-1 bg-transparent border border-border hover:bg-white/5 text-white py-2.5 rounded-lg text-sm font-medium transition-colors"
                                 >
-                                    Cancel
+                                    {t('cancel')}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={saveMutation.isPending}
                                     className="flex-1 bg-primary hover:bg-primary-dark text-bg-dark py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                                 >
-                                    {saveMutation.isPending ? 'Saving...' : 'Save User'}
+                                    {saveMutation.isPending ? t('loading') : t('save_user')}
                                 </button>
                             </div>
                         </form>

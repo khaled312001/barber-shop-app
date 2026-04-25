@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, FlatList, TextInput } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
@@ -24,28 +24,35 @@ interface Salon {
   longitude: number;
 }
 
-function ExploreSalonCard({ salon, isLarge, t }: { salon: Salon; isLarge?: boolean; t: (key: string) => string }) {
-  const theme = useTheme();
+function ExploreSalonCard({ salon, t, theme }: { salon: Salon; t: (key: string) => string; theme: any }) {
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/salon/[id]', params: { id: salon.id } })}
-      style={({ pressed }) => [styles.card, isLarge && styles.cardLarge, { opacity: pressed ? 0.9 : 1 }]}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.92 : 1 },
+      ]}
     >
-      <Image source={{ uri: salon.image }} style={styles.cardImage} contentFit="cover" />
-      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.75)']} style={styles.cardGradient} />
-      <View style={styles.cardContent}>
-        <Text style={[styles.cardName, { fontFamily: 'Urbanist_700Bold' }]} numberOfLines={1}>{salon.name}</Text>
-        <View style={styles.cardMeta}>
-          <Ionicons name="location" size={12} color="#F4A460" />
-          <Text style={[styles.cardDistance, { fontFamily: 'Urbanist_400Regular' }]}>{salon.distance}</Text>
-          <Ionicons name="star" size={12} color="#FFC107" />
-          <Text style={[styles.cardRating, { fontFamily: 'Urbanist_600SemiBold' }]}>{salon.rating}</Text>
+      <View style={styles.cardImageWrap}>
+        <Image source={{ uri: salon.image }} style={styles.cardImage} contentFit="cover" />
+        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={styles.cardGradient} />
+        <View style={[styles.openBadge, { backgroundColor: salon.isOpen ? '#10B981' : '#EF4444' }]}>
+          <View style={styles.openDot} />
+          <Text style={styles.openText}>{salon.isOpen ? t('open_now') || 'Open' : t('closed') || 'Closed'}</Text>
         </View>
-        <View style={[styles.openBadge, { backgroundColor: salon.isOpen ? '#4CAF5025' : '#F4433625' }]}>
-          <View style={[styles.openDot, { backgroundColor: salon.isOpen ? '#4CAF50' : '#F44336' }]} />
-          <Text style={[styles.openText, { color: salon.isOpen ? '#4CAF50' : '#F44336', fontFamily: 'Urbanist_500Medium' }]}>
-            {salon.isOpen ? t('open_now') : t('closed')}
-          </Text>
+        <View style={styles.ratingFloat}>
+          <Ionicons name="star" size={11} color="#FFC107" />
+          <Text style={styles.ratingFloatText}>{salon.rating}</Text>
+        </View>
+      </View>
+      <View style={styles.cardBody}>
+        <Text style={[styles.cardName, { color: theme.text }]} numberOfLines={1}>{salon.name}</Text>
+        <View style={styles.cardMetaRow}>
+          <View style={[styles.metaChip, { backgroundColor: theme.primary + '15' }]}>
+            <Ionicons name="location" size={11} color={theme.primary} />
+            <Text style={[styles.metaChipText, { color: theme.primary }]}>{salon.distance}</Text>
+          </View>
+          <Text style={[styles.reviewCount, { color: theme.textTertiary }]}>({salon.reviewCount})</Text>
         </View>
       </View>
     </Pressable>
@@ -74,10 +81,13 @@ export default function ExploreScreen() {
     return salons.filter(s => s.name.toLowerCase().includes(q) || s.address.toLowerCase().includes(q));
   }, [salons, searchQuery]);
 
+  const openCount = filtered.filter(s => s.isOpen).length;
+
   const ListHeader = () => (
     <>
-      <View style={[styles.hybridMapSection, { height: isMapExpanded ? 350 : 150 }]}>
-        <View style={styles.inlineMapContainer}>
+      {/* Map section with border */}
+      <View style={[styles.mapSection, { borderColor: theme.border, height: isMapExpanded ? 360 : 160 }]}>
+        <View style={styles.mapInner}>
           <SalonMap
             salons={filtered}
             onSalonPress={(id: string) => router.push({ pathname: '/salon/[id]', params: { id } })}
@@ -85,43 +95,87 @@ export default function ExploreScreen() {
         </View>
         <Pressable
           onPress={() => setIsMapExpanded(!isMapExpanded)}
-          style={[styles.toggleMapBtn, { backgroundColor: theme.surface + 'E6' }]}
+          style={({ pressed }) => [
+            styles.toggleMapBtn,
+            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.8 : 1 },
+          ]}
         >
-          <Ionicons name={isMapExpanded ? "chevron-up" : "chevron-down"} size={20} color={theme.text} />
+          <Ionicons name={isMapExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={theme.primary} />
           <Text style={[styles.toggleMapText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>
             {isMapExpanded ? t('collapse') : t('expand')} {t('map')}
           </Text>
         </Pressable>
       </View>
 
+      {/* Stats row */}
+      <View style={styles.statsRow}>
+        <View style={[styles.statChip, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={[styles.statIconWrap, { backgroundColor: theme.primary + '15' }]}>
+            <MaterialCommunityIcons name="store-outline" size={16} color={theme.primary} />
+          </View>
+          <View>
+            <Text style={[styles.statValue, { color: theme.text }]}>{filtered.length}</Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{t('total') || 'Total'}</Text>
+          </View>
+        </View>
+        <View style={[styles.statChip, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={[styles.statIconWrap, { backgroundColor: '#10B981' + '18' }]}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+          </View>
+          <View>
+            <Text style={[styles.statValue, { color: theme.text }]}>{openCount}</Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{t('open_now') || 'Open'}</Text>
+          </View>
+        </View>
+        <View style={[styles.statChip, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <View style={[styles.statIconWrap, { backgroundColor: '#FFC107' + '18' }]}>
+            <Ionicons name="star" size={16} color="#FFC107" />
+          </View>
+          <View>
+            <Text style={[styles.statValue, { color: theme.text }]}>
+              {filtered.length > 0 ? (filtered.reduce((sum, s) => sum + s.rating, 0) / filtered.length).toFixed(1) : '—'}
+            </Text>
+            <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{t('avg_rating') || 'Avg'}</Text>
+          </View>
+        </View>
+      </View>
+
       <View style={styles.listHeader}>
         <Text style={[styles.listTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('nearby_salons')}</Text>
-        <Text style={[styles.listCount, { color: theme.textTertiary, fontFamily: 'Urbanist_500Medium' }]}>
-          {filtered.length} {t('found')}
-        </Text>
+        <View style={[styles.countBadge, { backgroundColor: theme.primary + '18' }]}>
+          <Text style={[styles.countBadgeText, { color: theme.primary, fontFamily: 'Urbanist_700Bold' }]}>{filtered.length}</Text>
+        </View>
       </View>
     </>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('explore_nearby')}</Text>
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={() => router.push('/search')}
-            style={({ pressed }) => [styles.headerBtn, { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Ionicons name="search" size={20} color={theme.text} />
-          </Pressable>
+        <View>
+          <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('explore_nearby')}</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>
+            {t('find_perfect_salon') || 'Find your perfect salon'}
+          </Text>
         </View>
+        <Pressable
+          onPress={() => router.push('/search')}
+          style={({ pressed }) => [
+            styles.headerBtn,
+            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name="options" size={20} color={theme.primary} />
+        </Pressable>
       </View>
 
-      <View style={[styles.searchContainer, { paddingHorizontal: 24 }]}>
-        <View style={[styles.searchBar, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+      {/* Search bar */}
+      <View style={styles.searchContainer}>
+        <View style={[styles.searchBar, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Ionicons name="search" size={18} color={theme.textTertiary} />
           <TextInput
-            style={[styles.searchInput, { color: theme.text, fontFamily: 'Urbanist_400Regular' }]}
+            style={[styles.searchInput, { color: theme.text, fontFamily: 'Urbanist_500Medium' }]}
             placeholder={t('search_salons_nearby')}
             placeholderTextColor={theme.textTertiary}
             value={searchQuery}
@@ -146,11 +200,16 @@ export default function ExploreScreen() {
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="search" size={48} color={theme.textTertiary} />
-            <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold' }]}>{t('no_salons_found')}</Text>
+            <View style={[styles.emptyIconWrap, { backgroundColor: theme.primary + '15' }]}>
+              <Ionicons name="search" size={44} color={theme.primary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('no_salons_found')}</Text>
+            <Text style={[styles.emptySubtext, { color: theme.textSecondary, fontFamily: 'Urbanist_400Regular' }]}>
+              {t('try_different_search') || 'Try a different search term.'}
+            </Text>
           </View>
         }
-        renderItem={({ item, index }) => <ExploreSalonCard salon={item} t={t} />}
+        renderItem={({ item }) => <ExploreSalonCard salon={item} t={t} theme={theme} />}
       />
     </View>
   );
@@ -159,44 +218,78 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 12 },
-  title: { fontSize: 24 },
-  headerActions: { flexDirection: 'row', gap: 8 },
-  headerBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  searchContainer: { marginBottom: 16 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 14, paddingHorizontal: 14, borderWidth: 1, gap: 8 },
+  title: { fontSize: 26 },
+  subtitle: { fontSize: 13, marginTop: 2 },
+  headerBtn: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+
+  searchContainer: { paddingHorizontal: 24, marginBottom: 16 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', height: 50, borderRadius: 14, paddingHorizontal: 14, borderWidth: 1, gap: 10 },
   searchInput: { flex: 1, fontSize: 14 },
-  mapSection: { marginHorizontal: 24, borderRadius: 20, overflow: 'hidden', marginBottom: 20 },
-  mapPreview: { padding: 20, alignItems: 'center', gap: 10 },
-  mapIconContainer: { marginBottom: 4 },
-  mapIconOuter: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  mapText: { fontSize: 14, textAlign: 'center' },
-  locationPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 4 },
-  locationPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
-  pillText: { fontSize: 12 },
-  viewMapBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginTop: 8 },
-  viewMapText: { fontSize: 13, color: '#fff' },
-  hybridMapSection: { marginHorizontal: 24, borderRadius: 20, overflow: 'hidden', marginBottom: 20, position: 'relative' },
-  inlineMapContainer: { flex: 1 },
-  toggleMapBtn: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
+
+  mapSection: { marginHorizontal: 24, borderRadius: 20, overflow: 'hidden', marginBottom: 16, position: 'relative', borderWidth: 1 },
+  mapInner: { flex: 1 },
+  toggleMapBtn: {
+    position: 'absolute', bottom: 10, right: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 12, borderWidth: 1,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+  },
   toggleMapText: { fontSize: 12 },
-  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 12 },
+
+  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 20 },
+  statChip: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, borderWidth: 1 },
+  statIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: 15, fontFamily: 'Urbanist_700Bold' },
+  statLabel: { fontSize: 10, fontFamily: 'Urbanist_500Medium', marginTop: 1 },
+
+  listHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 24, marginBottom: 12 },
   listTitle: { fontSize: 20 },
-  listCount: { fontSize: 14 },
+  countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, minWidth: 26, alignItems: 'center' },
+  countBadgeText: { fontSize: 12 },
+
   gridRow: { paddingHorizontal: 24, gap: 12, marginBottom: 12 },
   gridContent: {},
-  card: { flex: 1, height: 180, borderRadius: 16, overflow: 'hidden' },
-  cardLarge: { height: 220 },
-  cardImage: { width: '100%', height: '100%' },
-  cardGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '65%' },
-  cardContent: { position: 'absolute', bottom: 10, left: 10, right: 10 },
-  cardName: { fontSize: 15, color: '#fff', marginBottom: 3 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 5 },
-  cardDistance: { fontSize: 11, color: '#ddd', marginRight: 6 },
-  cardRating: { fontSize: 11, color: '#fff' },
-  openBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-  openDot: { width: 5, height: 5, borderRadius: 3 },
-  openText: { fontSize: 9 },
-  mapFullContainer: { flex: 1 },
-  emptyContainer: { alignItems: 'center', paddingTop: 60, gap: 12 },
-  emptyText: { fontSize: 16 },
+
+  card: {
+    flex: 1,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardImageWrap: { position: 'relative' },
+  cardImage: { width: '100%', height: 130 },
+  cardGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
+  openBadge: {
+    position: 'absolute', top: 10, left: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 12,
+  },
+  openDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#fff' },
+  openText: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 9, textTransform: 'uppercase' },
+  ratingFloat: {
+    position: 'absolute', top: 10, right: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 10,
+  },
+  ratingFloatText: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 10 },
+  cardBody: { padding: 12 },
+  cardName: { fontSize: 14, fontFamily: 'Urbanist_700Bold', marginBottom: 6 },
+  cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaChip: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  metaChipText: { fontSize: 10, fontFamily: 'Urbanist_700Bold' },
+  reviewCount: { fontSize: 11, fontFamily: 'Urbanist_500Medium' },
+
+  emptyContainer: { alignItems: 'center', paddingTop: 60, gap: 10, paddingHorizontal: 24 },
+  emptyIconWrap: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  emptyTitle: { fontSize: 17 },
+  emptySubtext: { fontSize: 13, textAlign: 'center' },
 });

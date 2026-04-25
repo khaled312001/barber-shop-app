@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, Scissors } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Login() {
+    const { t } = useLanguage();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -20,7 +22,7 @@ export default function Login() {
             const user = res.data?.user;
 
             if (!user || (user.role !== 'super_admin' && user.role !== 'admin')) {
-                setError('Access denied. This portal is for Super Admins only.');
+                setError(t('access_denied'));
                 setLoading(false);
                 return;
             }
@@ -41,10 +43,10 @@ export default function Login() {
                         <Scissors className="text-[#181A20]" size={28} />
                     </div>
                     <h1 className="text-2xl font-bold text-zinc-100">Barmagly</h1>
-                    <p className="text-zinc-400 mt-2 text-sm">Super Admin Portal</p>
+                    <p className="text-zinc-400 mt-2 text-sm">{t('super_admin_portal')}</p>
                     <div className="mt-3 inline-flex items-center gap-2 bg-[#F4A460]/10 border border-[#F4A460]/20 rounded-full px-4 py-1.5">
                         <div className="w-2 h-2 rounded-full bg-[#F4A460] animate-pulse"></div>
-                        <span className="text-[#F4A460] text-xs font-medium">Super Admin Access Only</span>
+                        <span className="text-[#F4A460] text-xs font-medium">{t('super_admin_only')}</span>
                     </div>
                 </div>
 
@@ -56,7 +58,7 @@ export default function Login() {
 
                 <form onSubmit={handleLogin} className="space-y-5">
                     <div>
-                        <label className="block text-sm font-medium text-zinc-400 mb-2">Email Address</label>
+                        <label className="block text-sm font-medium text-zinc-400 mb-2">{t('email_address')}</label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
                             <input
@@ -71,7 +73,7 @@ export default function Login() {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-zinc-400 mb-2">Password</label>
+                        <label className="block text-sm font-medium text-zinc-400 mb-2">{t('password')}</label>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
                             <input
@@ -90,12 +92,12 @@ export default function Login() {
                         disabled={loading}
                         className="w-full bg-[#F4A460] hover:bg-[#e8935a] text-[#181A20] font-bold rounded-xl py-3.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4 shadow-lg shadow-[#F4A460]/20"
                     >
-                        {loading ? 'Signing in...' : 'Sign In'}
+                        {loading ? t('signing_in') : t('sign_in')}
                     </button>
                 </form>
 
                 <p className="text-center text-xs text-zinc-600 mt-6">
-                    Barmagly Super Admin · All rights reserved
+                    Barmagly Super Admin · {t('all_rights_reserved')}
                 </p>
             </div>
         </div>

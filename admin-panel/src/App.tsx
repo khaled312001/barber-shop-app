@@ -48,6 +48,7 @@ import SalonShifts from './pages/salon/SalonShifts';
 import SalonExpenses from './pages/salon/SalonExpenses';
 import SalonSettings from './pages/salon/SalonSettings';
 import SalonSubscription from './pages/salon/Subscription';
+import SalonCoupons from './pages/salon/SalonCoupons';
 
 // Staff Pages
 import StaffSchedule from './pages/staff/Schedule';
@@ -94,6 +95,7 @@ function App() {
                 <Route path="appointments" element={<SalonAppointments />} />
                 <Route path="staff" element={<SalonStaff />} />
                 <Route path="services" element={<SalonServices />} />
+                <Route path="coupons" element={<SalonCoupons />} />
                 <Route path="customers" element={<Customers />} />
                 <Route path="payments" element={<SalonPayments />} />
                 <Route path="analytics" element={<SalonAnalytics />} />

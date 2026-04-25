@@ -7,9 +7,11 @@ import { goBack } from '@/lib/navigation';
 import { useTheme } from '@/constants/theme';
 import { Image } from 'expo-image';
 import { DEFAULT_AVATAR } from '@/constants/images';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SalonReviewsScreen() {
     const theme = useTheme();
+    const { t, isRTL } = useLanguage();
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const { id } = { id: '1' }; // Default for standalone usage
@@ -39,7 +41,7 @@ export default function SalonReviewsScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="close" size={24} color={theme.text} />
                 </Pressable>
-                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Reviews</Text>
+                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('reviews')}</Text>
                 <View style={styles.placeholder} />
             </View>
 
@@ -51,7 +53,7 @@ export default function SalonReviewsScreen() {
                     ))}
                 </View>
                 <Text style={[styles.totalReviews, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>
-                    Based on 124 reviews
+                    {t('based_on_reviews').replace('{count}', '124')}
                 </Text>
             </View>
 
@@ -77,7 +79,7 @@ export default function SalonReviewsScreen() {
                                         color: filter === f ? '#fff' : theme.primary,
                                         fontFamily: 'Urbanist_600SemiBold'
                                     }
-                                ]}>{f === 'All' ? 'All Reviews' : f}</Text>
+                                ]}>{f === 'All' ? t('all_reviews') : f}</Text>
                             </View>
                         </Pressable>
                     ))}
@@ -87,7 +89,7 @@ export default function SalonReviewsScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {filteredReviews.length === 0 ? (
                     <Text style={[styles.emptyText, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>
-                        No reviews found for this rating.
+                        {t('no_reviews_rating')}
                     </Text>
                 ) : (
                     filteredReviews.map((review) => (

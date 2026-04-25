@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Wallet } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function AdminExpenses() {
+    const { t } = useLanguage();
     const { data: expenses = [], isLoading } = useQuery({
         queryKey: ['all-expenses'],
-        queryFn: async () => { const { data } = await api.get('/admin/expenses'); return data; },
+        queryFn: async () => { const { data } = await api.get('/admin/expenses'); return Array.isArray(data) ? data : []; },
     });
     const { data: salonsRaw = [] } = useQuery({ queryKey: ['salons'], queryFn: async () => { const { data } = await api.get('/admin/salons'); return Array.isArray(data) ? data : data?.data || []; } });
 
@@ -16,11 +18,11 @@ export default function AdminExpenses() {
         <div className="p-6">
             <div className="flex items-center gap-3 mb-8">
                 <Wallet className="text-[#F4A460]" size={24} />
-                <div><h1 className="text-2xl font-bold text-white">Expenses</h1><p className="text-zinc-400 text-sm">All salon expenses across the platform</p></div>
+                <div><h1 className="text-2xl font-bold text-white">{t('admin_expenses')}</h1><p className="text-zinc-400 text-sm">{t('all_salon_expenses')}</p></div>
             </div>
 
             <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-5 mb-6 inline-block">
-                <p className="text-zinc-400 text-sm mb-1">Total Platform Expenses</p>
+                <p className="text-zinc-400 text-sm mb-1">{t('total_platform_expenses')}</p>
                 <p className="text-3xl font-bold text-[#F4A460]">${total.toFixed(2)}</p>
             </div>
 
@@ -28,11 +30,11 @@ export default function AdminExpenses() {
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-[#35383F] text-zinc-400">
-                            <th className="text-left px-6 py-4 font-medium">Salon</th>
-                            <th className="text-left px-6 py-4 font-medium">Description</th>
-                            <th className="text-left px-6 py-4 font-medium">Category</th>
-                            <th className="text-left px-6 py-4 font-medium">Amount</th>
-                            <th className="text-left px-6 py-4 font-medium">Date</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('salon')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('description')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('category_label')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('amount_col')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('date')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -47,7 +49,7 @@ export default function AdminExpenses() {
                                 <td className="px-6 py-4 text-zinc-500">{e.date}</td>
                             </tr>
                         ))}
-                        {!isLoading && expenses.length === 0 && <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-500">No expenses reported</td></tr>}
+                        {!isLoading && expenses.length === 0 && <tr><td colSpan={5} className="px-6 py-12 text-center text-zinc-500">{t('no_expenses')}</td></tr>}
                     </tbody>
                 </table>
             </div>

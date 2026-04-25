@@ -8,9 +8,11 @@ import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { DEFAULT_AVATAR } from '@/constants/images';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AdminStaffScreen() {
     const theme = useTheme();
+    const { t, isRTL } = useLanguage();
     const insets = useSafeAreaInsets();
 
     // Simulating staff data fetch
@@ -39,14 +41,14 @@ export default function AdminStaffScreen() {
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <View style={[styles.header, { paddingTop: topPad }]}>
-                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Salon Staff</Text>
+                <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('salon_staff_admin')}</Text>
                 <Pressable
                     onPress={() => setIsAdding(!isAdding)}
                     style={[styles.addButton, { backgroundColor: theme.primary }]}
                 >
                     <Ionicons name={isAdding ? "close" : "person-add"} size={18} color="#fff" />
                     <Text style={[styles.addButtonText, { fontFamily: 'Urbanist_600SemiBold' }]}>
-                        {isAdding ? 'Cancel' : 'Add Staff'}
+                        {isAdding ? t('cancel') : t('add_staff')}
                     </Text>
                 </Pressable>
             </View>
@@ -55,10 +57,10 @@ export default function AdminStaffScreen() {
 
                 {isAdding && (
                     <View style={[styles.addForm, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                        <Text style={[styles.formTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>Add New Staff Member</Text>
+                        <Text style={[styles.formTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>{t('add_new_staff')}</Text>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>Full Name</Text>
+                            <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>{t('full_name')}</Text>
                             <TextInput
                                 style={[styles.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.inputBorder }]}
                                 placeholder="e.g. David Brown"
@@ -69,7 +71,7 @@ export default function AdminStaffScreen() {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>Email (for login)</Text>
+                            <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>{t('email_login')}</Text>
                             <TextInput
                                 style={[styles.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.inputBorder }]}
                                 placeholder="david@salon.com"
@@ -82,7 +84,7 @@ export default function AdminStaffScreen() {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>Role</Text>
+                            <Text style={[styles.label, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>{t('role')}</Text>
                             <TextInput
                                 style={[styles.input, { backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.inputBorder }]}
                                 placeholder="e.g. Master Barber"
@@ -97,7 +99,7 @@ export default function AdminStaffScreen() {
                             style={[styles.submitButton, { backgroundColor: theme.primary, opacity: (!newStaff.name || !newStaff.role) ? 0.5 : 1 }]}
                             disabled={!newStaff.name || !newStaff.role}
                         >
-                            <Text style={[styles.submitButtonText, { fontFamily: 'Urbanist_700Bold' }]}>Save Staff Member</Text>
+                            <Text style={[styles.submitButtonText, { fontFamily: 'Urbanist_700Bold' }]}>{t('save_staff')}</Text>
                         </Pressable>
                     </View>
                 )}
@@ -123,13 +125,13 @@ export default function AdminStaffScreen() {
                                     <View style={styles.stat}>
                                         <Ionicons name="star" size={16} color={theme.star} />
                                         <Text style={[styles.statValue, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{person.rating}</Text>
-                                        <Text style={[styles.statLabel, { color: theme.textTertiary, fontFamily: 'Urbanist_500Medium' }]}>Rating</Text>
+                                        <Text style={[styles.statLabel, { color: theme.textTertiary, fontFamily: 'Urbanist_500Medium' }]}>{t('rating')}</Text>
                                     </View>
                                     <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
                                     <View style={styles.stat}>
                                         <Ionicons name="calendar-outline" size={16} color={theme.primary} />
                                         <Text style={[styles.statValue, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{person.bookings}</Text>
-                                        <Text style={[styles.statLabel, { color: theme.textTertiary, fontFamily: 'Urbanist_500Medium' }]}>Bookings</Text>
+                                        <Text style={[styles.statLabel, { color: theme.textTertiary, fontFamily: 'Urbanist_500Medium' }]}>{t('tab_bookings')}</Text>
                                     </View>
                                 </View>
                             </View>

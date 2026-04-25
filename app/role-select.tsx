@@ -4,46 +4,30 @@ import { router, Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '@/contexts/AppContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const PRIMARY = '#F4A460';
 const BG = '#181A20';
 const CARD = '#1F222A';
 const BORDER = '#35383F';
 
-const ROLES = [
-  {
-    key: 'admin',
-    icon: 'shield-checkmark',
-    label: 'Admin',
-    labelAr: 'مدير الصالون',
-    desc: 'إدارة الحجوزات والموظفين والخدمات',
-    color: '#6C63FF',
-    route: '/(salon-admin)',
-  },
-  {
-    key: 'barber',
-    icon: 'cut',
-    label: 'Barber',
-    labelAr: 'حلاق / موظف',
-    desc: 'عرض جدولك وحجوزاتك اليومية',
-    color: PRIMARY,
-    route: '/(staff)',
-  },
-  {
-    key: 'customer',
-    icon: 'person',
-    label: 'Customer',
-    labelAr: 'عميل',
-    desc: 'احجز موعدك وتابع خدماتك',
-    color: '#10B981',
-    route: '/(tabs)',
-  },
+const ROLE_DEFS = [
+  { key: 'admin', icon: 'shield-checkmark', labelKey: 'role_admin_label', descKey: 'role_admin_desc', subKey: '', color: '#6C63FF', route: '/dashboard' },
+  { key: 'barber', icon: 'cut', labelKey: 'role_barber_label', descKey: 'role_barber_desc', subKey: 'role_barber_sub', color: PRIMARY, route: '/schedule' },
+  { key: 'customer', icon: 'person', labelKey: 'role_customer_label', descKey: 'role_customer_desc', subKey: '', color: '#10B981', route: '/(tabs)' },
 ];
 
 export default function RoleSelectScreen() {
   const { user, authLoading } = useApp();
+  const { t, isRTL } = useLanguage();
   const [salonName, setSalonName] = useState('');
   const [loading, setLoading] = useState(false);
+  const ROLES = ROLE_DEFS.map(r => ({
+    ...r,
+    label: t(r.labelKey as any),
+    labelAr: r.subKey ? t(r.subKey as any) : '',
+    desc: t(r.descKey as any),
+  }));
 
   useEffect(() => {
     AsyncStorage.getItem('license_salon_name').then(n => {
@@ -57,19 +41,19 @@ export default function RoleSelectScreen() {
     setTimeout(() => {
       if (role.key === 'customer') {
         if (user) {
-          router.replace('/(tabs)');
+          router.replace('/home');
         } else {
           router.replace('/signin');
         }
       } else if (role.key === 'admin') {
         if (user?.role === 'salon_admin') {
-          router.replace('/(salon-admin)' as Href);
+          router.replace('/dashboard');
         } else {
           router.replace('/signin');
         }
       } else if (role.key === 'barber') {
         if (user?.role === 'staff') {
-          router.replace('/(staff)' as Href);
+          router.replace('/schedule');
         } else {
           router.replace('/signin');
         }
@@ -93,9 +77,14 @@ export default function RoleSelectScreen() {
         <View style={styles.logoCircle}>
           <Ionicons name="cut" size={26} color="#181A20" />
         </View>
-        <Text style={styles.title}>اختر دورك</Text>
-        {salonName ? <Text style={styles.salonName}>📍 {salonName}</Text> : null}
-        <Text style={styles.subtitle}>ستُفتح الواجهة المناسبة لدورك تلقائياً</Text>
+        <Text style={styles.title}>{t('select_your_role')}</Text>
+        {salonName ? (
+          <View style={styles.salonNameRow}>
+            <Ionicons name="location" size={14} color={PRIMARY} />
+            <Text style={styles.salonName}>{salonName}</Text>
+          </View>
+        ) : null}
+        <Text style={styles.subtitle}>{t('role_subtitle')}</Text>
       </View>
 
       {/* Role Cards */}
@@ -122,7 +111,7 @@ export default function RoleSelectScreen() {
 
       <Pressable onPress={() => router.replace('/license' as Href)} style={styles.back}>
         <Ionicons name="arrow-back" size={16} color="#666" />
-        <Text style={styles.backText}>تغيير مفتاح الترخيص</Text>
+        <Text style={styles.backText}>{t('change_license_key')}</Text>
       </Pressable>
     </View>
   );
@@ -133,7 +122,8 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 36 },
   logoCircle: { width: 60, height: 60, borderRadius: 18, backgroundColor: PRIMARY, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   title: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 26, marginBottom: 6 },
-  salonName: { color: PRIMARY, fontFamily: 'Urbanist_600SemiBold', fontSize: 14, marginBottom: 6 },
+  salonNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
+  salonName: { color: PRIMARY, fontFamily: 'Urbanist_600SemiBold', fontSize: 14 },
   subtitle: { color: '#666', fontFamily: 'Urbanist_400Regular', fontSize: 13, textAlign: 'center' },
   cards: { gap: 14 },
   card: { backgroundColor: CARD, borderRadius: 18, borderWidth: 1, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 },

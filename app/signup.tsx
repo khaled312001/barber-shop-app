@@ -34,7 +34,7 @@ export default function SignUpScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await signup(fullName, email, password);
-      router.replace('/(tabs)');
+      router.replace('/home');
     } catch (e: any) {
       Alert.alert(t('sign_up_failed'), e?.message || t('please_try_again'));
     } finally {

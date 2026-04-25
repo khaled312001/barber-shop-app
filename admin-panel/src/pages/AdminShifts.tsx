@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { CalendarCheck } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function AdminShifts() {
+    const { t } = useLanguage();
     const { data: shifts = [], isLoading } = useQuery({
         queryKey: ['all-shifts'],
-        queryFn: async () => { const { data } = await api.get('/admin/shifts'); return data; },
+        queryFn: async () => { const { data } = await api.get('/admin/shifts'); return Array.isArray(data) ? data : []; },
     });
     const { data: salonsRaw = [] } = useQuery({ queryKey: ['salons'], queryFn: async () => { const { data } = await api.get('/admin/salons'); return Array.isArray(data) ? data : data?.data || []; } });
 
@@ -17,16 +19,16 @@ export default function AdminShifts() {
         <div className="p-6">
             <div className="flex items-center gap-3 mb-8">
                 <CalendarCheck className="text-[#F4A460]" size={24} />
-                <div><h1 className="text-2xl font-bold text-white">Shifts</h1><p className="text-zinc-400 text-sm">Staff shifts across all salons</p></div>
+                <div><h1 className="text-2xl font-bold text-white">{t('admin_shifts')}</h1><p className="text-zinc-400 text-sm">{t('staff_shifts_all')}</p></div>
             </div>
 
             <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl overflow-hidden">
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-[#35383F] text-zinc-400">
-                            <th className="text-left px-6 py-4 font-medium">Salon</th>
-                            <th className="text-left px-6 py-4 font-medium">Day</th>
-                            <th className="text-left px-6 py-4 font-medium">Hours</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('salon')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('day')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('hours')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -39,7 +41,7 @@ export default function AdminShifts() {
                                 <td className="px-6 py-4 text-zinc-400">{s.startTime} — {s.endTime}</td>
                             </tr>
                         ))}
-                        {!isLoading && shifts.length === 0 && <tr><td colSpan={3} className="px-6 py-12 text-center text-zinc-500">No shifts defined</td></tr>}
+                        {!isLoading && shifts.length === 0 && <tr><td colSpan={3} className="px-6 py-12 text-center text-zinc-500">{t('no_shifts')}</td></tr>}
                     </tbody>
                 </table>
             </div>

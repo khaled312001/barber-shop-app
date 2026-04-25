@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { goBack } from '@/lib/navigation';
@@ -38,29 +38,48 @@ export default function LoyaltyScreen() {
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['loyalty-wallet'] });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert(t('success') || 'Success', 'تم استبدال النقاط بنجاح!');
+            if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            const msg = (() => { const s = t('redeem_success'); return s && s !== 'redeem_success' ? s : 'Reward redeemed successfully!'; })();
+            if (Platform.OS === 'web') window.alert(msg);
+            else Alert.alert(t('success') || 'Success', msg);
         },
-        onError: (e: any) => Alert.alert('خطأ', e.message || 'فشل الاستبدال'),
+        onError: (e: any) => {
+            const msg = e?.message || t('failed_redeem') || 'Failed to redeem points';
+            if (Platform.OS === 'web') window.alert(msg);
+            else Alert.alert(t('error') || 'Error', msg);
+        },
     });
 
+    // Fallback-safe labels (never show raw translation keys)
+    const fb = (key: string, fallback: string) => {
+        const s = t(key as any);
+        return s && s !== key ? s : fallback;
+    };
+
     const REWARDS = [
-        { id: '1', title: t('free_hair_wash') || 'غسيل شعر مجاني', points: 150 },
-        { id: '2', title: t('beard_trim_discount') || 'خصم 50% على اللحية', points: 300 },
-        { id: '3', title: t('free_premium_haircut') || 'قصة شعر مجانية', points: 800 },
-        { id: '4', title: 'VIP Barber Choice', points: 1500 },
+        { id: '1', title: fb('free_hair_wash', 'Free Hair Wash'), points: 150, icon: 'water' as const, color: '#0EA5E9' },
+        { id: '2', title: fb('beard_trim_discount', '50% Off Beard Trim'), points: 300, icon: 'razor-double-edge' as const, color: '#8B5CF6' },
+        { id: '3', title: fb('free_premium_haircut', 'Free Premium Haircut'), points: 800, icon: 'content-cut' as const, color: '#F4A460' },
+        { id: '4', title: fb('vip_barber_choice', 'VIP Barber Choice'), points: 1500, icon: 'crown' as const, color: '#FFC107' },
     ];
 
     const handleRedeem = (item: typeof REWARDS[0]) => {
         if (currentPoints < item.points) return;
-        Alert.alert(
-            t('redeem_reward') || 'Redeem Reward',
-            `استبدال ${item.points} نقطة مقابل: ${item.title}؟`,
-            [
-                { text: t('cancel') || 'إلغاء', style: 'cancel' },
-                { text: t('confirm') || 'تأكيد', onPress: () => redeemMutation.mutate(item.points) },
-            ]
-        );
+        const title = fb('redeem_reward', 'Redeem Reward');
+        const msg = fb('redeem_confirm_msg', `Redeem ${item.points} points for: ${item.title}?`)
+            .replace('{points}', String(item.points))
+            .replace('{title}', item.title);
+        // Web: use window.confirm (Alert.alert doesn't render on web reliably)
+        if (Platform.OS === 'web') {
+            if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${msg}`)) {
+                redeemMutation.mutate(item.points);
+            }
+            return;
+        }
+        Alert.alert(title, msg, [
+            { text: t('cancel') || 'Cancel', style: 'cancel' },
+            { text: t('confirm') || 'Confirm', onPress: () => redeemMutation.mutate(item.points) },
+        ]);
     };
 
     return (
@@ -83,21 +102,21 @@ export default function LoyaltyScreen() {
                     {/* Points Card */}
                     <View style={[styles.pointsCard, { backgroundColor: theme.primary }]}>
                         <Text style={[styles.pointsLabel, { fontFamily: 'Urbanist_500Medium' }]}>
-                            {t('points_balance') || 'رصيد النقاط'}
+                            {fb('points_balance', 'Your Points Balance')}
                         </Text>
                         <View style={styles.pointsRow}>
                             <Ionicons name="star" size={36} color="#FFE169" />
                             <Text style={[styles.pointsValue, { fontFamily: 'Urbanist_700Bold' }]}>{currentPoints}</Text>
                         </View>
                         <Text style={[styles.pointsDesc, { fontFamily: 'Urbanist_400Regular' }]}>
-                            {t('earn_points_info') || 'اكسب 10 نقاط مقابل كل $1 تنفقها على الخدمات'}
+                            {fb('earn_points_info', 'Earn 10 points for every $1 spent on services')}
                         </Text>
                         {/* Mini progress to next reward */}
                         <View style={styles.progressRow}>
                             <Text style={styles.progressText}>
                                 {currentPoints < 150
-                                    ? `${150 - currentPoints} نقطة للمكافأة التالية`
-                                    : 'لديك مكافآت متاحة! ✨'}
+                                    ? fb('points_to_next', `${150 - currentPoints} points to next reward`).replace('{n}', String(150 - currentPoints))
+                                    : fb('rewards_available', 'You have rewards available!')}
                             </Text>
                         </View>
                     </View>
@@ -146,7 +165,7 @@ export default function LoyaltyScreen() {
                     {transactions.length > 0 && (
                         <>
                             <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold', textAlign: isRTL ? 'right' : 'left', marginTop: 24 }]}>
-                                سجل المعاملات
+                                {fb('transactions_history', 'Transactions History')}
                             </Text>
                             {transactions.slice(0, 10).map((txn: any) => (
                                 <View key={txn.id} style={[styles.txnRow, { backgroundColor: theme.surface, borderColor: theme.border, flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
@@ -160,7 +179,7 @@ export default function LoyaltyScreen() {
                                     <View style={{ flex: 1, marginLeft: isRTL ? 0 : 10, marginRight: isRTL ? 10 : 0 }}>
                                         <Text style={[styles.txnDesc, { color: theme.text }]}>{txn.description || txn.type}</Text>
                                         <Text style={[styles.txnDate, { color: theme.textSecondary }]}>
-                                            {new Date(txn.createdAt).toLocaleDateString('ar')}
+                                            {new Date(txn.createdAt).toLocaleDateString()}
                                         </Text>
                                     </View>
                                     <Text style={[styles.txnPoints, { color: txn.points > 0 ? '#10B981' : '#EF4444' }]}>

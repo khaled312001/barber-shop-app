@@ -1,15 +1,18 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { CalendarCheck, UserCircle, Clock, LogOut, Scissors } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const navItems = [
-    { name: 'Schedule', path: '/staff', icon: Clock },
-    { name: 'Appointments', path: '/staff/appointments', icon: CalendarCheck },
-    { name: 'My Profile', path: '/staff/profile', icon: UserCircle },
+    { nameKey: 'staff_schedule', path: '/staff', icon: Clock },
+    { nameKey: 'staff_appointments', path: '/staff/appointments', icon: CalendarCheck },
+    { nameKey: 'staff_profile', path: '/staff/profile', icon: UserCircle },
 ];
 
 export default function StaffLayout() {
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     const handleLogout = async () => {
         try { await api.post('/auth/logout'); } catch { }
@@ -25,8 +28,12 @@ export default function StaffLayout() {
                     </div>
                     <div>
                         <p className="font-bold text-white">Barmagly</p>
-                        <p className="text-zinc-500 text-xs">Staff View</p>
+                        <p className="text-zinc-500 text-xs">{t('nav_staff_view')}</p>
                     </div>
+                </div>
+
+                <div className="px-4 pt-3">
+                    <LanguageSwitcher />
                 </div>
 
                 <nav className="flex-1 px-3 py-4 space-y-1">
@@ -35,7 +42,7 @@ export default function StaffLayout() {
                         return (
                             <NavLink key={item.path} to={item.path} end={item.path === '/staff'}
                                 className={({ isActive }) => `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all ${isActive ? 'bg-[#F4A460]/15 text-[#F4A460] font-medium' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}>
-                                <Icon size={18} className="shrink-0" /><span>{item.name}</span>
+                                <Icon size={18} className="shrink-0" /><span>{t(item.nameKey)}</span>
                             </NavLink>
                         );
                     })}
@@ -43,7 +50,7 @@ export default function StaffLayout() {
 
                 <div className="p-3 border-t border-[#35383F]">
                     <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors text-sm">
-                        <LogOut size={18} /><span>Logout</span>
+                        <LogOut size={18} /><span>{t('logout')}</span>
                     </button>
                 </div>
             </aside>

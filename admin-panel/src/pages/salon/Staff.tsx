@@ -2,15 +2,17 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Plus, Trash2, X } from 'lucide-react';
 import api from '../../lib/api';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function SalonStaff() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ fullName: '', staffRole: 'barber', email: '', phone: '', password: 'password123' });
 
     const { data: staff = [], isLoading } = useQuery({
         queryKey: ['salon-staff'],
-        queryFn: async () => { const { data } = await api.get('/salon/staff'); return data; },
+        queryFn: async () => { const { data } = await api.get('/salon/staff'); return Array.isArray(data) ? data : []; },
     });
 
     const create = useMutation({
@@ -28,10 +30,10 @@ export default function SalonStaff() {
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                     <Users className="text-[#F4A460]" size={24} />
-                    <div><h1 className="text-2xl font-bold text-white">Staff</h1><p className="text-zinc-400 text-sm">Manage your salon team</p></div>
+                    <div><h1 className="text-2xl font-bold text-white">{t('salon_staff_title')}</h1><p className="text-zinc-400 text-sm">{t('manage_team')}</p></div>
                 </div>
                 <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-[#F4A460] hover:bg-[#e8935a] text-[#181A20] font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors">
-                    <Plus size={18} /> Add Staff
+                    <Plus size={18} /> {t('add_staff_member')}
                 </button>
             </div>
 
@@ -39,15 +41,15 @@ export default function SalonStaff() {
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
                     <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-6 w-full max-w-md">
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-lg font-bold text-white">Add Staff Member</h2>
+                            <h2 className="text-lg font-bold text-white">{t('add_staff_member')}</h2>
                             <button onClick={() => setShowForm(false)} className="text-zinc-400 hover:text-white"><X size={20} /></button>
                         </div>
                         <div className="space-y-4">
                             {[
-                                { label: 'Full Name', key: 'fullName', type: 'text', placeholder: 'John Doe' },
-                                { label: 'Email', key: 'email', type: 'email', placeholder: 'john@example.com' },
-                                { label: 'Phone', key: 'phone', type: 'text', placeholder: '+1 234 567 8900' },
-                                { label: 'Initial Password', key: 'password', type: 'text', placeholder: 'password123' },
+                                { label: t('full_name'), key: 'fullName', type: 'text', placeholder: 'John Doe' },
+                                { label: t('email'), key: 'email', type: 'email', placeholder: 'john@example.com' },
+                                { label: t('phone'), key: 'phone', type: 'text', placeholder: '+1 234 567 8900' },
+                                { label: t('password'), key: 'password', type: 'text', placeholder: 'password123' },
                             ].map(f => (
                                 <div key={f.key}>
                                     <label className="block text-sm text-zinc-400 mb-1.5">{f.label}</label>
@@ -56,18 +58,18 @@ export default function SalonStaff() {
                                 </div>
                             ))}
                             <div>
-                                <label className="block text-sm text-zinc-400 mb-1.5">Role</label>
+                                <label className="block text-sm text-zinc-400 mb-1.5">{t('role')}</label>
                                 <select value={form.staffRole} onChange={e => setForm(p => ({ ...p, staffRole: e.target.value }))} className="w-full bg-[#181A20] border border-[#35383F] text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#F4A460]">
-                                    <option value="barber">Barber</option>
-                                    <option value="stylist">Stylist</option>
+                                    <option value="barber">{t('role_barber')}</option>
+                                    <option value="stylist">{t('stylist')}</option>
                                     <option value="receptionist">Receptionist</option>
-                                    <option value="staff">Staff</option>
-                                    <option value="salon_admin">Salon Admin</option>
+                                    <option value="staff">{t('salon_staff_title')}</option>
+                                    <option value="salon_admin">{t('salon_admin_role')}</option>
                                 </select>
                             </div>
                             <button onClick={() => create.mutate(form)} disabled={!form.fullName || create.isPending}
                                 className="w-full bg-[#F4A460] hover:bg-[#e8935a] text-[#181A20] font-semibold rounded-xl py-3 transition-colors disabled:opacity-50 mt-2">
-                                Add Staff Member
+                                {t('add_staff_member')}
                             </button>
                         </div>
                     </div>
@@ -87,14 +89,14 @@ export default function SalonStaff() {
                                     <p className="text-zinc-500 text-xs capitalize">{s.staffRole || s.role}</p>
                                 </div>
                             </div>
-                            <button onClick={() => { if (confirm('Remove staff member?')) remove.mutate(s.linkId || s.id); }} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={16} /></button>
+                            <button onClick={() => { if (confirm(t('remove_staff_confirm'))) remove.mutate(s.linkId || s.id); }} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={16} /></button>
                         </div>
                         {s.email && <p className="text-zinc-500 text-sm mt-3">{s.email}</p>}
                         {s.phone && <p className="text-zinc-500 text-sm">{s.phone}</p>}
                     </div>
                 ))}
                 {!isLoading && staff.length === 0 && (
-                    <div className="col-span-3 py-12 text-center text-zinc-500">No staff members yet</div>
+                    <div className="col-span-3 py-12 text-center text-zinc-500">{t('no_staff_members')}</div>
                 )}
             </div>
         </div>

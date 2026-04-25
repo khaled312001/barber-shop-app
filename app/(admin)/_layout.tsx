@@ -4,9 +4,11 @@ import { Slot, useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/colors';
 import { useApp } from '@/contexts/AppContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AdminLayout() {
     const { user } = useApp();
+    const { t, isRTL } = useLanguage();
     const router = useRouter();
     const pathname = usePathname();
     const colorScheme = useColorScheme();
@@ -19,18 +21,18 @@ export default function AdminLayout() {
         if (!user) {
             router.replace('/signin');
         } else if ((user as any).role !== 'admin') {
-            router.replace('/(tabs)');
+            router.replace('/home');
         }
     }, [user]);
 
     const navItems = [
-        { name: 'Dashboard', route: '/(admin)', icon: 'grid-outline' },
-        { name: 'Users', route: '/(admin)/users', icon: 'people-outline' },
-        { name: 'Salons', route: '/(admin)/salons', icon: 'business-outline' },
-        { name: 'Bookings', route: '/(admin)/bookings', icon: 'calendar-outline' },
-        { name: 'Services', route: '/(admin)/services', icon: 'cut-outline' },
-        { name: 'Staff', route: '/(admin)/staff', icon: 'id-card-outline' },
-        { name: 'Exit Admin', route: '/(tabs)', icon: 'exit-outline' },
+        { name: t('dashboard'), route: '/(admin)', icon: 'grid-outline' },
+        { name: t('users'), route: '/(admin)/users', icon: 'people-outline' },
+        { name: t('salons'), route: '/(admin)/salons', icon: 'business-outline' },
+        { name: t('tab_bookings'), route: '/(admin)/bookings', icon: 'calendar-outline' },
+        { name: t('services'), route: '/(admin)/services', icon: 'cut-outline' },
+        { name: t('staff_title'), route: '/(admin)/staff', icon: 'id-card-outline' },
+        { name: t('exit_admin'), route: '/(tabs)', icon: 'exit-outline' },
     ];
 
     return (
@@ -40,7 +42,7 @@ export default function AdminLayout() {
                 <View style={[styles.sidebar, { borderRightColor: colors.border, backgroundColor: colors.surface }]}>
                     <View style={styles.logoContainer}>
                         <View style={[styles.logoDot, { backgroundColor: colors.primary }]} />
-                        <Text style={[styles.logoText, { color: colors.text }]}>Admin Panel</Text>
+                        <Text style={[styles.logoText, { color: colors.text }]}>{t('admin_panel')}</Text>
                     </View>
 
                     <ScrollView style={styles.navConfig}>

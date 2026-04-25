@@ -2,11 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import api from '../lib/api';
 import { CheckCircle, XCircle, Edit2, Trash2, Plus, Zap, Star, Building2 } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const TIER_ICONS: Record<string, any> = { Basic: Zap, Pro: Star, Enterprise: Building2 };
 const TIER_COLORS: Record<string, string> = { Basic: '#6C63FF', Pro: '#F4A460', Enterprise: '#10B981' };
 
 export default function Plans() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [showForm, setShowForm] = useState(false);
     const [editing, setEditing] = useState<any>(null);
@@ -43,12 +45,18 @@ export default function Plans() {
         onSuccess: () => qc.invalidateQueries({ queryKey: ['plans'] }),
     });
 
+    const parseFeatures = (f: any): string[] => {
+        if (Array.isArray(f)) return f;
+        if (typeof f === 'string') { try { const p = JSON.parse(f); return Array.isArray(p) ? p : []; } catch { return f ? f.split('\n').filter(Boolean) : []; } }
+        return [];
+    };
+
     const handleEdit = (plan: any) => {
         setEditing(plan);
         setForm({
             name: plan.name, price: String(plan.price), billingCycle: plan.billingCycle,
             commissionRate: String(plan.commissionRate), maxBookings: String(plan.maxBookings),
-            maxStaff: String(plan.maxStaff), features: (plan.features || []).join('\n'),
+            maxStaff: String(plan.maxStaff), features: parseFeatures(plan.features).join('\n'),
         });
         setShowForm(true);
     };
@@ -88,38 +96,38 @@ export default function Plans() {
         <div className="p-6">
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Subscription Plans</h1>
-                    <p className="text-gray-400 text-sm mt-1">إدارة خطط الاشتراك للصالونات</p>
+                    <h1 className="text-2xl font-bold text-white">{t('subscription_plans')}</h1>
+                    <p className="text-gray-400 text-sm mt-1">{t('manage_plans')}</p>
                 </div>
                 <button onClick={() => { setEditing(null); setShowForm(!showForm); }}
                     className="flex items-center gap-2 bg-[#F4A460] text-[#181A20] font-bold px-4 py-2 rounded-xl text-sm">
-                    <Plus size={16} /> {showForm ? 'إلغاء' : 'خطة جديدة'}
+                    <Plus size={16} /> {showForm ? t('cancel') : t('new_plan')}
                 </button>
             </div>
 
             {/* Form */}
             {showForm && (
                 <div className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-6 mb-6">
-                    <h3 className="text-white font-bold text-lg mb-4">{editing ? 'تعديل الخطة' : 'إضافة خطة جديدة'}</h3>
+                    <h3 className="text-white font-bold text-lg mb-4">{editing ? t('edit_plan') : t('add_new_plan')}</h3>
                     <div className="grid grid-cols-2 gap-4">
-                        <div>{field('اسم الخطة', 'name', 'text', ['Basic', 'Pro', 'Enterprise'])}</div>
-                        <div>{field('السعر ($)', 'price', 'number')}</div>
-                        <div>{field('دورة الفوترة', 'billingCycle', 'text', ['monthly', 'annual'])}</div>
-                        <div>{field('نسبة العمولة (%)', 'commissionRate', 'number')}</div>
-                        <div>{field('حد الحجوزات (0=غير محدود)', 'maxBookings', 'number')}</div>
-                        <div>{field('حد الموظفين (0=غير محدود)', 'maxStaff', 'number')}</div>
+                        <div>{field(t('plan_name'), 'name', 'text', ['Basic', 'Pro', 'Enterprise'])}</div>
+                        <div>{field(t('price_label') + ' ($)', 'price', 'number')}</div>
+                        <div>{field(t('billing_cycle'), 'billingCycle', 'text', ['monthly', 'annual'])}</div>
+                        <div>{field(t('commission_rate'), 'commissionRate', 'number')}</div>
+                        <div>{field(t('booking_limit') + ' (0=' + t('unlimited') + ')', 'maxBookings', 'number')}</div>
+                        <div>{field(t('staff_limit') + ' (0=' + t('unlimited') + ')', 'maxStaff', 'number')}</div>
                     </div>
-                    {field('المميزات (سطر لكل ميزة)', 'features')}
+                    {field(t('features_list'), 'features')}
                     <button onClick={handleSubmit} disabled={save.isPending}
                         className="bg-[#F4A460] text-[#181A20] font-bold px-6 py-2 rounded-xl">
-                        {save.isPending ? 'جاري الحفظ...' : 'حفظ الخطة'}
+                        {save.isPending ? t('saving') : t('save_plan')}
                     </button>
                 </div>
             )}
 
             {/* Plans Grid */}
             {isLoading ? (
-                <div className="text-center text-gray-400 py-20">جاري التحميل...</div>
+                <div className="text-center text-gray-400 py-20">{t('loading')}</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {plans.map((plan: any) => {
@@ -146,12 +154,12 @@ export default function Plans() {
                                 </div>
                                 <div className="text-3xl font-bold text-white mb-1">${plan.price}<span className="text-sm text-gray-400 font-normal">/mo</span></div>
                                 <div className="flex gap-4 text-xs text-gray-400 mb-4">
-                                    <span>عمولة: {plan.commissionRate}%</span>
-                                    <span>موظفين: {plan.maxStaff === 0 ? '∞' : plan.maxStaff}</span>
-                                    <span>حجوزات: {plan.maxBookings === 0 ? '∞' : plan.maxBookings}</span>
+                                    <span>{t('commission')}: {plan.commissionRate}%</span>
+                                    <span>{t('staff_limit')}: {plan.maxStaff === 0 ? '∞' : plan.maxStaff}</span>
+                                    <span>{t('booking_limit')}: {plan.maxBookings === 0 ? '∞' : plan.maxBookings}</span>
                                 </div>
                                 <ul className="space-y-2">
-                                    {(plan.features || []).map((f: string, i: number) => (
+                                    {parseFeatures(plan.features).map((f: string, i: number) => (
                                         <li key={i} className="flex items-center gap-2 text-sm text-gray-300">
                                             <CheckCircle size={14} color={color} /> {f}
                                         </li>
@@ -159,13 +167,13 @@ export default function Plans() {
                                 </ul>
                                 <div className={`mt-4 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${plan.isActive ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                                     {plan.isActive ? <CheckCircle size={12} /> : <XCircle size={12} />}
-                                    {plan.isActive ? 'نشطة' : 'غير نشطة'}
+                                    {plan.isActive ? t('active') : t('inactive')}
                                 </div>
                             </div>
                         );
                     })}
                     {plans.length === 0 && (
-                        <div className="col-span-3 text-center text-gray-500 py-20">لا توجد خطط اشتراك. أنشئ خطة جديدة.</div>
+                        <div className="col-span-3 text-center text-gray-500 py-20">{t('no_plans')}</div>
                     )}
                 </div>
             )}

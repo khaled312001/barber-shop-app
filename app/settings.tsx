@@ -21,8 +21,9 @@ export default function SettingsScreen() {
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
 
   const languages = [
-    { id: 'en' as const, name: t('english') },
-    { id: 'ar' as const, name: t('arabic') },
+    { id: 'en' as const, name: t('english'), flag: '🇺🇸' },
+    { id: 'ar' as const, name: t('arabic'), flag: '🇸🇦' },
+    { id: 'de' as const, name: t('german') || 'Deutsch', flag: '🇩🇪' },
   ];
 
   return (
@@ -41,11 +42,12 @@ export default function SettingsScreen() {
           <Pressable
             key={lang.id}
             onPress={() => setLanguage(lang.id)}
-            style={styles.settingRow}
+            style={[styles.settingRow, language === lang.id && { backgroundColor: theme.primary + '12' }]}
           >
-            <Text style={[styles.settingLabel, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>{lang.name}</Text>
+            <Text style={{ fontSize: 20, marginRight: 10 }}>{lang.flag}</Text>
+            <Text style={[styles.settingLabel, { color: language === lang.id ? theme.primary : theme.text, fontFamily: language === lang.id ? 'Urbanist_700Bold' : 'Urbanist_600SemiBold', flex: 1 }]}>{lang.name}</Text>
             <Ionicons
-              name={language === lang.id ? 'radio-button-on' : 'radio-button-off'}
+              name={language === lang.id ? 'checkmark-circle' : 'radio-button-off'}
               size={22}
               color={language === lang.id ? theme.primary : theme.textTertiary}
             />

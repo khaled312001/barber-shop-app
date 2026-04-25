@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { CreditCard } from 'lucide-react';
 import api from '../../lib/api';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function SalonPayments() {
+    const { t } = useLanguage();
     const { data: bookings = [], isLoading } = useQuery({
         queryKey: ['salon-bookings'],
-        queryFn: async () => { const { data } = await api.get('/salon/bookings'); return data; },
+        queryFn: async () => { const { data } = await api.get('/salon/bookings'); return Array.isArray(data) ? data : []; },
     });
 
     const paid = bookings.filter((b: any) => b.status === 'completed');
@@ -16,14 +18,14 @@ export default function SalonPayments() {
         <div className="p-6">
             <div className="flex items-center gap-3 mb-8">
                 <CreditCard className="text-[#F4A460]" size={24} />
-                <div><h1 className="text-2xl font-bold text-white">Payments</h1><p className="text-zinc-400 text-sm">Revenue from completed bookings</p></div>
+                <div><h1 className="text-2xl font-bold text-white">{t('salon_payments')}</h1><p className="text-zinc-400 text-sm">{t('revenue_completed')}</p></div>
             </div>
 
             <div className="grid grid-cols-3 gap-4 mb-8">
                 {[
-                    { label: 'Total Collected', value: `$${total.toFixed(2)}`, color: 'text-emerald-400' },
-                    { label: 'Pending Revenue', value: `$${pending.toFixed(2)}`, color: 'text-yellow-400' },
-                    { label: 'Paid Bookings', value: paid.length, color: 'text-[#F4A460]' },
+                    { label: t('total_collected'), value: `$${total.toFixed(2)}`, color: 'text-emerald-400' },
+                    { label: t('pending_revenue'), value: `$${pending.toFixed(2)}`, color: 'text-yellow-400' },
+                    { label: t('paid_bookings'), value: paid.length, color: 'text-[#F4A460]' },
                 ].map((s, i) => (
                     <div key={i} className="bg-[#1F222A] border border-[#35383F] rounded-2xl p-5">
                         <p className="text-zinc-400 text-sm mb-1">{s.label}</p>
@@ -36,11 +38,11 @@ export default function SalonPayments() {
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-[#35383F] text-zinc-400">
-                            <th className="text-left px-6 py-4 font-medium">Client</th>
-                            <th className="text-left px-6 py-4 font-medium">Date</th>
-                            <th className="text-left px-6 py-4 font-medium">Method</th>
-                            <th className="text-left px-6 py-4 font-medium">Amount</th>
-                            <th className="text-left px-6 py-4 font-medium">Status</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('total_clients')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('date')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('cash')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('amount')}</th>
+                            <th className="text-left px-6 py-4 font-medium">{t('status')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -50,14 +52,14 @@ export default function SalonPayments() {
                             <tr key={b.id} className="border-b border-[#35383F]/50 hover:bg-white/5 transition-colors">
                                 <td className="px-6 py-4 text-white">{b.userName || 'Guest'}</td>
                                 <td className="px-6 py-4 text-zinc-400">{b.date}</td>
-                                <td className="px-6 py-4 text-zinc-400">{b.paymentMethod || 'cash'}</td>
+                                <td className="px-6 py-4 text-zinc-400">{b.paymentMethod || t('cash')}</td>
                                 <td className="px-6 py-4 font-semibold text-[#F4A460]">${b.totalPrice.toFixed(2)}</td>
                                 <td className="px-6 py-4">
                                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${b.status === 'completed' ? 'bg-emerald-500/15 text-emerald-400' : b.status === 'cancelled' ? 'bg-red-500/15 text-red-400' : 'bg-yellow-500/15 text-yellow-400'}`}>{b.status}</span>
                                 </td>
                             </tr>
                         ))}
-                        {!isLoading && bookings.length === 0 && <tr><td colSpan={5} className="py-12 text-center text-zinc-500">No payment records</td></tr>}
+                        {!isLoading && bookings.length === 0 && <tr><td colSpan={5} className="py-12 text-center text-zinc-500">{t('no_payment_records')}</td></tr>}
                     </tbody>
                 </table>
             </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Activity, Search, Edit2, Plus, X, Trash2 } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Booking {
     id: string;
@@ -15,6 +16,7 @@ interface Booking {
 }
 
 export default function Bookings() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [isModalOpen, setIsModalOpen] = React.useState(false);
@@ -33,7 +35,7 @@ export default function Bookings() {
         queryKey: ['admin-bookings'],
         queryFn: async () => {
             const { data } = await api.get('/admin/bookings');
-            return data;
+            return Array.isArray(data) ? data : [];
         },
     });
     const bookings = Array.isArray(bookingsResponse) ? bookingsResponse : bookingsResponse?.data;
@@ -62,7 +64,7 @@ export default function Bookings() {
     });
 
     const handleDelete = (id: string) => {
-        if (window.confirm('Delete this booking?')) deleteMutation.mutate(id);
+        if (window.confirm(t('delete_booking_confirm'))) deleteMutation.mutate(id);
     };
 
     const openModal = (booking: Booking | null = null) => {
@@ -109,7 +111,7 @@ export default function Bookings() {
         }
     };
 
-    const filteredBookings = bookings?.filter(b =>
+    const filteredBookings = (Array.isArray(bookings) ? bookings : []).filter(b =>
         b.salonName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         b.status.toLowerCase().includes(searchTerm.toLowerCase())
     ).reverse(); // Show newest first
@@ -125,14 +127,14 @@ export default function Bookings() {
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Booking History</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('all_bookings_admin')}</h1>
 
                 <div className="flex gap-4 w-full sm:w-auto mt-4 sm:mt-0">
                     <div className="relative w-full sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
                         <input
                             type="text"
-                            placeholder="Search by salon or status..."
+                            placeholder={t('search_bookings')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full bg-bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-primary transition-colors"
@@ -142,7 +144,7 @@ export default function Bookings() {
                         onClick={() => openModal()}
                         className="bg-primary hover:bg-primary-dark text-bg-dark px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors whitespace-nowrap"
                     >
-                        <Plus size={18} /> Add Booking
+                        <Plus size={18} /> {t('add_booking')}
                     </button>
                 </div>
             </div>
@@ -152,11 +154,11 @@ export default function Bookings() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-white/5 border-b border-border text-text-muted text-sm">
-                                <th className="px-6 py-4 font-medium">Salon</th>
-                                <th className="px-6 py-4 font-medium">Date & Time</th>
-                                <th className="px-6 py-4 font-medium">Total Price</th>
-                                <th className="px-6 py-4 font-medium">Status</th>
-                                <th className="px-6 py-4 font-medium text-right">Actions</th>
+                                <th className="px-6 py-4 font-medium">{t('salon')}</th>
+                                <th className="px-6 py-4 font-medium">{t('date_time')}</th>
+                                <th className="px-6 py-4 font-medium">{t('total_price')}</th>
+                                <th className="px-6 py-4 font-medium">{t('status')}</th>
+                                <th className="px-6 py-4 font-medium text-right">{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="text-sm divide-y divide-[#27272a]">
@@ -196,7 +198,7 @@ export default function Bookings() {
                             {filteredBookings?.length === 0 && (
                                 <tr>
                                     <td colSpan={4} className="px-6 py-12 text-center text-zinc-500">
-                                        No bookings found matching your search.
+                                        {t('no_bookings_admin')}
                                     </td>
                                 </tr>
                             )}
@@ -210,7 +212,7 @@ export default function Bookings() {
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-bg-card border border-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
                         <div className="flex justify-between items-center p-6 border-b border-border shrink-0">
-                            <h2 className="text-xl font-bold tracking-tight text-white">{editingBooking ? 'Edit Booking' : 'Add New Booking'}</h2>
+                            <h2 className="text-xl font-bold tracking-tight text-white">{editingBooking ? t('edit_booking') : t('add_booking')}</h2>
                             <button onClick={closeModal} className="text-text-muted hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
@@ -220,7 +222,7 @@ export default function Bookings() {
                             <form id="bookingForm" onSubmit={handleSave} className="space-y-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1.5">User ID</label>
+                                        <label className="block text-sm font-medium text-text-muted mb-1.5">{t('user_id')}</label>
                                         <input
                                             type="text"
                                             required
@@ -230,7 +232,7 @@ export default function Bookings() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1.5">Salon ID</label>
+                                        <label className="block text-sm font-medium text-text-muted mb-1.5">{t('salon_id')}</label>
                                         <input
                                             type="text"
                                             required
@@ -242,7 +244,7 @@ export default function Bookings() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-text-muted mb-1.5">Salon Name</label>
+                                    <label className="block text-sm font-medium text-text-muted mb-1.5">{t('salon_name')}</label>
                                     <input
                                         type="text"
                                         required
@@ -254,7 +256,7 @@ export default function Bookings() {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1.5">Date</label>
+                                        <label className="block text-sm font-medium text-text-muted mb-1.5">{t('date')}</label>
                                         <input
                                             type="date"
                                             required
@@ -264,7 +266,7 @@ export default function Bookings() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1.5">Time</label>
+                                        <label className="block text-sm font-medium text-text-muted mb-1.5">{t('time')}</label>
                                         <input
                                             type="time"
                                             required
@@ -277,7 +279,7 @@ export default function Bookings() {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1.5">Total Price ($)</label>
+                                        <label className="block text-sm font-medium text-text-muted mb-1.5">{t('total_price')} ($)</label>
                                         <input
                                             type="number"
                                             min="0"
@@ -289,7 +291,7 @@ export default function Bookings() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-text-muted mb-1.5">Status</label>
+                                        <label className="block text-sm font-medium text-text-muted mb-1.5">{t('status')}</label>
                                         <select
                                             value={formData.status}
                                             onChange={e => setFormData({ ...formData, status: e.target.value })}
@@ -312,7 +314,7 @@ export default function Bookings() {
                                     onClick={closeModal}
                                     className="flex-1 bg-transparent border border-border hover:bg-white/5 text-white py-2.5 rounded-lg text-sm font-medium transition-colors"
                                 >
-                                    Cancel
+                                    {t('cancel')}
                                 </button>
                                 <button
                                     type="submit"
@@ -320,7 +322,7 @@ export default function Bookings() {
                                     disabled={saveMutation.isPending}
                                     className="flex-1 bg-primary hover:bg-primary-dark text-bg-dark py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                                 >
-                                    {saveMutation.isPending ? 'Saving...' : 'Save Booking'}
+                                    {saveMutation.isPending ? t('loading') : t('save_booking')}
                                 </button>
                             </div>
                         </div>

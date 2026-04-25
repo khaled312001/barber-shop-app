@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Activity, Search, MessageSquare, Send, User, Plus, X, Globe } from 'lucide-react';
 import api from '../lib/api';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Message {
     id: string;
@@ -20,6 +21,7 @@ interface UserData {
 }
 
 export default function Messages() {
+    const { t } = useLanguage();
     const qc = useQueryClient();
     const [searchTerm, setSearchTerm] = React.useState('');
     const [selectedUser, setSelectedUser] = React.useState<string | null>(null);
@@ -33,7 +35,7 @@ export default function Messages() {
         queryKey: ['admin-messages'],
         queryFn: async () => {
             const { data } = await api.get('/admin/messages');
-            return data;
+            return Array.isArray(data) ? data : [];
         },
     });
 
@@ -41,7 +43,7 @@ export default function Messages() {
         queryKey: ['admin-users'],
         queryFn: async () => {
             const { data } = await api.get('/admin/users');
-            return data;
+            return Array.isArray(data) ? data : [];
         },
     });
 
@@ -125,7 +127,7 @@ export default function Messages() {
             <div className="w-80 border-r border-border bg-bg-card flex flex-col">
                 <div className="p-4 border-b border-border space-y-3">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-white font-bold">Messages</h2>
+                        <h2 className="text-white font-bold">{t('nav_messages')}</h2>
                         <button
                             onClick={() => setIsComposeOpen(true)}
                             className="p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
@@ -137,7 +139,7 @@ export default function Messages() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
                         <input
                             type="text"
-                            placeholder="Search chats..."
+                            placeholder={`${t('search')}...`}
                             className="w-full bg-bg-dark border border-border rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-primary"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -183,7 +185,7 @@ export default function Messages() {
                                 </div>
                                 <div>
                                     <p className="font-bold text-white">Chat with User {selectedUser.split('-')[0]}</p>
-                                    <p className="text-xs text-emerald-500">Active Now</p>
+                                    <p className="text-xs text-emerald-500">{t('active_now')}</p>
                                 </div>
                             </div>
                         </div>
@@ -208,7 +210,7 @@ export default function Messages() {
                             <form onSubmit={handleSendReply} className="flex gap-3">
                                 <input
                                     type="text"
-                                    placeholder="Type your reply..."
+                                    placeholder={t('type_reply')}
                                     className="flex-1 bg-bg-dark border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary"
                                     value={replyContent}
                                     onChange={(e) => setReplyContent(e.target.value)}
@@ -228,13 +230,13 @@ export default function Messages() {
                         <div className="w-20 h-20 rounded-full bg-bg-card border border-border flex items-center justify-center mb-6">
                             <MessageSquare size={40} className="text-border" />
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-2">Select a Conversation</h3>
-                        <p className="max-w-xs">Pick a chat from the sidebar or start a new one to message users.</p>
+                        <h3 className="text-xl font-bold text-white mb-2">{t('select_conversation')}</h3>
+                        <p className="max-w-xs">{t('pick_chat_sidebar')}</p>
                         <button
                             onClick={() => setIsComposeOpen(true)}
                             className="mt-6 bg-primary hover:bg-primary-dark text-bg-dark px-6 py-2.5 rounded-xl text-sm font-bold transition-colors"
                         >
-                            Send New Message
+                            {t('send_new_message')}
                         </button>
                     </div>
                 )}
@@ -245,7 +247,7 @@ export default function Messages() {
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
                         <div className="flex justify-between items-center p-6 border-b border-border">
-                            <h2 className="text-xl font-bold tracking-tight text-white">New Message</h2>
+                            <h2 className="text-xl font-bold tracking-tight text-white">{t('new_message')}</h2>
                             <button onClick={() => setIsComposeOpen(false)} className="text-text-muted hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
@@ -253,7 +255,7 @@ export default function Messages() {
 
                         <form onSubmit={handleSendBroadcast} className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Select Recipient</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('select_recipient')}</label>
                                 <div className="space-y-4">
                                     <div className="flex gap-2">
                                         <button
@@ -264,7 +266,7 @@ export default function Messages() {
                                                 : 'bg-bg-dark border-border text-text-muted hover:border-zinc-700'}`}
                                         >
                                             <Globe size={18} />
-                                            <span className="text-sm font-bold">All Users</span>
+                                            <span className="text-sm font-bold">{t('all_users_target')}</span>
                                         </button>
                                     </div>
 
@@ -272,7 +274,7 @@ export default function Messages() {
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
                                         <input
                                             type="text"
-                                            placeholder="Search users..."
+                                            placeholder={`${t('search')}...`}
                                             value={userSearch}
                                             onChange={(e) => setUserSearch(e.target.value)}
                                             className="w-full bg-bg-dark border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary"
@@ -303,13 +305,13 @@ export default function Messages() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-text-muted mb-1.5">Message Content</label>
+                                <label className="block text-sm font-medium text-text-muted mb-1.5">{t('message_content')}</label>
                                 <textarea
                                     required
                                     rows={4}
                                     value={composeContent}
                                     onChange={e => setComposeContent(e.target.value)}
-                                    placeholder="Write your message here..."
+                                    placeholder={t('write_message_here')}
                                     className="w-full bg-bg-dark border border-border rounded-xl px-4 py-3 text-sm text-white focus:border-primary focus:outline-none transition-colors resize-none"
                                 />
                             </div>
@@ -320,14 +322,14 @@ export default function Messages() {
                                     onClick={() => setIsComposeOpen(false)}
                                     className="flex-1 bg-transparent border border-border hover:bg-white/5 text-white py-2.5 rounded-xl text-sm font-medium transition-colors"
                                 >
-                                    Cancel
+                                    {t('cancel')}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={!composeTarget || !composeContent.trim() || broadcastMutation.isPending}
                                     className="flex-1 bg-primary hover:bg-primary-dark text-bg-dark py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
                                 >
-                                    {broadcastMutation.isPending ? 'Sending...' : 'Send Message'}
+                                    {broadcastMutation.isPending ? t('sending') : t('send_message')}
                                 </button>
                             </div>
                         </form>
