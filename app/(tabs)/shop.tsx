@@ -143,14 +143,23 @@ export default function ShopScreen() {
                   {t('salon_products') || 'Salon Products'}
                 </Text>
               </View>
-              <Pressable onPress={() => setShowCart(true)} style={[styles.cartBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <Ionicons name="bag-outline" size={20} color={theme.text} />
-                {totalQty > 0 && (
-                  <View style={[styles.cartBadge, { backgroundColor: PRIMARY }]}>
-                    <Text style={styles.cartBadgeText}>{totalQty}</Text>
-                  </View>
-                )}
-              </Pressable>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Pressable
+                  onPress={() => router.push('/my-orders' as any)}
+                  style={[styles.cartBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+                  {...({ title: t('my_orders') || 'My Orders' } as any)}
+                >
+                  <Ionicons name="receipt-outline" size={20} color={theme.text} />
+                </Pressable>
+                <Pressable onPress={() => setShowCart(true)} style={[styles.cartBtn, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <Ionicons name="bag-outline" size={20} color={theme.text} />
+                  {totalQty > 0 && (
+                    <View style={[styles.cartBadge, { backgroundColor: PRIMARY }]}>
+                      <Text style={styles.cartBadgeText}>{totalQty}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              </View>
             </View>
 
             {/* Search */}

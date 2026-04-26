@@ -4,8 +4,10 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/query-client';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useApp } from '@/contexts/AppContext';
 import { goBack } from '@/lib/navigation';
 
 const PRIMARY = '#F4A460';
@@ -14,15 +16,30 @@ const CARD = '#1F222A';
 const BORDER = '#35383F';
 
 export default function NewReelScreen() {
-  const { salonId, bookingId } = useLocalSearchParams<{ salonId: string; bookingId?: string }>();
+  const { salonId: paramSalonId, bookingId } = useLocalSearchParams<{ salonId: string; bookingId?: string }>();
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
+  const { bookings } = useApp();
+  const [salonId, setSalonId] = useState(paramSalonId || '');
   const [videoUrl, setVideoUrl] = useState('');
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [caption, setCaption] = useState('');
   const [rating, setRating] = useState(5);
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
+
+  // Get unique salons from completed bookings
+  const eligibleSalons = React.useMemo(() => {
+    const seen = new Set<string>();
+    const list: Array<{ id: string; name: string; image?: string }> = [];
+    for (const b of bookings) {
+      if (b.status !== 'completed') continue;
+      if (!b.salonId || seen.has(b.salonId)) continue;
+      seen.add(b.salonId);
+      list.push({ id: b.salonId, name: b.salonName || 'Salon', image: (b as any).salonImage });
+    }
+    return list;
+  }, [bookings]);
 
   const pickVideo = () => {
     if (Platform.OS !== 'web') return;
@@ -75,6 +92,10 @@ export default function NewReelScreen() {
       alert(t('select_video_first') || 'Please select a video first');
       return;
     }
+    if (!salonId) {
+      alert(t('select_salon_first') || 'Please select a salon first');
+      return;
+    }
     setPosting(true);
     try {
       const r = await apiRequest('POST', '/api/reels', {
@@ -110,6 +131,45 @@ export default function NewReelScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
+        {/* Salon picker — only completed-booking salons */}
+        {!paramSalonId && (
+          <>
+            <Text style={styles.sectionLabel}>{t('select_salon') || 'Select salon'}</Text>
+            {eligibleSalons.length === 0 ? (
+              <View style={{ padding: 16, backgroundColor: CARD, borderRadius: 12, borderWidth: 1, borderColor: BORDER, marginBottom: 16 }}>
+                <Text style={{ color: '#aaa', fontFamily: 'Urbanist_500Medium', fontSize: 13, textAlign: 'center' }}>
+                  {t('no_completed_bookings') || 'You need a completed booking before posting a reel.'}
+                </Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                {eligibleSalons.map(s => {
+                  const isActive = salonId === s.id;
+                  return (
+                    <Pressable
+                      key={s.id}
+                      onPress={() => setSalonId(s.id)}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8,
+                        borderRadius: 12, borderWidth: 1.5, marginRight: 8,
+                        backgroundColor: isActive ? PRIMARY + '20' : CARD,
+                        borderColor: isActive ? PRIMARY : BORDER,
+                      }}
+                    >
+                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: PRIMARY + '20', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="cut" size={14} color={PRIMARY} />
+                      </View>
+                      <Text style={{ color: isActive ? '#fff' : '#aaa', fontFamily: 'Urbanist_700Bold', fontSize: 12 }}>
+                        {s.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </>
+        )}
+
         <Text style={styles.sectionLabel}>{t('video') || 'Video'}</Text>
         {videoUrl ? (
           <View style={styles.videoPreview}>

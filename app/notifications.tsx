@@ -32,13 +32,28 @@ function NotificationRow({ item }: { item: NotificationItem }) {
 export default function NotificationsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { notifications, refreshNotifications } = useApp();
+  const { notifications, refreshNotifications, user } = useApp();
   const { t, isRTL } = useLanguage();
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
 
+  const markAllRead = useCallback(async () => {
+    try {
+      const role = (user as any)?.role;
+      let endpoint = '/api/notifications/read-all';
+      if (role === 'salon_admin') endpoint = '/api/salon/notifications/read-all';
+      else if (role === 'staff') endpoint = '/api/staff/notifications/read-all';
+      // Try the customer endpoint first; if missing, fall through
+      await fetch(endpoint, { method: 'PUT', credentials: 'include' });
+      await refreshNotifications();
+    } catch { }
+  }, [user, refreshNotifications]);
+
   useEffect(() => {
     refreshNotifications();
+    // Auto-mark all as read when the page is viewed
+    const t = setTimeout(() => { markAllRead(); }, 600);
+    return () => clearTimeout(t);
   }, []);
 
   return (

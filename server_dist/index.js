@@ -14639,6 +14639,15 @@ Total: CHF ${totalPrice}`;
       res.status(500).json({ message: err.message });
     }
   });
+  app2.put("/api/notifications/read-all", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      await db.update(notifications).set({ read: true }).where(eq4(notifications.userId, userId));
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
   app2.post("/api/reviews", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId;

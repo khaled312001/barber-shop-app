@@ -138,7 +138,15 @@ export default function ReelsFeedScreen() {
       {/* Top header overlay */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.topTitle}>{t('reels') || 'Reels'}</Text>
-        <Pressable onPress={() => router.push('/(tabs)/bookings' as any)} style={styles.topAction}>
+        <Pressable
+          onPress={() => {
+            // Open the post-a-reel page using the most recent completed booking's salon if available
+            const reel = list[0];
+            const salonId = reel?.salonId || '';
+            router.push({ pathname: '/reels/new', params: { salonId } } as any);
+          }}
+          style={styles.topAction}
+        >
           <Ionicons name="add-circle-outline" size={28} color="#fff" />
         </Pressable>
       </View>
@@ -269,6 +277,8 @@ function ReelItem({
           muted={muted}
           loop
           playsInline
+          preload="auto"
+          autoPlay={active}
           style={{ width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#000' } as any}
           onClick={onToggleMute}
         />
@@ -331,7 +341,7 @@ function ReelItem({
         </Pressable>
         <Pressable onPress={onSalonPress} style={styles.actionBtn}>
           <Ionicons name="storefront-outline" size={26} color="#fff" />
-          <Text style={styles.actionCount}>{t('shop_label') || 'Salon'}</Text>
+          <Text style={styles.actionCount}>{t('salon') || 'Salon'}</Text>
         </Pressable>
         <Pressable onPress={onToggleMute} style={styles.actionBtn}>
           <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={26} color="#fff" />

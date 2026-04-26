@@ -36,24 +36,53 @@ const NotificationContext = createContext<Ctx | null>(null);
 
 const POLL_MS = 15000; // 15s
 
-// In-memory beep using Web Audio (web only). Falls back to no-op on native.
+// Persistent AudioContext + warm-up on user gesture.
+// Browsers block AudioContext until a user clicks/keys somewhere; we create the
+// context on the first user gesture and reuse it for all subsequent beeps.
+let _audioCtx: any = null;
+let _gestureAttached = false;
+
+function ensureAudioCtxOnGesture() {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || _gestureAttached) return;
+  _gestureAttached = true;
+  const init = () => {
+    try {
+      const Ctor = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!Ctor) return;
+      if (!_audioCtx) _audioCtx = new Ctor();
+      if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
+    } catch {}
+  };
+  ['pointerdown', 'keydown', 'touchstart', 'click'].forEach(ev =>
+    window.addEventListener(ev, init, { once: false, passive: true })
+  );
+}
+
 function playBeep() {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return;
   try {
     const Ctor = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!Ctor) return;
-    const ctx = new Ctor();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3);
-    osc.onended = () => ctx.close().catch(() => {});
+    if (!_audioCtx) _audioCtx = new Ctor();
+    const ctx = _audioCtx;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    if (ctx.state !== 'running') return;
+    // Two-tone "ding" — rises then falls, sounds more like a notification
+    const now = ctx.currentTime;
+    const make = (freq: number, start: number, dur: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + start);
+      gain.gain.exponentialRampToValueAtTime(0.22, now + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + start);
+      osc.stop(now + start + dur + 0.05);
+    };
+    make(880, 0, 0.18);
+    make(1320, 0.12, 0.22);
   } catch {}
 }
 

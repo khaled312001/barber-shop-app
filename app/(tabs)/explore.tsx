@@ -34,7 +34,13 @@ function ExploreSalonCard({ salon, t, theme }: { salon: Salon; t: (key: string) 
       ]}
     >
       <View style={styles.cardImageWrap}>
-        <Image source={{ uri: salon.image }} style={styles.cardImage} contentFit="cover" />
+        {salon.image ? (
+          <Image source={{ uri: salon.image }} style={styles.cardImage} contentFit="cover" />
+        ) : (
+          <View style={[styles.cardImage, { backgroundColor: theme.primary + '22', alignItems: 'center', justifyContent: 'center' }]}>
+            <Ionicons name="cut" size={32} color={theme.primary} />
+          </View>
+        )}
         <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={styles.cardGradient} />
         <View style={[styles.openBadge, { backgroundColor: salon.isOpen ? '#10B981' : '#EF4444' }]}>
           <View style={styles.openDot} />

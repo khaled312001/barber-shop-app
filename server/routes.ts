@@ -10,7 +10,7 @@ import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClie
 import { registerAdminRoutes } from "./adminRoutes";
 import { logActivity } from "./activityLogger";
 import { z } from "zod";
-import { messages, users, coupons, salons } from "@shared/schema";
+import { messages, users, coupons, salons, notifications } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 
 // Helper to safely parse JSON fields that MySQL may return as strings
@@ -793,6 +793,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = (req.session as any).userId;
       await storage.markNotificationRead(String(req.params.id), userId);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.put("/api/notifications/read-all", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userId));
       res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ message: err.message });
