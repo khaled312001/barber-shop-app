@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiRequest } from '@/lib/query-client';
 import { useLanguage } from '@/contexts/LanguageContext';
+import BookingsCalendar from '@/components/BookingsCalendar';
 
 const PRIMARY = '#F4A460';
 const BG = '#181A20';
@@ -47,6 +48,7 @@ export default function StaffAppointments() {
   const { t, isRTL } = useLanguage();
   const qc = useQueryClient();
   const [filter, setFilter] = useState('all');
+  const [showCalendar, setShowCalendar] = useState(false);
   const statusLabel = Object.fromEntries(Object.entries(STATUS_KEYS).map(([k, v]) => [k, t(v as any)]));
 
   const { data: bookings = [], isLoading } = useQuery({
@@ -86,9 +88,16 @@ export default function StaffAppointments() {
           <Text style={styles.pageTitle}>{t('my_appointments')}</Text>
           <Text style={styles.pageSubtitle}>{bookings.length} {t('total') || 'total'}</Text>
         </View>
-        <View style={styles.iconBadge}>
-          <Ionicons name="calendar" size={22} color={PRIMARY} />
-        </View>
+        <Pressable
+          onPress={() => setShowCalendar(v => !v)}
+          style={({ pressed }) => [
+            styles.iconBadge,
+            { borderWidth: 1, borderColor: showCalendar ? PRIMARY : BORDER },
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <Ionicons name={showCalendar ? 'list' : 'calendar'} size={22} color={PRIMARY} />
+        </Pressable>
       </View>
 
       <View style={styles.filterScrollWrap}>
@@ -121,7 +130,29 @@ export default function StaffAppointments() {
         </ScrollView>
       </View>
 
-      {isLoading ? (
+      {showCalendar ? (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
+          <BookingsCalendar
+            bookings={bookings.map((b: any) => ({
+              id: b.id,
+              date: b.date,
+              time: b.time,
+              status: b.status,
+              customerName: b.userName || b.customerName,
+              serviceName: Array.isArray(b.services) ? b.services.join(', ') : (b.serviceName || ''),
+              totalPrice: b.totalPrice,
+            }))}
+            theme={{
+              card: CARD,
+              border: BORDER,
+              text: '#fff',
+              textSecondary: '#888',
+              background: BG,
+              primary: PRIMARY,
+            }}
+          />
+        </ScrollView>
+      ) : isLoading ? (
         <ActivityIndicator size="large" color={PRIMARY} style={{ marginTop: 40 }} />
       ) : (
         <ScrollView
@@ -204,7 +235,7 @@ const styles = StyleSheet.create({
 
   filterScrollWrap: { marginBottom: 16, paddingVertical: 4 },
   filterRow: { paddingHorizontal: 20, gap: 10, paddingVertical: 4 },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD, minHeight: 44 },
+  filterBtn: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD, minHeight: 44 },
   filterText: { color: '#ccc', fontFamily: 'Urbanist_700Bold', fontSize: 13 },
   filterTextActive: { color: '#fff' },
   countPill: { backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, minWidth: 26, alignItems: 'center' },

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform, FlatList, Alert, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/theme';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useApp, type Booking } from '@/contexts/AppContext';
+import BookingsCalendar from '@/components/BookingsCalendar';
 
 type TabType = 'upcoming' | 'completed' | 'cancelled';
 
@@ -108,6 +109,17 @@ function BookingCard({ booking, onCancel, onViewDetails, onRebook, t }: {
               {t('cancel_booking') || 'Cancel'}
             </Text>
           </Pressable>
+          {onRebook && (
+            <Pressable
+              onPress={(e) => { e.stopPropagation(); onRebook(); }}
+              style={({ pressed }) => [styles.cancelBtn, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}
+            >
+              <Ionicons name="refresh" size={14} color={theme.text} />
+              <Text style={[styles.cancelBtnText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>
+                {t('rebook') || t('book_again') || 'Rebook'}
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={(e) => { e.stopPropagation(); onViewDetails(); }}
             style={({ pressed }) => [styles.viewBtn, { opacity: pressed ? 0.85 : 1 }]}
@@ -121,6 +133,35 @@ function BookingCard({ booking, onCancel, onViewDetails, onRebook, t }: {
                 {t('view_details') || t('view_receipt') || 'View Details'}
               </Text>
               <Ionicons name="chevron-forward" size={14} color="#fff" />
+            </LinearGradient>
+          </Pressable>
+        </View>
+      )}
+
+      {booking.status === 'cancelled' && onRebook && (
+        <View style={styles.cardActions}>
+          <Pressable
+            onPress={(e) => { e.stopPropagation(); onViewDetails(); }}
+            style={({ pressed }) => [styles.cancelBtn, { borderColor: theme.border, opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Ionicons name="receipt-outline" size={16} color={theme.text} />
+            <Text style={[styles.cancelBtnText, { color: theme.text, fontFamily: 'Urbanist_600SemiBold' }]}>
+              {t('view_details') || 'View Details'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={(e) => { e.stopPropagation(); onRebook(); }}
+            style={({ pressed }) => [styles.viewBtn, { opacity: pressed ? 0.85 : 1 }]}
+          >
+            <LinearGradient
+              colors={[theme.primary, '#E8924A']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.viewBtnGradient}
+            >
+              <Ionicons name="refresh" size={14} color="#fff" />
+              <Text style={[styles.viewBtnText, { fontFamily: 'Urbanist_700Bold' }]}>
+                {t('rebook') || t('book_again') || 'Book Again'}
+              </Text>
             </LinearGradient>
           </Pressable>
         </View>
@@ -164,6 +205,7 @@ export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
   const { bookings, cancelBooking } = useApp();
   const [activeTab, setActiveTab] = useState<TabType>('upcoming');
+  const [showCalendar, setShowCalendar] = useState(false);
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
 
@@ -201,23 +243,43 @@ export default function BookingsScreen() {
 
   const handleRebook = (booking: Booking) => {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
-    if (booking.salonId) {
-      router.push({ pathname: '/salon/[id]', params: { id: booking.salonId } });
-    }
+    if (!booking.salonId) return;
+    // Pre-fill the booking flow with the same services/specialist/duration from the old booking
+    const params: Record<string, string> = { id: booking.salonId };
+    const services = Array.isArray(booking.services) ? booking.services : [];
+    if (services.length) params.services = services.join(',');
+    const anyB: any = booking as any;
+    if (anyB.specialistId) params.specialistId = String(anyB.specialistId);
+    if (anyB.specialist) params.specialist = String(anyB.specialist);
+    if (anyB.totalPrice) params.price = String(anyB.totalPrice);
+    if (anyB.duration) params.duration = String(anyB.duration);
+    params.rebookFrom = booking.id;
+    router.push({ pathname: '/booking/[id]', params });
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: topPad + 12 }]}>
-        <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>
-          {t('my_bookings') || 'My Bookings'}
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>
-          {bookings.length > 0
-            ? (t('bookings_count') || '{n} total').replace('{n}', String(bookings.length))
-            : (t('no_bookings_yet') || 'Your bookings will appear here')}
-        </Text>
+      <View style={[styles.header, { paddingTop: topPad + 12, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }]}>
+        <View>
+          <Text style={[styles.title, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>
+            {t('my_bookings') || 'My Bookings'}
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary, fontFamily: 'Urbanist_500Medium' }]}>
+            {bookings.length > 0
+              ? (t('bookings_count') || '{n} total').replace('{n}', String(bookings.length))
+              : (t('no_bookings_yet') || 'Your bookings will appear here')}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => setShowCalendar(v => !v)}
+          style={({ pressed }) => [
+            { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+            { backgroundColor: showCalendar ? theme.primary + '22' : theme.card, borderColor: showCalendar ? theme.primary : theme.border, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name={showCalendar ? 'list' : 'calendar'} size={20} color={theme.primary} />
+        </Pressable>
       </View>
 
       {/* Tabs with counts */}
@@ -266,6 +328,30 @@ export default function BookingsScreen() {
         ))}
       </View>
 
+      {showCalendar ? (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+          <BookingsCalendar
+            bookings={bookings.map(b => ({
+              id: b.id,
+              date: b.date,
+              time: b.time,
+              status: b.status,
+              salonName: b.salonName,
+              serviceName: Array.isArray(b.services) ? b.services.join(', ') : '',
+              totalPrice: (b as any).totalPrice,
+            }))}
+            onSelectBooking={(b) => handleViewDetails({ id: b.id } as any)}
+            theme={{
+              card: theme.card,
+              border: theme.border,
+              text: theme.text,
+              textSecondary: theme.textSecondary,
+              background: theme.background,
+              primary: theme.primary,
+            }}
+          />
+        </ScrollView>
+      ) : (
       <FlatList
         data={filtered}
         keyExtractor={item => item.id}
@@ -309,11 +395,12 @@ export default function BookingsScreen() {
             booking={item}
             onCancel={item.status === 'upcoming' ? () => handleCancel(item.id) : undefined}
             onViewDetails={() => handleViewDetails(item)}
-            onRebook={item.status === 'completed' ? () => handleRebook(item) : undefined}
+            onRebook={() => handleRebook(item)}
             t={t}
           />
         )}
       />
+      )}
     </View>
   );
 }

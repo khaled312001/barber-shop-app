@@ -61,17 +61,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     createDatabaseTable: true,
   }, pool);
 
+  // Trust the reverse proxy (Hostinger hcdn / LiteSpeed) so secure cookies work
+  app.set("trust proxy", 1);
+
   app.use(
     session({
+      name: "barmagly.sid",
       store: sessionStore,
       secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
       resave: false,
       saveUninitialized: false,
+      // Refresh expiration on every authenticated request so the cookie doesn't expire mid-session
+      rolling: true,
       cookie: {
         maxAge: 30 * 24 * 60 * 60 * 1000,
+        // For same-origin web traffic, "lax" is the most reliable across browsers.
+        // Native apps don't send same-site at all, so this only affects web.
+        sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         httpOnly: true,
+        path: "/",
       },
     })
   );
@@ -644,21 +653,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer inbox — one entry per (salonId, recipientUserId) thread
   app.get("/api/messages", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       const msgs = await storage.getUserMessages(userId);
+      msgs.sort((a, b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime());
       const grouped: Record<string, any> = {};
       for (const m of msgs) {
-        if (!grouped[m.salonId]) {
-          grouped[m.salonId] = {
+        const recipient = (m as any).recipientUserId || '';
+        const key = `${m.salonId}::${recipient}`;
+        if (!grouped[key]) {
+          // If we have a recipient, fetch that user's name + role
+          let chatName = m.salonName;
+          let chatImage = m.salonImage;
+          let chatRole = '';
+          if (recipient) {
+            try {
+              const [u] = await db.select().from(users).where(eq(users.id, recipient));
+              if (u) {
+                chatName = `${u.fullName}${m.salonName ? ` — ${m.salonName}` : ''}`;
+                chatImage = u.avatar || m.salonImage;
+                chatRole = u.role || '';
+              }
+            } catch { }
+          }
+          grouped[key] = {
             salonId: m.salonId,
+            recipientUserId: recipient,
             salonName: m.salonName,
+            chatName,
+            chatImage,
+            chatRole,
             salonImage: m.salonImage,
             lastMessage: m.content,
             time: m.createdAt,
             sender: m.sender,
-            unread: msgs.filter(x => x.salonId === m.salonId && x.sender === 'salon' && !x.isRead).length,
+            unread: msgs.filter(x => x.salonId === m.salonId
+              && ((x as any).recipientUserId || '') === recipient
+              && x.sender === 'salon' && !x.isRead).length,
           };
         }
       }
@@ -668,46 +701,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer reads a specific thread
+  // /api/messages/:salonId or /api/messages/:salonId?recipientUserId=...
   app.get("/api/messages/:salonId", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       const salonId = String(req.params.salonId);
-      const msgs = await storage.getConversation(userId, salonId);
-      // Mark salon messages as read
-      await db.update(messages).set({ isRead: 1 }).where(
-        and(eq(messages.userId, userId), eq(messages.salonId, salonId), eq(messages.sender, 'salon'))
-      );
+      const recipientUserId = req.query.recipientUserId ? String(req.query.recipientUserId) : '';
+      const conds: any[] = [eq(messages.userId, userId), eq(messages.salonId, salonId)];
+      // Thread isolation: when recipient specified, only messages where recipient_user_id matches
+      // OR the message is from this specific recipient as sender (sender_user_id is not stored;
+      // we approximate by recipient_user_id equality on outgoing AND incoming).
+      // Storage rule:
+      //   - customer's outgoing message stores recipient_user_id = chosen staff/admin id
+      //   - staff/admin's outgoing message stores recipient_user_id = own user id (so customer
+      //     sees it as part of that thread)
+      if (recipientUserId) {
+        conds.push(eq((messages as any).recipientUserId, recipientUserId));
+      } else {
+        // Default thread: messages with empty recipient_user_id ("Salon" general)
+        conds.push(eq((messages as any).recipientUserId, ""));
+      }
+      const msgs = await db.select().from(messages).where(and(...conds)).orderBy(messages.createdAt);
+      // Mark as read
+      const readConds: any[] = [eq(messages.userId, userId), eq(messages.salonId, salonId), eq(messages.sender, 'salon')];
+      if (recipientUserId) readConds.push(eq((messages as any).recipientUserId, recipientUserId));
+      else readConds.push(eq((messages as any).recipientUserId, ""));
+      await db.update(messages).set({ isRead: 1 }).where(and(...readConds));
       res.json(msgs);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }
   });
 
+  // Customer posts a message — optionally to a specific staff/admin (recipientUserId)
   app.post("/api/messages", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req.session as any).userId;
       const [currentUser] = await db.select().from(users).where(eq(users.id, userId));
-      const { salonId, salonName, salonImage, content, messageType } = req.body;
+      const { salonId, salonName, salonImage, content, messageType, recipientUserId } = req.body;
       const msgId = crypto.randomUUID();
+      const recipient = recipientUserId ? String(recipientUserId) : "";
       await db.insert(messages).values({
         id: msgId, userId, salonId, salonName, salonImage: salonImage || "",
-        content, sender: "user", senderName: currentUser?.fullName || '', isRead: 0,
+        content, sender: "user", senderName: currentUser?.fullName || '',
+        senderRole: 'customer',
+        recipientUserId: recipient,
+        isRead: 0,
         messageType: messageType || 'text',
       });
       const [msg] = await db.select().from(messages).where(eq(messages.id, msgId));
-      // Notify salon admin about new message
+      // Notify the specific recipient if known, otherwise all salon staff
       try {
-        const { salonStaff: salonStaffTable } = require("@shared/schema");
-        const staffLinks = await db.select().from(salonStaffTable).where(eq(salonStaffTable.salonId, salonId));
-        for (const link of staffLinks) {
+        if (recipient) {
           await storage.createNotification({
-            userId: link.userId,
+            userId: recipient,
             title: "New Message",
             message: `${currentUser?.fullName || 'Customer'}: ${content.substring(0, 80)}`,
             type: "message",
           });
+        } else {
+          const { salonStaff: salonStaffTable } = require("@shared/schema");
+          const staffLinks = await db.select().from(salonStaffTable).where(eq(salonStaffTable.salonId, salonId));
+          for (const link of staffLinks) {
+            await storage.createNotification({
+              userId: link.userId,
+              title: "New Message",
+              message: `${currentUser?.fullName || 'Customer'}: ${content.substring(0, 80)}`,
+              type: "message",
+            });
+          }
         }
-      } catch (e) { console.warn('Failed to notify staff about message:', e); }
+      } catch (e) { console.warn('Failed to notify about message:', e); }
       res.status(201).json(msg);
     } catch (err: any) {
       res.status(500).json({ message: err.message });

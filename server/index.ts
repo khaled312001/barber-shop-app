@@ -336,6 +336,69 @@ async function initStripe() {
   log("Initializing Stripe...");
   await initStripe();
 
+  log("Ensuring schema...");
+  try {
+    const { pool } = await import("./db");
+    // Add senderRole column to messages if it doesn't exist (idempotent)
+    const [cols]: any = await (pool as any).query(
+      "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'messages' AND COLUMN_NAME = 'sender_role'"
+    );
+    if (!cols || cols.length === 0) {
+      await (pool as any).query("ALTER TABLE messages ADD COLUMN sender_role TEXT DEFAULT ''");
+      log("Added messages.sender_role column");
+    }
+    // recipient_user_id for thread isolation (per staff/admin)
+    const [cols2]: any = await (pool as any).query(
+      "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'messages' AND COLUMN_NAME = 'recipient_user_id'"
+    );
+    if (!cols2 || cols2.length === 0) {
+      await (pool as any).query("ALTER TABLE messages ADD COLUMN recipient_user_id VARCHAR(255) DEFAULT ''");
+      log("Added messages.recipient_user_id column");
+    }
+    // Reels tables
+    await (pool as any).query(`CREATE TABLE IF NOT EXISTS reels (
+      id VARCHAR(255) PRIMARY KEY,
+      user_id VARCHAR(255) NOT NULL,
+      user_name TEXT,
+      user_avatar TEXT,
+      salon_id VARCHAR(255) NOT NULL,
+      salon_name TEXT,
+      booking_id VARCHAR(255) DEFAULT '',
+      video_url TEXT NOT NULL,
+      thumbnail_url TEXT,
+      caption TEXT,
+      rating INT DEFAULT 5,
+      status VARCHAR(32) NOT NULL DEFAULT 'pending',
+      rejection_reason TEXT,
+      views INT DEFAULT 0,
+      likes INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      approved_at TIMESTAMP NULL,
+      INDEX idx_reels_salon (salon_id),
+      INDEX idx_reels_user (user_id),
+      INDEX idx_reels_status (status)
+    )`);
+    await (pool as any).query(`CREATE TABLE IF NOT EXISTS reel_likes (
+      id VARCHAR(255) PRIMARY KEY,
+      reel_id VARCHAR(255) NOT NULL,
+      user_id VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_reel_user (reel_id, user_id)
+    )`);
+    await (pool as any).query(`CREATE TABLE IF NOT EXISTS reel_comments (
+      id VARCHAR(255) PRIMARY KEY,
+      reel_id VARCHAR(255) NOT NULL,
+      user_id VARCHAR(255) NOT NULL,
+      user_name TEXT,
+      user_avatar TEXT,
+      text TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_comments_reel (reel_id)
+    )`);
+  } catch (e: any) {
+    console.warn("Schema ensure warning:", e?.message || e);
+  }
+
   log("Registering routes...");
   const server = await registerRoutes(app);
 

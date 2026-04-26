@@ -20,6 +20,7 @@ type Message = {
   content: string;
   sender: string;
   senderName?: string;
+  senderRole?: string;
   createdAt: string;
   isRead?: number;
   messageType?: string;
@@ -28,7 +29,10 @@ type Message = {
 const EMOJIS = ['😀','😂','😍','🥰','😊','👍','❤️','🔥','💯','🎉','👋','🙏','💪','✨','💈','✂️','💇','💇‍♂️','📅','⏰','💰','🏠','📍','📸','🎵','👏','😎','🤩','😢','😡','🤔','👀','💬','📞','✅','❌'];
 
 export default function ChatScreen() {
-  const { id, name, image, role } = useLocalSearchParams<{ id: string; name: string; image?: string; role?: string }>();
+  const { id, name, image, role, salonId: salonIdParam, recipientUserId } = useLocalSearchParams<{
+    id: string; name: string; image?: string; role?: string;
+    salonId?: string; recipientUserId?: string;
+  }>();
   const insets = useSafeAreaInsets();
   const { user } = useApp();
   const { t } = useLanguage();
@@ -39,6 +43,9 @@ export default function ChatScreen() {
   const [showAttach, setShowAttach] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [contactPhone, setContactPhone] = useState<string>('');
+  const [contactProfileId, setContactProfileId] = useState<string>('');
   const flatListRef = useRef<FlatList>(null);
   const pollRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -51,18 +58,87 @@ export default function ChatScreen() {
 
   const fetchMessages = useCallback(async () => {
     try {
-      const endpoint = role === 'salon_admin' || role === 'staff' ? `${getApiBase()}/${id}` : `/api/messages/${id}`;
+      let endpoint: string;
+      if (role === 'salon_admin' || role === 'staff') {
+        endpoint = `${getApiBase()}/${id}`;
+      } else {
+        // Customer: open thread for (salonId, recipientUserId)
+        const targetSalon = salonIdParam || id;
+        const params = recipientUserId ? `?recipientUserId=${encodeURIComponent(recipientUserId)}` : '';
+        endpoint = `/api/messages/${targetSalon}${params}`;
+      }
       const res = await apiRequest('GET', endpoint);
       const data = await res.json();
       if (Array.isArray(data)) setMsgs(data);
     } catch { } finally { setLoading(false); }
-  }, [id, role, getApiBase]);
+  }, [id, role, getApiBase, salonIdParam, recipientUserId]);
 
   useEffect(() => {
     fetchMessages();
     pollRef.current = setInterval(fetchMessages, 5000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [fetchMessages]);
+
+  // Fetch the chat partner's phone for the call button
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (role === 'salon_admin' || role === 'staff') {
+          // chat target is a customer (userId)
+          const r = await apiRequest('GET', `/api/salon/users/${id}`);
+          if (!r.ok) return;
+          const u = await r.json();
+          if (cancelled) return;
+          setContactPhone(u?.phone || '');
+          setContactProfileId(u?.id || '');
+        } else {
+          // chat target is a salon
+          const r = await apiRequest('GET', `/api/salons/${id}`);
+          if (!r.ok) return;
+          const s = await r.json();
+          if (cancelled) return;
+          setContactPhone(s?.phone || s?.contactPhone || '');
+          setContactProfileId(s?.id || '');
+        }
+      } catch { }
+    })();
+    return () => { cancelled = true; };
+  }, [id, role]);
+
+  const handleCall = () => {
+    if (!contactPhone) {
+      if (Platform.OS === 'web') {
+        alert(t('no_phone_available') || 'No phone number available for this contact');
+      }
+      return;
+    }
+    const tel = `tel:${contactPhone.replace(/\s+/g, '')}`;
+    if (Platform.OS === 'web') {
+      window.location.href = tel;
+    } else {
+      Linking.openURL(tel).catch(() => {});
+    }
+  };
+
+  const handleViewProfile = () => {
+    setShowMenu(false);
+    if (role === 'salon_admin' || role === 'staff') {
+      // For admin/staff viewer, we don't have a public customer page; close menu.
+      return;
+    }
+    if (contactProfileId) {
+      // Customer viewer -> open the salon page
+      if (Platform.OS === 'web') {
+        window.location.href = `/salon/${contactProfileId}`;
+      }
+    }
+  };
+
+  const handleClearChat = async () => {
+    setShowMenu(false);
+    setMsgs([]);
+  };
 
   const sendMessage = async (content: string, type: string = 'text') => {
     if (!content.trim() || sending) return;
@@ -71,9 +147,11 @@ export default function ChatScreen() {
       if (role === 'salon_admin' || role === 'staff') {
         await apiRequest('POST', `${getApiBase()}/${id}`, { content: content.trim(), messageType: type });
       } else {
+        const targetSalon = salonIdParam || id;
         await apiRequest('POST', '/api/messages', {
-          salonId: id, salonName: name || 'Salon', salonImage: image || '',
+          salonId: targetSalon, salonName: name || 'Salon', salonImage: image || '',
           content: content.trim(), messageType: type,
+          recipientUserId: recipientUserId || undefined,
         });
       }
       setText('');
@@ -132,6 +210,44 @@ export default function ChatScreen() {
     return msg.sender === 'user';
   };
 
+  // The role of the OTHER person in the conversation (the one I'm chatting with)
+  const otherRoleLabel = (() => {
+    // role param represents the viewer's role context, not the other party's.
+    // - If viewer is salon_admin or staff (chatting from admin/staff side) -> other party is the customer
+    // - If viewer is a customer (default), the other side is identified by the chat target.
+    //   For customer chats with a salon, the salon staff/admin sends back. We use senderName +
+    //   the explicit role on incoming messages where present, falling back to "Salon".
+    if (role === 'salon_admin' || role === 'staff') return t('customer') || 'Customer';
+    return t('salon_team') || 'Salon Team';
+  })();
+
+  // Role label for an INCOMING message (one I didn't send)
+  const senderRoleLabel = (msg: Message): string => {
+    // Server may stamp messageType-like role in senderName; we derive from context:
+    if (role === 'salon_admin' || role === 'staff') {
+      // Viewer is admin/staff side -> incoming msgs are from the customer
+      return t('customer') || 'Customer';
+    }
+    // Viewer is a customer -> incoming is from the salon side.
+    // Prefer the salon-side role passed via the chat URL when available.
+    const m = (msg as any);
+    const explicit = (m.senderRole || '').toString().toLowerCase();
+    if (explicit === 'staff') return t('staff') || 'Staff';
+    if (explicit === 'salon_admin' || explicit === 'salon-admin' || explicit === 'salonadmin') return t('salon_admin') || 'Salon Admin';
+    if (explicit === 'salon') return t('salon_team') || 'Salon Team';
+    // Fallback: rely on the chat thread role param
+    if (role === 'staff') return t('staff') || 'Staff';
+    if (role === 'salon_admin') return t('salon_admin') || 'Salon Admin';
+    return t('salon_team') || 'Salon Team';
+  };
+
+  const headerSubtitleRole = (() => {
+    if (role === 'staff') return t('staff') || 'Staff';
+    if (role === 'salon_admin') return t('salon_admin') || 'Salon Admin';
+    if (role === 'customer' || (user && user.role !== 'salon_admin' && user.role !== 'staff' && (role === 'salon_admin' || role === 'staff'))) return t('customer') || 'Customer';
+    return '';
+  })();
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     const now = new Date();
@@ -174,7 +290,15 @@ export default function ChatScreen() {
     if (item.messageType === 'image' && mediaData?.url) {
       return (
         <Pressable onPress={() => { if (Platform.OS === 'web') window.open(mediaData.url, '_blank'); }}>
-          <Image source={{ uri: mediaData.url }} style={styles.mediaImage} contentFit="cover" />
+          <View style={styles.mediaImage}>
+            <Image
+              source={{ uri: mediaData.url }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="cover"
+              transition={200}
+              onError={() => console.warn('Image failed to load:', mediaData.url)}
+            />
+          </View>
         </Pressable>
       );
     }
@@ -228,7 +352,29 @@ export default function ChatScreen() {
         <View style={[styles.msgRow, mine ? styles.msgRowMine : styles.msgRowTheirs]}>
           <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs,
             (item.messageType === 'image' || item.messageType === 'video' || item.messageType === 'location') && styles.mediaBubble]}>
-            {!mine && item.senderName ? <Text style={styles.senderLabel}>{item.senderName}</Text> : null}
+            {!mine ? (
+              <View style={styles.senderHeader}>
+                {item.senderName ? <Text style={styles.senderLabel}>{item.senderName}</Text> : null}
+                {(() => {
+                  const rl = senderRoleLabel(item);
+                  const isStaff = rl === (t('staff') || 'Staff');
+                  const isAdmin = rl === (t('salon_admin') || 'Salon Admin');
+                  return (
+                    <View style={[
+                      styles.senderRoleChip,
+                      isStaff ? styles.roleBadgeStaff : isAdmin ? styles.roleBadgeAdmin : styles.roleBadgeCustomer,
+                    ]}>
+                      <Ionicons
+                        name={isStaff ? 'cut' : isAdmin ? 'storefront' : 'person'}
+                        size={9}
+                        color={isStaff ? '#10B981' : isAdmin ? PRIMARY : '#3B82F6'}
+                      />
+                      <Text style={[styles.senderRoleChipText, { color: isStaff ? '#10B981' : isAdmin ? PRIMARY : '#3B82F6' }]}>{rl}</Text>
+                    </View>
+                  );
+                })()}
+              </View>
+            ) : null}
             {renderMessageContent(item, mine)}
             <View style={styles.msgMeta}>
               <Text style={[styles.timeText, mine && styles.timeTextMine]}>{formatTime(item.createdAt)}</Text>
@@ -248,12 +394,65 @@ export default function ChatScreen() {
         {image ? <Image source={{ uri: image }} style={styles.headerAvatar} contentFit="cover" /> :
           <View style={styles.headerAvatarPlaceholder}><Ionicons name="person" size={20} color={PRIMARY} /></View>}
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerName} numberOfLines={1}>{name || 'Chat'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <Text style={styles.headerName} numberOfLines={1}>{name || 'Chat'}</Text>
+            {headerSubtitleRole ? (
+              <View style={[styles.roleBadge, role === 'staff' ? styles.roleBadgeStaff : role === 'salon_admin' ? styles.roleBadgeAdmin : styles.roleBadgeCustomer]}>
+                <Ionicons
+                  name={role === 'staff' ? 'cut' : role === 'salon_admin' ? 'storefront' : 'person'}
+                  size={10}
+                  color={role === 'staff' ? '#10B981' : role === 'salon_admin' ? PRIMARY : '#3B82F6'}
+                />
+                <Text style={[styles.roleBadgeText, role === 'staff' ? { color: '#10B981' } : role === 'salon_admin' ? { color: PRIMARY } : { color: '#3B82F6' }]}>{headerSubtitleRole}</Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={styles.headerStatus}>{t('online') || 'Online'}</Text>
         </View>
-        <Pressable style={styles.headerAction}><Ionicons name="call-outline" size={20} color={PRIMARY} /></Pressable>
-        <Pressable style={styles.headerAction}><Ionicons name="ellipsis-vertical" size={20} color="#888" /></Pressable>
+        <Pressable
+          onPress={handleCall}
+          style={({ pressed }) => [styles.headerAction, pressed && { opacity: 0.6 }]}
+          {...({ title: contactPhone ? `Call ${contactPhone}` : 'Call' } as any)}
+        >
+          <Ionicons name="call-outline" size={20} color={contactPhone ? PRIMARY : '#666'} />
+        </Pressable>
+        <Pressable
+          onPress={() => setShowMenu(true)}
+          style={({ pressed }) => [styles.headerAction, pressed && { opacity: 0.6 }]}
+        >
+          <Ionicons name="ellipsis-vertical" size={20} color="#888" />
+        </Pressable>
       </View>
+
+      {/* Top-bar menu */}
+      <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
+        <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)}>
+          <View style={styles.menuPopover}>
+            <Pressable onPress={() => { setShowMenu(false); handleCall(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: '#ffffff08' }]}>
+              <Ionicons name="call-outline" size={18} color={PRIMARY} />
+              <Text style={styles.menuItemText}>{t('call') || 'Call'}{contactPhone ? `  •  ${contactPhone}` : ''}</Text>
+            </Pressable>
+            {(role !== 'salon_admin' && role !== 'staff') && (
+              <Pressable onPress={handleViewProfile} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: '#ffffff08' }]}>
+                <Ionicons name="person-outline" size={18} color="#fff" />
+                <Text style={styles.menuItemText}>{t('view_profile') || 'View profile'}</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => { setShowMenu(false); fetchMessages(); }} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: '#ffffff08' }]}>
+              <Ionicons name="refresh-outline" size={18} color="#fff" />
+              <Text style={styles.menuItemText}>{t('refresh') || 'Refresh'}</Text>
+            </Pressable>
+            <Pressable onPress={handleClearChat} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: '#ffffff08' }]}>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              <Text style={[styles.menuItemText, { color: '#EF4444' }]}>{t('clear_chat') || 'Clear chat'}</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowMenu(false)} style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: '#ffffff08' }]}>
+              <Ionicons name="close-outline" size={18} color="#888" />
+              <Text style={styles.menuItemText}>{t('close') || 'Close'}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Messages */}
       {loading ? (
@@ -368,7 +567,15 @@ const styles = StyleSheet.create({
   mediaBubble: { paddingHorizontal: 4, paddingTop: 4, overflow: 'hidden' },
   bubbleMine: { backgroundColor: PRIMARY, borderBottomRightRadius: 4 },
   bubbleTheirs: { backgroundColor: CARD, borderWidth: 1, borderColor: BORDER, borderBottomLeftRadius: 4 },
-  senderLabel: { color: PRIMARY, fontFamily: 'Urbanist_600SemiBold', fontSize: 11, marginBottom: 2, paddingHorizontal: 10 },
+  senderHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, paddingHorizontal: 10, flexWrap: 'wrap' },
+  senderLabel: { color: PRIMARY, fontFamily: 'Urbanist_600SemiBold', fontSize: 11 },
+  senderRoleChip: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
+  senderRoleChipText: { fontFamily: 'Urbanist_700Bold', fontSize: 9, letterSpacing: 0.3 },
+  roleBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
+  roleBadgeText: { fontFamily: 'Urbanist_700Bold', fontSize: 9, letterSpacing: 0.3 },
+  roleBadgeStaff: { backgroundColor: '#10B98115', borderColor: '#10B98155' },
+  roleBadgeAdmin: { backgroundColor: `${PRIMARY}15`, borderColor: `${PRIMARY}55` },
+  roleBadgeCustomer: { backgroundColor: '#3B82F615', borderColor: '#3B82F655' },
   msgText: { color: '#ddd', fontFamily: 'Urbanist_400Regular', fontSize: 15, lineHeight: 21 },
   msgTextMine: { color: '#181A20' },
   msgMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, paddingHorizontal: 6 },
@@ -379,7 +586,7 @@ const styles = StyleSheet.create({
   emptySubtext: { color: '#555', fontFamily: 'Urbanist_400Regular', fontSize: 13 },
 
   // Media
-  mediaImage: { width: SCREEN_W * 0.6, maxWidth: 280, height: 200, borderRadius: 14 },
+  mediaImage: { width: SCREEN_W * 0.6, maxWidth: 280, height: 200, borderRadius: 14, backgroundColor: '#0008', overflow: 'hidden' },
   mediaVideo: { width: SCREEN_W * 0.6, maxWidth: 280, borderRadius: 14, overflow: 'hidden' },
   videoPlaceholder: { width: '100%', height: 150, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
   fileMsg: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
@@ -406,6 +613,12 @@ const styles = StyleSheet.create({
   inputWrap: { flex: 1, backgroundColor: '#181A20', borderRadius: 22, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, minHeight: 40, maxHeight: 120, justifyContent: 'center' },
   textInput: { color: '#fff', fontFamily: 'Urbanist_400Regular', fontSize: 15, paddingVertical: Platform.OS === 'web' ? 8 : 6 },
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: PRIMARY, alignItems: 'center', justifyContent: 'center', marginBottom: 1 },
+
+  // Top-bar menu
+  menuOverlay: { flex: 1, backgroundColor: '#00000055', alignItems: 'flex-end', paddingTop: 70, paddingHorizontal: 12 },
+  menuPopover: { backgroundColor: CARD, borderWidth: 1, borderColor: BORDER, borderRadius: 14, paddingVertical: 6, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 12, elevation: 6 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11 },
+  menuItemText: { color: '#fff', fontFamily: 'Urbanist_600SemiBold', fontSize: 14 },
 
   // Attachment menu
   attachOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },

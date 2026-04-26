@@ -16,7 +16,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { width } = Dimensions.get('window');
-type DetailTab = 'about' | 'services' | 'package' | 'gallery' | 'review';
+type DetailTab = 'about' | 'services' | 'package' | 'products' | 'gallery' | 'review';
 
 function getServiceIcon(name: string): string {
   const n = (name || '').toLowerCase();
@@ -106,7 +106,18 @@ export default function SalonDetailScreen() {
   const topPad = Platform.OS === 'web' ? webTopInset : insets.top;
   const bottomPad = Platform.OS === 'web' ? webBottomInset : insets.bottom;
 
-  const tabs: DetailTab[] = ['about', 'services', 'package', 'gallery', 'review'];
+  const tabs: DetailTab[] = ['about', 'services', 'package', 'products', 'gallery', 'review'];
+
+  // Salon products (only this salon's items)
+  const { data: salonProducts } = useQuery<any[]>({
+    queryKey: ['/api/products', { salonId: id }],
+    queryFn: async () => {
+      const r = await fetch(`/api/products?salonId=${id}`, { credentials: 'include' });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!id,
+  });
 
   if (isLoading || !salon) {
     return (
@@ -312,6 +323,60 @@ export default function SalonDetailScreen() {
     </View>
   );
 
+  const renderProducts = () => {
+    const items = (salonProducts || []).filter((p: any) => p.isActive !== false);
+    if (items.length === 0) {
+      return (
+        <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+          <Ionicons name="bag-handle-outline" size={48} color={theme.border} />
+          <Text style={{ color: theme.textSecondary, fontFamily: 'Urbanist_600SemiBold', marginTop: 12 }}>
+            {t('no_products') || 'No products yet'}
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontFamily: 'Urbanist_400Regular', fontSize: 12, marginTop: 4 }}>
+            {t('salon_no_products_desc') || "This salon hasn't added products yet"}
+          </Text>
+        </View>
+      );
+    }
+    return (
+      <View style={dstyles.productsGrid}>
+        {items.map((p: any) => (
+          <Pressable
+            key={p.id}
+            onPress={() => router.push({ pathname: '/(tabs)/shop', params: { salonId: id, productId: p.id } } as any)}
+            style={({ pressed }) => [dstyles.productCard, { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.85 : 1 }]}
+          >
+            {p.image ? (
+              <Image source={{ uri: getImageUrl(p.image) }} style={dstyles.productImage} contentFit="cover" />
+            ) : (
+              <View style={[dstyles.productImage, { backgroundColor: theme.primary + '15', alignItems: 'center', justifyContent: 'center' }]}>
+                <Ionicons name="bag-handle" size={28} color={theme.primary} />
+              </View>
+            )}
+            <View style={{ padding: 10 }}>
+              {p.category ? (
+                <Text style={{ color: theme.primary, fontFamily: 'Urbanist_700Bold', fontSize: 10, marginBottom: 2 }} numberOfLines={1}>
+                  {String(p.category).toUpperCase()}
+                </Text>
+              ) : null}
+              <Text style={{ color: theme.text, fontFamily: 'Urbanist_600SemiBold', fontSize: 13 }} numberOfLines={2}>
+                {p.name}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                <Text style={{ color: theme.primary, fontFamily: 'Urbanist_700Bold', fontSize: 14 }}>CHF {p.price}</Text>
+                {typeof p.stock === 'number' && (
+                  <Text style={{ color: p.stock > 0 ? theme.textSecondary : '#EF4444', fontFamily: 'Urbanist_500Medium', fontSize: 10 }}>
+                    {p.stock > 0 ? `${p.stock} ${t('in_stock') || 'in stock'}` : (t('out_of_stock') || 'Out of stock')}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+    );
+  };
+
   const renderGallery = () => {
     const galleryArr = Array.isArray(salon.gallery) ? salon.gallery : [];
     return (
@@ -475,7 +540,7 @@ export default function SalonDetailScreen() {
                     styles.detailTabText,
                     { color: active ? '#fff' : theme.text, fontFamily: active ? 'Urbanist_700Bold' : 'Urbanist_600SemiBold' }
                   ]}>
-                    {tab === 'about' ? t('about') : tab === 'services' ? t('services') : tab === 'package' ? t('package') : tab === 'gallery' ? t('gallery') : t('reviews')}
+                    {tab === 'about' ? t('about') : tab === 'services' ? t('services') : tab === 'package' ? t('package') : tab === 'products' ? (t('products') || 'Products') : tab === 'gallery' ? t('gallery') : t('reviews')}
                   </Text>
                 </Pressable>
               );
@@ -487,6 +552,7 @@ export default function SalonDetailScreen() {
           {activeTab === 'about' && renderAbout()}
           {activeTab === 'services' && renderServices()}
           {activeTab === 'package' && renderPackages()}
+          {activeTab === 'products' && renderProducts()}
           {activeTab === 'gallery' && renderGallery()}
           {activeTab === 'review' && renderReviews()}
         </View>
@@ -609,6 +675,9 @@ const dstyles = StyleSheet.create({
 
   galleryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   galleryImage: { width: (width - 52) / 2, height: 160, borderRadius: 14 },
+  productsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  productCard: { width: (width - 52) / 2, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  productImage: { width: '100%', height: 120 },
 
   reviewSummaryCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, borderWidth: 1, justifyContent: 'space-between' },
   reviewScoreLeft: { alignItems: 'flex-start', gap: 4 },

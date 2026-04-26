@@ -49,6 +49,7 @@ export default function SalonServices() {
   const { t, isRTL } = useLanguage();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ name: '', price: '', duration: '', description: '', category: 'general' });
 
   const { data: services = [], isLoading } = useQuery({
@@ -81,6 +82,29 @@ export default function SalonServices() {
     },
   });
 
+  const updateService = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest('PUT', `/api/salon/services/${id}`, {
+        name: data.name,
+        price: parseFloat(data.price) || 0,
+        duration: parseInt(data.duration) || 30,
+        description: data.description,
+        category: data.category,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['salon-services'] });
+      setShowForm(false);
+      setEditing(null);
+      setForm({ name: '', price: '', duration: '', description: '', category: 'general' });
+    },
+    onError: () => {
+      if (Platform.OS === 'web') window.alert(t('failed_update'));
+      else Alert.alert(t('error'), t('failed_update'));
+    },
+  });
+
   const deleteService = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiRequest('DELETE', `/api/salon/services/${id}`);
@@ -99,7 +123,10 @@ export default function SalonServices() {
           <Text style={styles.pageSubtitle}>{services.length} {t('services_count_suffix') || 'services'}</Text>
         </View>
         <Pressable
-          onPress={() => setShowForm(!showForm)}
+          onPress={() => {
+            if (showForm) { setShowForm(false); setEditing(null); setForm({ name: '', price: '', duration: '', description: '', category: 'general' }); }
+            else { setEditing(null); setShowForm(true); }
+          }}
           style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.85 }]}
         >
           <Ionicons name={showForm ? 'close' : 'add'} size={18} color="#181A20" />
@@ -128,7 +155,7 @@ export default function SalonServices() {
                 <MaterialCommunityIcons name="currency-usd" size={18} color="#10B981" />
               </View>
               <View>
-                <Text style={styles.sumValue}>${totalRevenue.toFixed(0)}</Text>
+                <Text style={styles.sumValue}>CHF {totalRevenue.toFixed(0)}</Text>
                 <Text style={styles.sumLabel}>{t('total_value') || 'Catalog'}</Text>
               </View>
             </View>
@@ -138,7 +165,7 @@ export default function SalonServices() {
               </View>
               <View>
                 <Text style={styles.sumValue}>
-                  ${services.length > 0 ? (totalRevenue / services.length).toFixed(0) : '0'}
+                  CHF {services.length > 0 ? (totalRevenue / services.length).toFixed(0) : '0'}
                 </Text>
                 <Text style={styles.sumLabel}>{t('avg_price') || 'Avg'}</Text>
               </View>
@@ -190,16 +217,22 @@ export default function SalonServices() {
             </ScrollView>
 
             <Pressable
-              onPress={() => addService.mutate(form)}
+              onPress={() => {
+                if (editing) {
+                  updateService.mutate({ id: editing.id, data: form });
+                } else {
+                  addService.mutate(form);
+                }
+              }}
               style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.85 }]}
-              disabled={addService.isPending}
+              disabled={addService.isPending || updateService.isPending}
             >
-              {addService.isPending ? (
+              {(addService.isPending || updateService.isPending) ? (
                 <ActivityIndicator size="small" color="#181A20" />
               ) : (
                 <>
-                  <Ionicons name="add-circle" size={18} color="#181A20" />
-                  <Text style={styles.submitBtnText}>{t('add_service_btn')}</Text>
+                  <Ionicons name={editing ? 'save' : 'add-circle'} size={18} color="#181A20" />
+                  <Text style={styles.submitBtnText}>{editing ? (t('save_changes') || 'Save Changes') : t('add_service_btn')}</Text>
                 </>
               )}
             </Pressable>
@@ -219,6 +252,10 @@ export default function SalonServices() {
         ) : (
           services.map((s: any) => {
             const info = getServiceIcon(s.name, s.category);
+            // Coerce duration to a number (strip any "min" suffix that may have been stored)
+            const durationNum = typeof s.duration === 'number'
+              ? s.duration
+              : parseInt(String(s.duration || '30').replace(/[^0-9]/g, ''), 10) || 30;
             return (
               <View key={s.id} style={[styles.card, { borderColor: info.color + '30' }]}>
                 <View style={[styles.iconBox, { backgroundColor: info.color + '22', borderColor: info.color + '40' }]}>
@@ -229,11 +266,10 @@ export default function SalonServices() {
                   <View style={styles.metaRow}>
                     <View style={styles.metaChip}>
                       <Ionicons name="time-outline" size={11} color="#888" />
-                      <Text style={styles.metaText}>{s.duration || 30} min</Text>
+                      <Text style={styles.metaText}>{durationNum} {t('min_short') || 'min'}</Text>
                     </View>
                     <View style={[styles.metaChip, { backgroundColor: '#10B98118', borderColor: '#10B98130' }]}>
-                      <MaterialCommunityIcons name="currency-usd" size={11} color="#10B981" />
-                      <Text style={[styles.metaText, { color: '#10B981', fontFamily: 'Urbanist_700Bold' }]}>{s.price}</Text>
+                      <Text style={[styles.metaText, { color: '#10B981', fontFamily: 'Urbanist_700Bold' }]}>CHF {s.price}</Text>
                     </View>
                     {s.category && s.category !== 'general' && (
                       <View style={[styles.metaChip, { backgroundColor: info.color + '18', borderColor: info.color + '30' }]}>
@@ -242,18 +278,36 @@ export default function SalonServices() {
                     )}
                   </View>
                 </View>
-                <Pressable
-                  onPress={() => confirmAction(
-                    t('delete'),
-                    t('delete_service_confirm_salon'),
-                    t('delete'),
-                    t('cancel'),
-                    () => deleteService.mutate(s.id),
-                  )}
-                  style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.6 }]}
-                >
-                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                </Pressable>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <Pressable
+                    onPress={() => {
+                      setEditing(s);
+                      setForm({
+                        name: s.name,
+                        description: s.description || '',
+                        duration: String(durationNum),
+                        price: String(s.price),
+                        category: s.category || 'general',
+                      });
+                      setShowForm(true);
+                    }}
+                    style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.6 }]}
+                  >
+                    <Ionicons name="create-outline" size={16} color={PRIMARY} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => confirmAction(
+                      t('delete'),
+                      t('delete_service_confirm_salon'),
+                      t('delete'),
+                      t('cancel'),
+                      () => deleteService.mutate(s.id),
+                    )}
+                    style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.6 }]}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                  </Pressable>
+                </View>
               </View>
             );
           })
@@ -305,4 +359,5 @@ const styles = StyleSheet.create({
   metaChip: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: BORDER },
   metaText: { color: '#aaa', fontFamily: 'Urbanist_600SemiBold', fontSize: 11 },
   deleteBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(239,68,68,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
+  editBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: `${PRIMARY}22`, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: `${PRIMARY}44` },
 });

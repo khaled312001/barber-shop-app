@@ -60,11 +60,11 @@ const days = Array.from({ length: 14 }, (_, i) => {
 });
 
 export default function BookingScreen() {
-  const { id, specialistId, specialistName } = useLocalSearchParams<{ id: string; specialistId?: string; specialistName?: string }>();
+  const { id, specialistId, specialistName, services: rebookServices, rebookFrom } = useLocalSearchParams<{ id: string; specialistId?: string; specialistName?: string; services?: string; rebookFrom?: string }>();
   const theme = useTheme();
   const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
-  const { addBooking, user } = useApp();
+  const { addBooking, user, authLoading: _authLoading, isLoggedIn: _isLoggedIn } = useApp();
   const paymentMethods = PAYMENT_METHOD_DEFS.map(pm => ({ ...pm, name: t(pm.nameKey as any), description: t(pm.descKey as any) }));
   const { data: salon, isLoading } = useQuery<any>({
     queryKey: ['/api/salons', id],
@@ -78,6 +78,15 @@ export default function BookingScreen() {
       if (found) setSelectedSpecialist(found);
     }
   }, [specialistId, salon]);
+
+  // Auto-select services on rebook
+  React.useEffect(() => {
+    if (rebookServices && salon?.services) {
+      const wanted = rebookServices.split(',').map(s => s.trim()).filter(Boolean);
+      const list = (salon.services as any[]).filter(s => wanted.includes(s.name));
+      if (list.length) setSelectedServices(list);
+    }
+  }, [rebookServices, salon]);
   const [step, setStep] = useState<'services' | 'specialist' | 'datetime' | 'payment' | 'review' | 'processing' | 'success'>('services');
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedSpecialist, setSelectedSpecialist] = useState<any>(null);
@@ -126,7 +135,9 @@ export default function BookingScreen() {
   };
 
   const ensureAuth = (): boolean => {
-    if (!user) {
+    // While auth is still loading, wait — don't force a redirect to signin
+    if (_authLoading) return false;
+    if (!user || !_isLoggedIn) {
       const msg = t('login_required_to_book') || 'Please sign in to confirm your booking';
       if (Platform.OS === 'web') {
         if (window.confirm(msg + '\n\n' + (t('go_to_signin') || 'Go to Sign In?'))) {

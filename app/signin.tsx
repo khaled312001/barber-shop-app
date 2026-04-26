@@ -282,29 +282,6 @@ export default function SignInScreen() {
           {Platform.OS === 'web' ? (
             <View style={styles.gisButtonWrap}>
               <View nativeID="google-signin-btn-container" style={{ width: '100%', minHeight: 44, alignItems: 'center' }} />
-              {/* Fallback button (shown until GIS loads) */}
-              <Pressable
-                onPress={handleGoogle}
-                disabled={googleLoading}
-                style={({ pressed }) => [
-                  styles.googleBtnFallback,
-                  { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
-                  googleLoading && { opacity: 0.7 },
-                ]}
-              >
-                {googleLoading ? (
-                  <ActivityIndicator size="small" color={theme.primary} />
-                ) : (
-                  <>
-                    <View style={styles.googleIconWrap}>
-                      <Ionicons name="logo-google" size={18} color="#EA4335" />
-                    </View>
-                    <Text style={[styles.googleTextFallback, { color: theme.textSecondary }]}>
-                      {t('continue_with_popup') || 'Continue with popup (fallback)'}
-                    </Text>
-                  </>
-                )}
-              </Pressable>
             </View>
           ) : (
             <Pressable

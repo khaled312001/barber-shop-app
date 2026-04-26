@@ -84,6 +84,12 @@ if (preg_match('#^/api/#', $path)) {
     exit;
 }
 
+// For uploaded media -> proxy to Node.js (chat images, files, salon images)
+if (preg_match('#^/uploads/#', $path)) {
+    proxyToNode($uri, $method);
+    exit;
+}
+
 // For all other routes -> serve Expo web SPA
 // Dynamically find the current entry JS file and generate HTML
 $jsDir = $docRoot . '/_expo/static/js/web';

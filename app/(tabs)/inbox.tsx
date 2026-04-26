@@ -57,8 +57,14 @@ export default function InboxScreen() {
     setShowNewChat(true);
   };
 
-  const openChat = (salonId: string, salonName: string, salonImage: string) => {
-    router.push({ pathname: '/chat/[id]', params: { id: salonId, name: salonName, image: salonImage } });
+  const openChat = (salonId: string, salonName: string, salonImage: string, recipientUserId?: string, chatName?: string, chatRole?: string) => {
+    const params: any = { id: salonId, name: chatName || salonName, image: salonImage };
+    if (recipientUserId) {
+      params.salonId = salonId;
+      params.recipientUserId = recipientUserId;
+      params.role = chatRole || '';
+    }
+    router.push({ pathname: '/chat/[id]', params });
   };
 
   const startNewChat = (salon: any) => {
@@ -118,19 +124,19 @@ export default function InboxScreen() {
         }
         renderItem={({ item }) => (
           <Pressable
-            onPress={() => openChat(item.salonId, item.salonName, item.salonImage)}
+            onPress={() => openChat(item.salonId, item.salonName, item.chatImage || item.salonImage, item.recipientUserId, item.chatName, item.chatRole)}
             style={({ pressed }) => [styles.chatRow, { opacity: pressed ? 0.7 : 1 }]}
           >
-            {item.salonImage ? (
-              <Image source={{ uri: item.salonImage }} style={styles.chatAvatar} contentFit="cover" />
+            {(item.chatImage || item.salonImage) ? (
+              <Image source={{ uri: item.chatImage || item.salonImage }} style={styles.chatAvatar} contentFit="cover" />
             ) : (
               <View style={[styles.chatAvatarPlaceholder, { backgroundColor: theme.primary + '20' }]}>
-                <Ionicons name="cut" size={22} color={theme.primary} />
+                <Ionicons name={item.chatRole === 'staff' ? 'cut' : 'storefront'} size={22} color={theme.primary} />
               </View>
             )}
             <View style={styles.chatInfo}>
               <View style={styles.chatNameRow}>
-                <Text style={[styles.chatName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]} numberOfLines={1}>{item.salonName}</Text>
+                <Text style={[styles.chatName, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]} numberOfLines={1}>{item.chatName || item.salonName}</Text>
                 <Text style={[styles.chatTime, { color: theme.textTertiary, fontFamily: 'Urbanist_400Regular' }]}>{formatTime(item.time)}</Text>
               </View>
               <View style={styles.chatMsgRow}>

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Platform, Linking, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/query-client';
 import { useTheme } from '@/constants/theme';
 import { useApp } from '@/contexts/AppContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -30,6 +32,16 @@ export default function MyBookingDetail() {
   const status = booking?.status || 'upcoming';
   const meta = STATUS_META[status] || STATUS_META.upcoming;
 
+  // Fetch salon details for address, phone, lat/lng
+  const { data: salon } = useQuery<any>({
+    queryKey: ['salon-detail-for-booking', booking?.salonId],
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/salons/${booking?.salonId}`);
+      return res.json();
+    },
+    enabled: !!booking?.salonId,
+  });
+
   if (!booking) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background, alignItems: 'center', justifyContent: 'center' }]}>
@@ -40,8 +52,27 @@ export default function MyBookingDetail() {
 
   const services: string[] = Array.isArray((booking as any).services) ? (booking as any).services : (booking as any).serviceName ? [(booking as any).serviceName] : [];
 
+  const [cancelling, setCancelling] = useState(false);
   const handleCancel = () => {
-    const doCancel = () => cancelBooking(booking.id);
+    const doCancel = async () => {
+      if (cancelling) return;
+      setCancelling(true);
+      try {
+        await cancelBooking(booking.id);
+        if (Platform.OS === 'web') {
+          alert(t('booking_cancelled') || 'Booking cancelled');
+        } else {
+          Alert.alert(t('booking_cancelled') || 'Booking cancelled');
+        }
+      } catch (err: any) {
+        console.warn('cancel error', err);
+        const msg = (err?.message || t('cancel_failed') || 'Failed to cancel booking');
+        if (Platform.OS === 'web') alert(msg);
+        else Alert.alert(msg);
+      } finally {
+        setCancelling(false);
+      }
+    };
     if (Platform.OS === 'web') {
       if (window.confirm(t('cancel_booking_confirm') || 'Cancel this booking?')) doCancel();
     } else {
@@ -53,16 +84,32 @@ export default function MyBookingDetail() {
   };
 
   const handleCallSalon = () => {
-    const phone = (booking as any).salonPhone;
-    if (phone) Linking.openURL(`tel:${phone}`);
+    const phone = salon?.phone || (booking as any).salonPhone;
+    if (phone) {
+      if (Platform.OS === 'web') window.location.href = `tel:${phone}`;
+      else Linking.openURL(`tel:${phone}`);
+    } else {
+      const msg = t('phone_not_available') || 'Phone number not available';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert(msg);
+    }
   };
 
   const handleOpenMap = () => {
-    const addr = (booking as any).salonAddress;
-    if (addr) {
-      const q = encodeURIComponent(addr);
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+    const addr = salon?.address || (booking as any).salonAddress || booking?.salonName;
+    const lat = salon?.latitude;
+    const lng = salon?.longitude;
+    let url = '';
+    if (lat && lng && lat !== 0 && lng !== 0) {
+      url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    } else if (addr) {
+      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+    } else {
+      const msg = t('location_not_available') || 'Location not available';
+      if (Platform.OS === 'web') alert(msg); else Alert.alert(msg);
+      return;
     }
+    if (Platform.OS === 'web') window.open(url, '_blank');
+    else Linking.openURL(url);
   };
 
   return (
@@ -167,6 +214,36 @@ export default function MyBookingDetail() {
           ))}
         </View>
 
+        {/* QR Code for Check-in */}
+        {(status === 'upcoming' || status === 'confirmed' || status === 'pending') && (
+          <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border, alignItems: 'center' }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#10B98120' }]}>
+                <MaterialCommunityIcons name="qrcode-scan" size={16} color="#10B981" />
+              </View>
+              <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: 'Urbanist_700Bold' }]}>
+                {t('checkin_qr') || 'Check-in QR Code'}
+              </Text>
+            </View>
+            <Text style={[{ color: theme.textSecondary, fontSize: 12, fontFamily: 'Urbanist_400Regular', textAlign: 'center', marginBottom: 12, paddingHorizontal: 8 }]}>
+              {t('show_qr_at_salon') || 'Show this QR code at the salon for fast check-in'}
+            </Text>
+            <View style={{ width: 200, height: 200, backgroundColor: '#fff', padding: 12, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}>
+              <Image
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({ type: 'booking', id: booking.id, salonId: booking.salonId }))}` }}
+                style={{ width: 176, height: 176 }}
+                contentFit="contain"
+              />
+            </View>
+            <Text style={[{ color: theme.text, fontFamily: 'Urbanist_700Bold', fontSize: 13, marginTop: 12, letterSpacing: 1 }]}>
+              #{booking.id?.slice(0, 8)?.toUpperCase()}
+            </Text>
+            <Text style={[{ color: theme.textTertiary, fontFamily: 'Urbanist_400Regular', fontSize: 11, marginTop: 2 }]}>
+              {t('booking_id') || 'Booking ID'}
+            </Text>
+          </View>
+        )}
+
         {/* Payment */}
         {(booking as any).paymentMethod && (
           <View style={[styles.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
@@ -220,14 +297,35 @@ export default function MyBookingDetail() {
           </Pressable>
         )}
 
-        {/* Rebook for completed/cancelled */}
-        {(status === 'completed' || status === 'cancelled') && booking.salonId && (
+        {/* Rebook button — available for any past or current booking with a salon */}
+        {booking.salonId && (
           <Pressable
-            onPress={() => router.push({ pathname: '/booking/[id]', params: { id: booking.salonId } })}
+            onPress={() => {
+              const params: Record<string, string> = { id: booking.salonId };
+              if (services.length) params.services = services.join(',');
+              const anyB: any = booking as any;
+              if (anyB.specialistId) params.specialistId = String(anyB.specialistId);
+              if (anyB.specialist) params.specialist = String(anyB.specialist);
+              if (anyB.totalPrice) params.price = String(anyB.totalPrice);
+              if (anyB.duration) params.duration = String(anyB.duration);
+              params.rebookFrom = booking.id;
+              router.push({ pathname: '/booking/[id]', params });
+            }}
             style={[styles.rebookBtn, { backgroundColor: theme.primary }]}
           >
             <Ionicons name="refresh" size={18} color="#fff" />
-            <Text style={styles.rebookBtnText}>{t('book_again') || 'Book Again'}</Text>
+            <Text style={styles.rebookBtnText}>{t('rebook') || t('book_again') || 'Book Again'}</Text>
+          </Pressable>
+        )}
+
+        {/* Post a reel — available for completed bookings */}
+        {status === 'completed' && booking.salonId && (
+          <Pressable
+            onPress={() => router.push({ pathname: '/reels/new', params: { salonId: booking.salonId, bookingId: booking.id } } as any)}
+            style={[styles.rebookBtn, { backgroundColor: '#181A20', borderColor: theme.primary, borderWidth: 1.5 }]}
+          >
+            <Ionicons name="videocam" size={18} color={theme.primary} />
+            <Text style={[styles.rebookBtnText, { color: theme.primary }]}>{t('post_reel') || 'Post a Reel'}</Text>
           </Pressable>
         )}
       </ScrollView>

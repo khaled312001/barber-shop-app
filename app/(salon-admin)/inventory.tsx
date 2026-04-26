@@ -169,7 +169,7 @@ export default function SalonInventory() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.catRow}
-          style={{ flexGrow: 0 }}
+          style={{ flexGrow: 0, maxHeight: 70 }}
         >
           {['all', ...CATEGORIES].map(c => {
             const isActive = catFilter === c;
@@ -372,15 +372,15 @@ const styles = StyleSheet.create({
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: PRIMARY, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   addBtnText: { color: '#181A20', fontFamily: 'Urbanist_700Bold', fontSize: 14 },
 
-  // Stats
-  statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 14 },
+  // Stats — compact
+  statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 10 },
   statCard: {
-    flex: 1, backgroundColor: CARD, borderRadius: 14, padding: 12,
+    flex: 1, flexDirection: 'row', backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8,
     borderWidth: 1, borderColor: BORDER, borderLeftWidth: 3,
-    alignItems: 'center', gap: 4,
+    alignItems: 'center', gap: 8,
   },
-  statValue: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 20 },
-  statLabel: { color: '#888', fontFamily: 'Urbanist_400Regular', fontSize: 11 },
+  statValue: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 15 },
+  statLabel: { color: '#888', fontFamily: 'Urbanist_400Regular', fontSize: 10 },
 
   // Warning
   warning: {
@@ -407,6 +407,7 @@ const styles = StyleSheet.create({
   catScrollWrap: { height: 68, marginBottom: 14, paddingVertical: 6 },
   catRow: { paddingHorizontal: 20, gap: 10, alignItems: 'center' },
   catChip: {
+    flexShrink: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingHorizontal: 16,
     borderRadius: 14, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD,

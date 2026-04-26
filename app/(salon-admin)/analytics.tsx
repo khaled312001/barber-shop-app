@@ -58,6 +58,36 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
   );
 }
 
+// Modern horizontal bar row — readable at any width, supports many data points
+function HBarRow({
+  label, value, max, color, prefix, suffix, highlight,
+}: { label: string; value: number; max: number; color: string; prefix?: string; suffix?: string; highlight?: boolean }) {
+  const pct = max > 0 ? Math.max((value / max) * 100, 2) : 0;
+  return (
+    <View style={hbStyles.row}>
+      <Text style={[hbStyles.label, highlight && { color: '#10B981', fontFamily: 'Urbanist_700Bold' }]} numberOfLines={1}>{label}</Text>
+      <View style={hbStyles.track}>
+        <LinearGradient
+          colors={[color, color + 'cc']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={[hbStyles.fill, { width: `${pct}%` }]}
+        />
+      </View>
+      <Text style={[hbStyles.value, { color }]} numberOfLines={1}>
+        {prefix || ''}{Number(value).toLocaleString()}{suffix || ''}
+      </Text>
+    </View>
+  );
+}
+
+const hbStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  label: { width: 56, color: '#aaa', fontFamily: 'Urbanist_600SemiBold', fontSize: 11 },
+  track: { flex: 1, height: 18, backgroundColor: '#13151B', borderRadius: 9, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 9 },
+  value: { width: 70, textAlign: 'right', fontFamily: 'Urbanist_700Bold', fontSize: 12 },
+});
+
 export default function SalonAnalytics() {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
@@ -119,7 +149,7 @@ export default function SalonAnalytics() {
 
   const summaryCards = [
     { label: t('total_bookings_stat') || 'Bookings', value: analytics?.totalBookings ?? totalBookingsCount, icon: 'calendar' as const, color: '#6C63FF', mcIcon: false },
-    { label: t('total_revenue_stat') || 'Revenue', value: `$${(analytics?.totalRevenue ?? 0).toFixed(0)}`, icon: 'cash' as const, color: '#10B981', mcIcon: false },
+    { label: t('total_revenue_stat') || 'Revenue', value: `CHF ${(analytics?.totalRevenue ?? 0).toFixed(0)}`, icon: 'cash' as const, color: '#10B981', mcIcon: false },
     { label: t('avg_booking_value') || 'Avg Value', value: `$${(analytics?.avgBookingValue ?? 0).toFixed(0)}`, icon: 'trending-up' as const, color: PRIMARY, mcIcon: false },
     { label: t('new_customers') || 'New Clients', value: analytics?.newCustomers ?? 0, icon: 'person-add' as const, color: '#3B82F6', mcIcon: false },
   ];
@@ -246,17 +276,18 @@ export default function SalonAnalytics() {
                 )}
               </View>
               {bookings.length > 0 ? (
-                <>
-                  <View style={styles.barsRow}>
-                    {bookings.map((b: any, i: number) => (
-                      <View key={i} style={styles.barCol}>
-                        <Text style={styles.barValue}>${(b.revenue || 0).toFixed(0)}</Text>
-                        <MiniBar value={b.revenue || 0} max={maxRevenue} color={PRIMARY} />
-                        <Text style={styles.barLabel}>{b.label || `${i + 1}`}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </>
+                <View style={{ marginTop: 12 }}>
+                  {bookings.map((b: any, i: number) => (
+                    <HBarRow
+                      key={i}
+                      label={b.label || `${i + 1}`}
+                      value={Number(b.revenue || 0)}
+                      max={maxRevenue}
+                      color={PRIMARY}
+                      prefix="CHF "
+                    />
+                  ))}
+                </View>
               ) : (
                 <View style={styles.noDataBox}>
                   <MaterialCommunityIcons name="chart-line-variant" size={32} color={BORDER} />
@@ -281,13 +312,15 @@ export default function SalonAnalytics() {
                 )}
               </View>
               {bookings.length > 0 ? (
-                <View style={styles.barsRow}>
+                <View style={{ marginTop: 12 }}>
                   {bookings.map((b: any, i: number) => (
-                    <View key={i} style={styles.barCol}>
-                      <Text style={styles.barValue}>{b.count || 0}</Text>
-                      <MiniBar value={b.count || 0} max={maxBookings} color="#6C63FF" />
-                      <Text style={styles.barLabel}>{b.label || `${i + 1}`}</Text>
-                    </View>
+                    <HBarRow
+                      key={i}
+                      label={b.label || `${i + 1}`}
+                      value={Number(b.count || 0)}
+                      max={maxBookings}
+                      color="#6C63FF"
+                    />
                   ))}
                 </View>
               ) : (
@@ -308,16 +341,20 @@ export default function SalonAnalytics() {
                     </View>
                     <Text style={styles.chartTitle}>{t('weekly_distribution') || 'Weekly Distribution'}</Text>
                   </View>
+                  <Text style={[styles.chartTotal, { color: '#3B82F6' }]}>
+                    {dayNames[peakDayIdx]} · {t('peak_day') || 'peak'}
+                  </Text>
                 </View>
-                <View style={styles.barsRow}>
+                <View style={{ marginTop: 12 }}>
                   {dayCounts.map((count, i) => (
-                    <View key={i} style={styles.barCol}>
-                      <Text style={styles.barValue}>{count}</Text>
-                      <MiniBar value={count} max={maxDayCount} color={i === peakDayIdx ? '#10B981' : '#3B82F6'} />
-                      <Text style={[styles.barLabel, i === peakDayIdx && { color: '#10B981', fontFamily: 'Urbanist_700Bold' }]}>
-                        {dayNames[i]}
-                      </Text>
-                    </View>
+                    <HBarRow
+                      key={i}
+                      label={dayNames[i]}
+                      value={count}
+                      max={maxDayCount}
+                      color={i === peakDayIdx ? '#10B981' : '#3B82F6'}
+                      highlight={i === peakDayIdx}
+                    />
                   ))}
                 </View>
               </View>

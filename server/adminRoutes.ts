@@ -5,6 +5,7 @@ import {
   users, salons, bookings, reviews, coupons, appSettings, messages, services,
   salonStaff, plans, subscriptions, licenseKeys, licenseActivations, activityLogs, commissions, expenses, shifts,
   inventory, tips, customerNotes, loyaltyTransactions, notifications, products, productOrders,
+  reels, reelLikes, reelComments,
 } from "@shared/schema";
 import { eq, sql, and, desc, gte, lte } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -92,6 +93,17 @@ export function registerAdminRoutes(app: Express) {
   });
   const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
   const chatUpload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB for chat media
+  const reelUpload = multer({ storage, limits: { fileSize: 60 * 1024 * 1024 } }); // 60MB for reels
+
+  // ── Reel video upload ──────────────────────────────────────────────────────
+  app.post("/api/reels/upload", reelUpload.single("file"), (req: any, res: Response) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const videoExts = ['.mp4', '.webm', '.mov', '.m4v'];
+    if (!videoExts.includes(ext)) return res.status(400).json({ message: "Only video files are allowed" });
+    res.json({ url: `/uploads/${req.file.filename}`, name: req.file.originalname, size: req.file.size });
+  });
 
   // ── Chat Media Upload (all authenticated users) ────────────────────────────
   app.post("/api/chat/upload", chatUpload.single("file"), (req: any, res: Response) => {
@@ -931,6 +943,36 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Delete booking (salon admin)
+  // Check-in: confirm customer arrival via QR scan / booking ID
+  app.post("/api/salon/bookings/:id/checkin", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const bookingId = String(req.params.id);
+      const [booking] = await db.select().from(bookings).where(and(eq(bookings.id, bookingId), eq(bookings.salonId, salonId)));
+      if (!booking) {
+        return res.status(404).json({ message: "Booking not found in this salon" });
+      }
+      if (booking.status === 'completed' || booking.status === 'cancelled') {
+        return res.status(400).json({ message: `Booking is already ${booking.status}` });
+      }
+      // Mark as confirmed (arrived)
+      await db.update(bookings).set({ status: 'confirmed' }).where(eq(bookings.id, bookingId));
+      // Notify customer
+      try {
+        await db.insert(notifications).values({
+          userId: booking.userId,
+          title: "Welcome! You've checked in",
+          message: `You're all set at the salon. Your stylist will be ready shortly.`,
+          type: "booking",
+        });
+      } catch { }
+      const [updated] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || 'Check-in failed' });
+    }
+  });
+
   app.delete("/api/salon/bookings/:id", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
@@ -1009,6 +1051,62 @@ export function registerAdminRoutes(app: Express) {
       const salonId = (req as any).salonId;
       await db.delete(salonStaff).where(and(eq(salonStaff.id, String(req.params.linkId)), eq(salonStaff.salonId, salonId)));
       res.json({ success: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Update staff member (by user id)
+  app.put("/api/salon/staff/:userId", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const userId = String(req.params.userId);
+      // Verify the user is part of this salon
+      const [link] = await db.select().from(salonStaff).where(and(eq(salonStaff.userId, userId), eq(salonStaff.salonId, salonId)));
+      if (!link) return res.status(404).json({ message: "Staff not found" });
+
+      const { fullName, email, password, staffRole, phone, avatar } = req.body || {};
+      const update: any = {};
+      if (fullName) update.fullName = fullName;
+      if (email) update.email = email;
+      if (phone !== undefined) update.phone = phone;
+      if (avatar !== undefined) update.avatar = avatar;
+      if (password) update.password = await bcrypt.hash(password, 10);
+      if (staffRole === "salon_admin" || staffRole === "staff") update.role = staffRole;
+
+      if (Object.keys(update).length > 0) {
+        await db.update(users).set(update).where(eq(users.id, userId));
+      }
+
+      // Update link role too if provided
+      if (staffRole) {
+        await db.update(salonStaff).set({ role: staffRole }).where(eq(salonStaff.id, link.id));
+      }
+
+      const [u] = await db.select().from(users).where(eq(users.id, userId));
+      const [updatedLink] = await db.select().from(salonStaff).where(eq(salonStaff.id, link.id));
+      res.json({ ...u, linkId: updatedLink.id, staffRole: updatedLink.role });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Get a single staff member's profile + bookings (for clickable view)
+  app.get("/api/salon/staff/:userId/profile", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const userId = String(req.params.userId);
+      const [link] = await db.select().from(salonStaff).where(and(eq(salonStaff.userId, userId), eq(salonStaff.salonId, salonId)));
+      if (!link) return res.status(404).json({ message: "Staff not found" });
+      const [u] = await db.select().from(users).where(eq(users.id, userId));
+      const staffBookings = await db.select().from(bookings).where(and(eq(bookings.salonId, salonId), eq(bookings.specialistId, userId))).orderBy(desc(bookings.createdAt));
+      res.json({
+        user: { id: u?.id, fullName: u?.fullName, email: u?.email, phone: u?.phone, avatar: u?.avatar, role: u?.role },
+        staffRole: link.role,
+        bookings: staffBookings,
+        stats: {
+          totalBookings: staffBookings.length,
+          completed: staffBookings.filter(b => b.status === 'completed').length,
+          cancelled: staffBookings.filter(b => b.status === 'cancelled').length,
+          totalRevenue: staffBookings.filter(b => b.status === 'completed').reduce((s: number, b: any) => s + (Number(b.totalPrice) || 0), 0),
+        },
+      });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
@@ -1551,9 +1649,12 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Public: browse all products (for customer shop)
-  app.get("/api/products", async (_req: Request, res: Response) => {
+  app.get("/api/products", async (req: Request, res: Response) => {
     try {
-      const allProducts = await db.select().from(products).where(eq(products.isActive, true));
+      const salonId = req.query.salonId ? String(req.query.salonId) : undefined;
+      const allProducts = salonId
+        ? await db.select().from(products).where(and(eq(products.isActive, true), eq(products.salonId, salonId)))
+        : await db.select().from(products).where(eq(products.isActive, true));
       res.json(allProducts);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
@@ -1617,14 +1718,34 @@ export function registerAdminRoutes(app: Express) {
   // Messaging (Salon Admin)
   // ════════════════════════════════════════════════════════════════════════════
 
-  // Get all conversations for this salon (grouped by userId)
+  // Get a specific user (customer) — used by admin/staff chat header for call button
+  app.get("/api/salon/users/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const id = String(req.params.id);
+      const [u] = await db.select().from(users).where(eq(users.id, id));
+      if (!u) return res.status(404).json({ message: "User not found" });
+      // Only return safe public fields
+      res.json({ id: u.id, fullName: u.fullName, phone: u.phone, avatar: u.avatar, email: u.email });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Get conversations addressed to THIS salon admin (recipient_user_id = me)
+  // PLUS legacy/general messages where recipient is empty.
   app.get("/api/salon/messages", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
+      const me = (req as any).currentUser;
+      const myId = me?.id;
       const allMsgs = await db.select().from(messages).where(eq(messages.salonId, salonId)).orderBy(desc(messages.createdAt));
-      // Group by userId
+      // Filter to threads relevant to this admin: recipient is me OR empty (general inbox)
+      const filtered = allMsgs.filter((m: any) => {
+        const r = m.recipientUserId || '';
+        return r === '' || r === myId;
+      });
       const convMap = new Map<string, any>();
-      for (const m of allMsgs) {
+      for (const m of filtered) {
         if (!convMap.has(m.userId)) {
           const [u] = await db.select().from(users).where(eq(users.id, m.userId));
           convMap.set(m.userId, {
@@ -1635,7 +1756,7 @@ export function registerAdminRoutes(app: Express) {
             lastMessage: m.content,
             lastMessageAt: m.createdAt,
             sender: m.sender,
-            unreadCount: allMsgs.filter(x => x.userId === m.userId && x.sender === 'user' && !x.isRead).length,
+            unreadCount: filtered.filter(x => x.userId === m.userId && x.sender === 'user' && !x.isRead).length,
           });
         }
       }
@@ -1643,23 +1764,30 @@ export function registerAdminRoutes(app: Express) {
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
-  // Get messages in a conversation with a specific user
+  // Get messages in a conversation with a specific user (only the admin's own thread)
   app.get("/api/salon/messages/:userId", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
       const userId = String(req.params.userId);
+      const me = (req as any).currentUser;
+      const myId = me?.id;
       const msgs = await db.select().from(messages).where(
         and(eq(messages.salonId, salonId), eq(messages.userId, userId))
       ).orderBy(messages.createdAt);
+      // Filter: thread for this admin only (recipient empty or matches me)
+      const own = msgs.filter((m: any) => {
+        const r = m.recipientUserId || '';
+        return r === '' || r === myId;
+      });
       // Mark user messages as read
       await db.update(messages).set({ isRead: 1 }).where(
         and(eq(messages.salonId, salonId), eq(messages.userId, userId), eq(messages.sender, 'user'))
       );
-      res.json(msgs);
+      res.json(own);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
-  // Send message to a user (salon admin reply)
+  // Send message to a user (salon admin reply) — stamp recipient = me so customer sees a separate thread
   app.post("/api/salon/messages/:userId", requireSalonAdmin, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
@@ -1676,6 +1804,8 @@ export function registerAdminRoutes(app: Express) {
         content: req.body.content,
         sender: 'salon',
         senderName: currentUser?.fullName || 'Salon Admin',
+        senderRole: 'salon_admin',
+        recipientUserId: currentUser?.id || '',
         messageType: req.body.messageType || 'text',
         isRead: 0,
       });
@@ -1691,9 +1821,13 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/staff/messages", requireStaff, async (req: Request, res: Response) => {
     try {
       const salonId = (req as any).salonId;
+      const me = (req as any).currentUser;
+      const myId = me?.id;
       const allMsgs = await db.select().from(messages).where(eq(messages.salonId, salonId)).orderBy(desc(messages.createdAt));
+      // Staff sees only threads addressed specifically to them
+      const filtered = allMsgs.filter((m: any) => (m.recipientUserId || '') === myId);
       const convMap = new Map<string, any>();
-      for (const m of allMsgs) {
+      for (const m of filtered) {
         if (!convMap.has(m.userId)) {
           const [u] = await db.select().from(users).where(eq(users.id, m.userId));
           convMap.set(m.userId, {
@@ -1703,7 +1837,7 @@ export function registerAdminRoutes(app: Express) {
             lastMessage: m.content,
             lastMessageAt: m.createdAt,
             sender: m.sender,
-            unreadCount: allMsgs.filter(x => x.userId === m.userId && x.sender === 'user' && !x.isRead).length,
+            unreadCount: filtered.filter(x => x.userId === m.userId && x.sender === 'user' && !x.isRead).length,
           });
         }
       }
@@ -1715,13 +1849,16 @@ export function registerAdminRoutes(app: Express) {
     try {
       const salonId = (req as any).salonId;
       const userId = String(req.params.userId);
+      const me = (req as any).currentUser;
+      const myId = me?.id;
       const msgs = await db.select().from(messages).where(
         and(eq(messages.salonId, salonId), eq(messages.userId, userId))
       ).orderBy(messages.createdAt);
+      const own = msgs.filter((m: any) => (m.recipientUserId || '') === myId);
       await db.update(messages).set({ isRead: 1 }).where(
         and(eq(messages.salonId, salonId), eq(messages.userId, userId), eq(messages.sender, 'user'))
       );
-      res.json(msgs);
+      res.json(own);
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 
@@ -1739,6 +1876,8 @@ export function registerAdminRoutes(app: Express) {
         content: req.body.content,
         sender: 'salon',
         senderName: currentUser?.fullName || 'Staff',
+        senderRole: 'staff',
+        recipientUserId: currentUser?.id || '',
         messageType: req.body.messageType || 'text',
         isRead: 0,
       });
@@ -2022,6 +2161,275 @@ export function registerAdminRoutes(app: Express) {
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.send(html);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Reels (customer videos for salons, TikTok-style)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // Public feed: list approved reels (TikTok-style)
+  app.get("/api/reels", async (req: Request, res: Response) => {
+    try {
+      const salonId = req.query.salonId ? String(req.query.salonId) : undefined;
+      const conds: any[] = [eq(reels.status, "approved")];
+      if (salonId) conds.push(eq(reels.salonId, salonId));
+      const list = await db.select().from(reels).where(and(...conds)).orderBy(desc(reels.createdAt));
+      res.json(list);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Customer: list my reels (any status)
+  app.get("/api/reels/mine", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const list = await db.select().from(reels).where(eq(reels.userId, userId)).orderBy(desc(reels.createdAt));
+      res.json(list);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Customer: create a reel (after a completed service)
+  app.post("/api/reels", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const [u] = await db.select().from(users).where(eq(users.id, userId));
+      const { salonId, bookingId, videoUrl, thumbnailUrl, caption, rating } = req.body || {};
+      if (!salonId || !videoUrl) return res.status(400).json({ message: "salonId and videoUrl required" });
+      // Require that this customer has a completed booking with this salon
+      const completed = await db.select().from(bookings).where(and(
+        eq(bookings.userId, userId),
+        eq(bookings.salonId, String(salonId)),
+        eq(bookings.status, "completed")
+      ));
+      if (completed.length === 0) {
+        return res.status(403).json({ message: "You can only post a reel after a completed service at this salon" });
+      }
+      const [salon] = await db.select().from(salons).where(eq(salons.id, String(salonId)));
+      const reelId = crypto.randomUUID();
+      await db.insert(reels).values({
+        id: reelId,
+        userId,
+        userName: u?.fullName || "",
+        userAvatar: u?.avatar || "",
+        salonId: String(salonId),
+        salonName: salon?.name || "",
+        bookingId: bookingId ? String(bookingId) : "",
+        videoUrl: String(videoUrl),
+        thumbnailUrl: thumbnailUrl ? String(thumbnailUrl) : "",
+        caption: caption ? String(caption).slice(0, 500) : "",
+        rating: typeof rating === "number" ? Math.max(1, Math.min(5, rating)) : 5,
+        status: "pending",
+      });
+      // Notify salon staff/admin to review
+      try {
+        const staffLinks = await db.select().from(salonStaff).where(eq(salonStaff.salonId, String(salonId)));
+        for (const link of staffLinks) {
+          await db.insert(notifications).values({
+            userId: link.userId,
+            title: "New Reel — Pending Review",
+            message: `${u?.fullName || "A customer"} posted a video review`,
+            type: "review",
+          });
+        }
+      } catch { }
+      const [r] = await db.select().from(reels).where(eq(reels.id, reelId));
+      res.status(201).json(r);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // List comments on a reel
+  app.get("/api/reels/:id/comments", async (req: Request, res: Response) => {
+    try {
+      const reelId = String(req.params.id);
+      const list = await db.select().from(reelComments).where(eq(reelComments.reelId, reelId)).orderBy(desc(reelComments.createdAt));
+      res.json(list);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Post a comment
+  app.post("/api/reels/:id/comments", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const reelId = String(req.params.id);
+      const text = String((req.body && req.body.text) || "").trim();
+      if (!text) return res.status(400).json({ message: "Empty comment" });
+      const [u] = await db.select().from(users).where(eq(users.id, userId));
+      const id = crypto.randomUUID();
+      await db.insert(reelComments).values({
+        id,
+        reelId,
+        userId,
+        userName: u?.fullName || "",
+        userAvatar: u?.avatar || "",
+        text: text.slice(0, 500),
+      });
+      const [c] = await db.select().from(reelComments).where(eq(reelComments.id, id));
+      res.status(201).json(c);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Delete a comment (own or salon admin)
+  app.delete("/api/reels/:reelId/comments/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const id = String(req.params.id);
+      const [c] = await db.select().from(reelComments).where(eq(reelComments.id, id));
+      if (!c) return res.status(404).json({ message: "Not found" });
+      // Allow if comment owner or salon admin of the reel's salon
+      let allowed = c.userId === userId;
+      if (!allowed) {
+        const [r] = await db.select().from(reels).where(eq(reels.id, c.reelId));
+        if (r) {
+          const [link] = await db.select().from(salonStaff).where(and(eq(salonStaff.salonId, r.salonId), eq(salonStaff.userId, userId), eq(salonStaff.role, "salon_admin")));
+          if (link) allowed = true;
+        }
+      }
+      if (!allowed) return res.status(403).json({ message: "Forbidden" });
+      await db.delete(reelComments).where(eq(reelComments.id, id));
+      res.json({ ok: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Customer: like/unlike a reel
+  app.post("/api/reels/:id/like", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any).userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const reelId = String(req.params.id);
+      const existing = await db.select().from(reelLikes).where(and(eq(reelLikes.reelId, reelId), eq(reelLikes.userId, userId)));
+      if (existing.length > 0) {
+        await db.delete(reelLikes).where(and(eq(reelLikes.reelId, reelId), eq(reelLikes.userId, userId)));
+        await db.update(reels).set({ likes: sql`GREATEST(${reels.likes} - 1, 0)` }).where(eq(reels.id, reelId));
+        const [r] = await db.select().from(reels).where(eq(reels.id, reelId));
+        return res.json({ liked: false, likes: r?.likes || 0 });
+      }
+      await db.insert(reelLikes).values({ id: crypto.randomUUID(), reelId, userId });
+      await db.update(reels).set({ likes: sql`${reels.likes} + 1` }).where(eq(reels.id, reelId));
+      const [r] = await db.select().from(reels).where(eq(reels.id, reelId));
+      res.json({ liked: true, likes: r?.likes || 0 });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Public: increment views (best-effort)
+  app.post("/api/reels/:id/view", async (req: Request, res: Response) => {
+    try {
+      await db.update(reels).set({ views: sql`${reels.views} + 1` }).where(eq(reels.id, String(req.params.id)));
+      res.json({ ok: true });
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Salon admin: list reels for review
+  // Salon admin: post a reel on behalf of a customer (auto-approved)
+  app.post("/api/salon/reels", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const { customerUserId, customerName: customerNameInput, videoUrl, thumbnailUrl, caption, rating, autoApprove } = req.body || {};
+      if (!videoUrl) return res.status(400).json({ message: "videoUrl required" });
+
+      let resolvedUserId = customerUserId ? String(customerUserId) : "";
+      let resolvedUserName = customerNameInput ? String(customerNameInput) : "";
+      let resolvedUserAvatar = "";
+      if (resolvedUserId) {
+        const [u] = await db.select().from(users).where(eq(users.id, resolvedUserId));
+        if (u) {
+          resolvedUserName = u.fullName || resolvedUserName;
+          resolvedUserAvatar = u.avatar || "";
+        }
+      }
+      // Fallback to a default placeholder name if none provided
+      if (!resolvedUserName) resolvedUserName = "Customer";
+
+      const [salon] = await db.select().from(salons).where(eq(salons.id, salonId));
+      const reelId = crypto.randomUUID();
+      const status = autoApprove === false ? "pending" : "approved";
+      await db.insert(reels).values({
+        id: reelId,
+        userId: resolvedUserId || ((req as any).currentUser?.id || ""),
+        userName: resolvedUserName,
+        userAvatar: resolvedUserAvatar,
+        salonId,
+        salonName: salon?.name || "",
+        bookingId: "",
+        videoUrl: String(videoUrl),
+        thumbnailUrl: thumbnailUrl ? String(thumbnailUrl) : "",
+        caption: caption ? String(caption).slice(0, 500) : "",
+        rating: typeof rating === "number" ? Math.max(1, Math.min(5, rating)) : 5,
+        status,
+        approvedAt: status === "approved" ? new Date() as any : null,
+      });
+      const [r] = await db.select().from(reels).where(eq(reels.id, reelId));
+      res.status(201).json(r);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/salon/reels", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const status = req.query.status ? String(req.query.status) : undefined;
+      const conds: any[] = [eq(reels.salonId, salonId)];
+      if (status) conds.push(eq(reels.status, status));
+      const list = await db.select().from(reels).where(and(...conds)).orderBy(desc(reels.createdAt));
+      res.json(list);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Salon admin: approve a reel
+  app.post("/api/salon/reels/:id/approve", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const reelId = String(req.params.id);
+      const [existing] = await db.select().from(reels).where(eq(reels.id, reelId));
+      if (!existing || existing.salonId !== salonId) return res.status(404).json({ message: "Reel not found" });
+      await db.update(reels).set({ status: "approved", approvedAt: new Date() as any }).where(eq(reels.id, reelId));
+      try {
+        await db.insert(notifications).values({
+          userId: existing.userId,
+          title: "Your reel was approved!",
+          message: `Your video review for ${existing.salonName || "the salon"} is now live.`,
+          type: "review",
+        });
+      } catch { }
+      const [r] = await db.select().from(reels).where(eq(reels.id, reelId));
+      res.json(r);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Salon admin: reject a reel
+  app.post("/api/salon/reels/:id/reject", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const reelId = String(req.params.id);
+      const reason = (req.body && req.body.reason) ? String(req.body.reason) : "";
+      const [existing] = await db.select().from(reels).where(eq(reels.id, reelId));
+      if (!existing || existing.salonId !== salonId) return res.status(404).json({ message: "Reel not found" });
+      await db.update(reels).set({ status: "rejected", rejectionReason: reason }).where(eq(reels.id, reelId));
+      try {
+        await db.insert(notifications).values({
+          userId: existing.userId,
+          title: "Your reel was not approved",
+          message: reason || "Please review the salon's reel guidelines.",
+          type: "review",
+        });
+      } catch { }
+      const [r] = await db.select().from(reels).where(eq(reels.id, reelId));
+      res.json(r);
+    } catch (err: any) { res.status(500).json({ message: err.message }); }
+  });
+
+  // Salon admin: delete a reel
+  app.delete("/api/salon/reels/:id", requireSalonAdmin, async (req: Request, res: Response) => {
+    try {
+      const salonId = (req as any).salonId;
+      const reelId = String(req.params.id);
+      const [existing] = await db.select().from(reels).where(eq(reels.id, reelId));
+      if (!existing || existing.salonId !== salonId) return res.status(404).json({ message: "Reel not found" });
+      await db.delete(reelLikes).where(eq(reelLikes.reelId, reelId));
+      await db.delete(reels).where(eq(reels.id, reelId));
+      res.json({ ok: true });
     } catch (err: any) { res.status(500).json({ message: err.message }); }
   });
 }

@@ -51,6 +51,7 @@ export default function ProfileScreen() {
       title: t('account') || 'Account',
       items: [
         { icon: 'person-outline' as const, label: t('edit_profile'), route: '/edit-profile', color: '#6C63FF' },
+        { icon: 'bag-handle-outline' as const, label: t('my_orders') || 'My Orders', route: '/my-orders', color: '#F4A460' },
         { icon: 'gift-outline' as const, label: t('loyalty_rewards'), route: '/loyalty', color: '#F59E0B' },
         { icon: 'card-outline' as const, label: t('payment'), route: '/payment-methods', color: '#10B981' },
       ],

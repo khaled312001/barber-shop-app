@@ -134,8 +134,24 @@ export default function SalonProducts() {
         <TextInput style={styles.searchInput} placeholder={t('search_products') || 'Search products...'} placeholderTextColor="#555" value={search} onChangeText={setSearch} />
       </View>
 
+      {/* Categories Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 8 }}>
+        <Text style={{ color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 14 }}>{t('filter_by_category') || 'Filter by Category'}</Text>
+        {filter !== 'all' && (
+          <Pressable onPress={() => setFilter('all')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="close-circle" size={14} color={PRIMARY} />
+            <Text style={{ color: PRIMARY, fontFamily: 'Urbanist_700Bold', fontSize: 12 }}>{t('clear') || 'Clear'}</Text>
+          </Pressable>
+        )}
+      </View>
+
       {/* Categories */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.catRow}
+        style={{ flexGrow: 0, maxHeight: 70 }}
+      >
         {['all', ...CATEGORIES].map(c => {
           const isActive = filter === c;
           const iconMap: Record<string, string> = {
@@ -196,36 +212,50 @@ export default function SalonProducts() {
           ) : (
             <View style={styles.grid}>
               {filtered.map((item: any) => (
-                <Pressable key={item.id} onPress={() => openEdit(item)} style={styles.productCard}>
-                  {item.image ? (
-                    <Image source={{ uri: item.image }} style={styles.productImage} contentFit="cover" />
-                  ) : (
-                    <View style={[styles.productImage, { backgroundColor: PRIMARY + '15', alignItems: 'center', justifyContent: 'center' }]}>
-                      <Ionicons name="image-outline" size={32} color={PRIMARY} />
+                <View key={item.id} style={styles.productCard}>
+                  <View style={styles.productImageWrap}>
+                    {item.image ? (
+                      <Image source={{ uri: item.image }} style={styles.productImage} contentFit="cover" />
+                    ) : (
+                      <View style={[styles.productImage, { backgroundColor: PRIMARY + '15', alignItems: 'center', justifyContent: 'center' }]}>
+                        <Ionicons name="image-outline" size={32} color={PRIMARY} />
+                      </View>
+                    )}
+                    {item.stock <= 5 && (
+                      <View style={styles.stockBadge}>
+                        <Text style={styles.stockBadgeText}>{item.stock === 0 ? (t('out_of_stock') || 'OUT OF STOCK') : `${t('only') || 'Only'} ${item.stock} ${t('left') || 'left'}`}</Text>
+                      </View>
+                    )}
+                    {!item.isActive && (
+                      <View style={styles.inactiveBadge}>
+                        <Text style={styles.inactiveBadgeText}>{t('hidden') || 'HIDDEN'}</Text>
+                      </View>
+                    )}
+                    {/* Action buttons overlay top-right of image, away from text */}
+                    <View style={styles.cardActions}>
+                      <Pressable
+                        onPress={() => openEdit(item)}
+                        style={({ pressed }) => [styles.actionIconBtn, styles.editBtn, pressed && { opacity: 0.7 }]}
+                      >
+                        <Ionicons name="create" size={14} color={PRIMARY} />
+                      </Pressable>
+                      <Pressable
+                        onPress={(e: any) => { e.stopPropagation?.(); Alert.alert(t('delete_q') || 'Delete?', `${t('delete') || 'Delete'} ${item.name}?`, [{ text: t('cancel') || 'Cancel' }, { text: t('delete') || 'Delete', style: 'destructive', onPress: () => remove.mutate(item.id) }]); }}
+                        style={({ pressed }) => [styles.actionIconBtn, styles.deleteBtn, pressed && { opacity: 0.7 }]}
+                      >
+                        <Ionicons name="trash" size={14} color="#EF4444" />
+                      </Pressable>
                     </View>
-                  )}
-                  {item.stock <= 5 && (
-                    <View style={styles.stockBadge}>
-                      <Text style={styles.stockBadgeText}>{item.stock === 0 ? 'OUT OF STOCK' : `Only ${item.stock} left`}</Text>
-                    </View>
-                  )}
-                  {!item.isActive && (
-                    <View style={styles.inactiveBadge}>
-                      <Text style={styles.inactiveBadgeText}>HIDDEN</Text>
-                    </View>
-                  )}
+                  </View>
                   <View style={styles.productInfo}>
                     <Text style={styles.productCat}>{item.category?.toUpperCase()}</Text>
                     <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                     <View style={styles.productBottom}>
                       <Text style={styles.productPrice}>CHF {item.price}</Text>
-                      <Text style={styles.productStock}>{item.stock} in stock</Text>
+                      <Text style={styles.productStock}>{item.stock} {t('in_stock') || 'in stock'}</Text>
                     </View>
                   </View>
-                  <Pressable onPress={(e: any) => { e.stopPropagation?.(); Alert.alert('Delete?', `Delete ${item.name}?`, [{ text: 'Cancel' }, { text: 'Delete', style: 'destructive', onPress: () => remove.mutate(item.id) }]); }} style={styles.deleteBtn}>
-                    <Ionicons name="trash" size={14} color="#EF4444" />
-                  </Pressable>
-                </Pressable>
+                </View>
               ))}
             </View>
           )}
@@ -316,19 +346,22 @@ const styles = StyleSheet.create({
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: PRIMARY, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   addBtnText: { color: '#181A20', fontFamily: 'Urbanist_700Bold', fontSize: 14 },
 
-  statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 14 },
-  statCard: { flex: 1, backgroundColor: CARD, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: BORDER, borderLeftWidth: 3, alignItems: 'center', gap: 4 },
-  statValue: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 18 },
-  statLabel: { color: '#888', fontFamily: 'Urbanist_400Regular', fontSize: 11 },
+  statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 10 },
+  statCard: { flex: 1, flexDirection: 'row', backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: BORDER, borderLeftWidth: 3, alignItems: 'center', gap: 8 },
+  statValue: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 15 },
+  statLabel: { color: '#888', fontFamily: 'Urbanist_400Regular', fontSize: 10 },
 
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 14, borderWidth: 1, borderColor: BORDER, marginHorizontal: 20, paddingHorizontal: 14, height: 46, gap: 10, marginBottom: 12 },
   searchInput: { flex: 1, color: '#fff', fontFamily: 'Urbanist_400Regular', fontSize: 14, height: '100%' },
 
-  catRow: { paddingHorizontal: 20, paddingBottom: 14, gap: 8 },
-  catChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD },
+  catRow: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 18, gap: 8, alignItems: 'center' },
+  catChip: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD, minHeight: 50 },
   catChipActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
-  catText: { color: '#888', fontFamily: 'Urbanist_600SemiBold', fontSize: 13 },
-  catTextActive: { color: '#181A20' },
+  catChipIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  catText: { color: '#aaa', fontFamily: 'Urbanist_700Bold', fontSize: 13 },
+  catTextActive: { color: '#fff' },
+  catBadge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: '#35383F', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  catBadgeText: { color: '#aaa', fontFamily: 'Urbanist_700Bold', fontSize: 10 },
 
   list: { paddingHorizontal: 20 },
   empty: { alignItems: 'center', paddingVertical: 60, gap: 8 },
@@ -348,7 +381,11 @@ const styles = StyleSheet.create({
   productBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   productPrice: { color: PRIMARY, fontFamily: 'Urbanist_700Bold', fontSize: 16 },
   productStock: { color: '#666', fontFamily: 'Urbanist_400Regular', fontSize: 11 },
-  deleteBtn: { position: 'absolute', bottom: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: '#EF444420', alignItems: 'center', justifyContent: 'center' },
+  productImageWrap: { position: 'relative' },
+  cardActions: { position: 'absolute', top: 8, right: 8, flexDirection: 'row', gap: 6 },
+  actionIconBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  editBtn: { backgroundColor: '#181A20cc', borderColor: `${PRIMARY}66` },
+  deleteBtn: { backgroundColor: '#181A20cc', borderColor: '#EF444466' },
 
   modalOverlay: { flex: 1, backgroundColor: '#000000aa', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: CARD, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingTop: 12, maxHeight: '90%' },

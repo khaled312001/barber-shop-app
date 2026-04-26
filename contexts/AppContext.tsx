@@ -123,26 +123,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (ob === 'true') setIsOnboardedState(true);
       } catch { }
 
+      // Try to rehydrate user from local storage immediately so the UI doesn't
+      // flash "logged out" while the server check is pending. The server is the
+      // source of truth — we'll re-confirm below.
+      let cached: any = null;
+      try {
+        const raw = await AsyncStorage.getItem('user_cache');
+        if (raw) cached = JSON.parse(raw);
+      } catch { }
+      if (cached) {
+        setUser(cached);
+        setIsLoggedIn(true);
+      }
+
       try {
         const baseUrl = getApiUrl();
-        const res = await fetch(baseUrl + '/api/auth/me', { credentials: 'include' });
+        const res = await fetch(baseUrl + '/api/auth/me', { credentials: 'include', cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated !== false && (data.user || data.id)) {
-            setUser(data.user || data);
+            const u = data.user || data;
+            setUser(u);
             setIsLoggedIn(true);
+            try { await AsyncStorage.setItem('user_cache', JSON.stringify(u)); } catch { }
             await fetchUserData();
           } else {
+            // Server says not authenticated — clear cache too
             setUser(null);
             setIsLoggedIn(false);
+            try { await AsyncStorage.removeItem('user_cache'); } catch { }
           }
-        } else {
+        } else if (res.status === 401 || res.status === 403) {
           setUser(null);
           setIsLoggedIn(false);
+          try { await AsyncStorage.removeItem('user_cache'); } catch { }
         }
+        // For other statuses (network errors, 5xx), keep the cached state
       } catch {
-        setUser(null);
-        setIsLoggedIn(false);
+        // Network error: keep cached state (don't force logout)
       } finally {
         setAuthLoading(false);
       }
@@ -155,6 +173,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const loggedUser = data.user || data;
     setUser(loggedUser);
     setIsLoggedIn(true);
+    try { await AsyncStorage.setItem('user_cache', JSON.stringify(loggedUser)); } catch { }
     await fetchUserData();
     return loggedUser;
   }, [fetchUserData]);
@@ -202,6 +221,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setBookmarks([]);
     setBookings([]);
     setNotifications([]);
+    try { await AsyncStorage.removeItem('user_cache'); } catch { }
   }, []);
 
   const toggleBookmark = useCallback(async (salonId: string) => {

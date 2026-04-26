@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Image, Modal, Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +16,7 @@ export default function SalonStaff() {
   const { t, isRTL } = useLanguage();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ fullName: '', email: '', password: '', staffRole: 'barber' });
 
   const { data: staff = [], isLoading } = useQuery({
@@ -39,6 +40,19 @@ export default function SalonStaff() {
     onError: () => Alert.alert(t('error'), t('failed_add_staff')),
   });
 
+  const updateStaff = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest('PUT', `/api/salon/staff/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['salon-staff'] });
+      setShowForm(false);
+      setEditing(null);
+      setForm({ fullName: '', email: '', password: '', staffRole: 'barber' });
+    },
+  });
+
   const removeStaff = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiRequest('DELETE', `/api/salon/staff/${id}`);
@@ -49,6 +63,17 @@ export default function SalonStaff() {
   });
 
   const handleAdd = () => {
+    if (editing) {
+      // Edit mode - password is optional
+      if (!form.fullName || !form.email) {
+        Alert.alert(t('warning'), t('fill_all_fields'));
+        return;
+      }
+      const data: any = { fullName: form.fullName, email: form.email, staffRole: form.staffRole };
+      if (form.password) data.password = form.password;
+      updateStaff.mutate({ id: editing.id, data });
+      return;
+    }
     if (!form.fullName || !form.email || !form.password) {
       Alert.alert(t('warning'), t('fill_all_fields'));
       return;
@@ -60,7 +85,10 @@ export default function SalonStaff() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <Text style={styles.pageTitle}>{t('staff_title')}</Text>
-        <Pressable onPress={() => setShowForm(!showForm)} style={styles.addBtn}>
+        <Pressable onPress={() => {
+          if (showForm) { setShowForm(false); setEditing(null); setForm({ fullName: '', email: '', password: '', staffRole: 'barber' }); }
+          else { setEditing(null); setShowForm(true); }
+        }} style={styles.addBtn}>
           <Ionicons name={showForm ? 'close' : 'add'} size={20} color="#181A20" />
           <Text style={styles.addBtnText}>{showForm ? t('cancel') : t('add')}</Text>
         </Pressable>
@@ -73,7 +101,7 @@ export default function SalonStaff() {
         {/* Add Form */}
         {showForm && (
           <View style={styles.form}>
-            <Text style={styles.formTitle}>{t('add_staff_form')}</Text>
+            <Text style={styles.formTitle}>{editing ? (t('edit_staff') || 'Edit Staff') : t('add_staff_form')}</Text>
             {[
               { key: 'fullName', placeholder: t('full_name'), icon: 'person-outline' },
               { key: 'email', placeholder: t('staff_email'), icon: 'mail-outline' },
@@ -112,10 +140,10 @@ export default function SalonStaff() {
               style={styles.submitBtn}
               disabled={addStaff.isPending}
             >
-              {addStaff.isPending ? (
+              {(addStaff.isPending || updateStaff.isPending) ? (
                 <ActivityIndicator size="small" color="#181A20" />
               ) : (
-                <Text style={styles.submitBtnText}>{t('add_staff_btn')}</Text>
+                <Text style={styles.submitBtnText}>{editing ? (t('save_changes') || 'Save Changes') : t('add_staff_btn')}</Text>
               )}
             </Pressable>
           </View>
@@ -131,7 +159,15 @@ export default function SalonStaff() {
           </View>
         ) : (
           staff.map((s: any) => (
-            <View key={s.id} style={styles.card}>
+            <Pressable
+              key={s.id}
+              onPress={() => {
+                if (Platform.OS === 'web') {
+                  window.location.href = `/staff-profile?id=${s.id}`;
+                }
+              }}
+              style={({ pressed }) => [styles.card, pressed && { opacity: 0.96 }]}
+            >
               <Image
                 source={{ uri: s.avatar || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=80&h=80&fit=crop' }}
                 style={styles.avatar}
@@ -143,16 +179,36 @@ export default function SalonStaff() {
                   <Text style={styles.roleBadgeText}>{s.staffRole || s.role || 'barber'}</Text>
                 </View>
               </View>
-              <Pressable
-                onPress={() => Alert.alert(t('delete_staff'), t('delete_staff_confirm_salon'), [
-                  { text: t('cancel'), style: 'cancel' },
-                  { text: t('delete'), style: 'destructive', onPress: () => removeStaff.mutate(s.id) },
-                ])}
-                style={styles.deleteBtn}
-              >
-                <Ionicons name="trash-outline" size={18} color="#EF4444" />
-              </Pressable>
-            </View>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <Pressable
+                  onPress={(e: any) => {
+                    e.stopPropagation?.();
+                    setEditing(s);
+                    setForm({ fullName: s.fullName, email: s.email, password: '', staffRole: s.staffRole || s.role || 'barber' });
+                    setShowForm(true);
+                  }}
+                  style={styles.editBtn}
+                >
+                  <Ionicons name="create-outline" size={18} color={PRIMARY} />
+                </Pressable>
+                <Pressable
+                  onPress={(e: any) => {
+                    e.stopPropagation?.();
+                    if (Platform.OS === 'web') {
+                      if (window.confirm(`${t('delete_staff')}\n${t('delete_staff_confirm_salon')}`)) removeStaff.mutate(s.linkId || s.id);
+                    } else {
+                      Alert.alert(t('delete_staff'), t('delete_staff_confirm_salon'), [
+                        { text: t('cancel'), style: 'cancel' },
+                        { text: t('delete'), style: 'destructive', onPress: () => removeStaff.mutate(s.linkId || s.id) },
+                      ]);
+                    }
+                  }}
+                  style={styles.deleteBtn}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                </Pressable>
+              </View>
+            </Pressable>
           ))
         )}
       </ScrollView>
@@ -188,4 +244,5 @@ const styles = StyleSheet.create({
   roleBadge: { backgroundColor: `${PRIMARY}22`, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
   roleBadgeText: { color: PRIMARY, fontFamily: 'Urbanist_600SemiBold', fontSize: 11, textTransform: 'capitalize' },
   deleteBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EF444422', alignItems: 'center', justifyContent: 'center' },
+  editBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: `${PRIMARY}22`, alignItems: 'center', justifyContent: 'center' },
 });

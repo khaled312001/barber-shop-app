@@ -46,7 +46,8 @@ export default function ShopScreen() {
     }
   }, []);
 
-  const cols = windowWidth > 1100 ? 4 : windowWidth > 800 ? 3 : windowWidth > 500 ? 2 : 1;
+  // Responsive: 4 cols on wide screens, 3 on tablet, always 2 on mobile (never 1)
+  const cols = windowWidth >= 1100 ? 4 : windowWidth >= 800 ? 3 : 2;
   const cardW = (Math.min(windowWidth, 1280) - 40 - (cols - 1) * 16) / cols;
 
   const { data: products = [], isLoading } = useQuery({
@@ -530,7 +531,7 @@ const styles = StyleSheet.create({
   clearBtn: { paddingHorizontal: 10, paddingVertical: 4 },
   clearText: { fontFamily: 'Urbanist_700Bold', fontSize: 13 },
   catRow: { paddingHorizontal: 20, gap: 8, paddingBottom: 8 },
-  catPill: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1 },
+  catPill: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, minHeight: 44 },
   catPillIcon: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   catPillText: { fontSize: 13 },
   catPillCount: { minWidth: 22, height: 22, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },

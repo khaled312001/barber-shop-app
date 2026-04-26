@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiRequest } from '@/lib/query-client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import BookingsCalendar from '@/components/BookingsCalendar';
 
 function confirmAction(title: string, msg: string, okLabel: string, cancelLabel: string, onOk: () => void) {
   if (Platform.OS === 'web') {
@@ -44,6 +45,7 @@ export default function SalonAppointments() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [showCalendar, setShowCalendar] = useState(false);
   const [detailBooking, setDetailBooking] = useState<any>(null);
   const [rescheduleBooking, setRescheduleBooking] = useState<any>(null);
   const [newDate, setNewDate] = useState('');
@@ -296,28 +298,38 @@ export default function SalonAppointments() {
         </View>
         <View style={[styles.statCard, { borderLeftColor: '#10B981' }]}>
           <Ionicons name="cash-outline" size={18} color="#10B981" />
-          <Text style={styles.statValue}>${totalRevenue.toFixed(0)}</Text>
+          <Text style={styles.statValue}>CHF {totalRevenue.toFixed(0)}</Text>
           <Text style={styles.statLabel}>{t('revenue') || 'Revenue'}</Text>
         </View>
       </View>
 
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchIconWrap}>
-          <Ionicons name="search" size={16} color={PRIMARY} />
+      {/* Search + calendar toggle */}
+      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 10 }}>
+        <View style={[styles.searchContainer, { flex: 1, marginHorizontal: 0, marginBottom: 0 }]}>
+          <View style={styles.searchIconWrap}>
+            <Ionicons name="search" size={16} color={PRIMARY} />
+          </View>
+          <TextInput
+            style={styles.searchInput}
+            placeholder={t('search_bookings') || 'Search by client or service...'}
+            placeholderTextColor="#555"
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch('')} style={styles.searchClearBtn}>
+              <Ionicons name="close" size={14} color="#aaa" />
+            </Pressable>
+          )}
         </View>
-        <TextInput
-          style={styles.searchInput}
-          placeholder={t('search_bookings') || 'Search by client or service...'}
-          placeholderTextColor="#555"
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <Pressable onPress={() => setSearch('')} style={styles.searchClearBtn}>
-            <Ionicons name="close" size={14} color="#aaa" />
-          </Pressable>
-        )}
+        <Pressable
+          onPress={() => setShowCalendar(v => !v)}
+          style={({ pressed }) => [
+            { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, backgroundColor: showCalendar ? PRIMARY + '22' : CARD, borderColor: showCalendar ? PRIMARY : BORDER, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name={showCalendar ? 'list' : 'calendar'} size={20} color={PRIMARY} />
+        </Pressable>
       </View>
 
       {/* Filter Tabs */}
@@ -356,6 +368,21 @@ export default function SalonAppointments() {
           <ActivityIndicator size="large" color={PRIMARY} />
           <Text style={styles.loadingText}>{t('loading') || 'Loading...'}</Text>
         </View>
+      ) : showCalendar ? (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
+          <BookingsCalendar
+            bookings={bookings.map((b: any) => ({
+              id: b.id,
+              date: b.date,
+              time: b.time,
+              status: b.status,
+              customerName: b.clientName || b.userName,
+              serviceName: Array.isArray(b.services) ? b.services.join(', ') : (b.serviceName || ''),
+              totalPrice: b.totalPrice,
+            }))}
+            theme={{ card: CARD, border: BORDER, text: '#fff', textSecondary: '#888', background: BG, primary: PRIMARY }}
+          />
+        </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
@@ -756,55 +783,80 @@ export default function SalonAppointments() {
                 </View>
               </View>
 
-              {/* Service Picker */}
+              {/* Service Picker — multi-select */}
               <View style={[styles.modalSection, { marginBottom: 10 }]}>
-                <Text style={styles.modalSectionTitle}>{t('service') || 'Service'}</Text>
+                <Text style={styles.modalSectionTitle}>
+                  {t('services') || 'Services'} {editForm.selectedServices.length > 0 && `(${editForm.selectedServices.length})`}
+                </Text>
                 {salonServices.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-                    <View style={{ flexDirection: 'row', gap: 6, paddingVertical: 4 }}>
-                      {salonServices.map((svc: any) => {
-                        const isSelected = editForm.serviceName === svc.name;
-                        return (
-                          <Pressable key={svc.id} onPress={() => setEditForm(p => ({
-                            ...p, serviceName: svc.name,
-                            totalPrice: String(svc.price ?? p.totalPrice),
-                          }))}
-                            style={[{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: isSelected ? PRIMARY : BORDER, backgroundColor: isSelected ? PRIMARY + '20' : '#13151B' }]}>
-                            <Ionicons name="cut" size={13} color={isSelected ? PRIMARY : '#888'} />
-                            <Text style={{ color: isSelected ? '#fff' : '#aaa', fontFamily: 'Urbanist_600SemiBold', fontSize: 12 }}>{svc.name}</Text>
-                            <Text style={{ color: PRIMARY, fontFamily: 'Urbanist_700Bold', fontSize: 11 }}>{svc.price}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </ScrollView>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {salonServices.map((svc: any) => {
+                      const isSelected = editForm.selectedServices.includes(svc.name);
+                      return (
+                        <Pressable
+                          key={svc.id}
+                          onPress={() => toggleEditService(svc.name)}
+                          style={[{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: isSelected ? PRIMARY : BORDER, backgroundColor: isSelected ? PRIMARY + '20' : '#13151B' }]}
+                        >
+                          <Ionicons name={isSelected ? 'checkmark-circle' : 'add-circle-outline'} size={14} color={isSelected ? PRIMARY : '#888'} />
+                          <Text style={{ color: isSelected ? '#fff' : '#aaa', fontFamily: 'Urbanist_600SemiBold', fontSize: 12 }}>{svc.name}</Text>
+                          <Text style={{ color: PRIMARY, fontFamily: 'Urbanist_700Bold', fontSize: 11 }}>{svc.price}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
                 ) : null}
-                <View style={styles.inputWrap}>
-                  <Ionicons name="cut-outline" size={16} color={PRIMARY} />
-                  <TextInput style={styles.modalInput} value={editForm.serviceName}
-                    onChangeText={v => setEditForm(p => ({ ...p, serviceName: v }))}
-                    placeholder={t('select_or_type_service') || 'Or type custom service'} placeholderTextColor="#555" />
-                </View>
+                {editForm.selectedServices.length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#13151B', borderRadius: 10, borderWidth: 1, borderColor: BORDER }}>
+                    {editForm.selectedServices.map((s, i) => (
+                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: PRIMARY + '22', borderRadius: 8 }}>
+                        <Ionicons name="cut" size={12} color={PRIMARY} />
+                        <Text style={{ color: '#fff', fontFamily: 'Urbanist_600SemiBold', fontSize: 11 }}>{s}</Text>
+                        <Pressable onPress={() => toggleEditService(s)}>
+                          <Ionicons name="close-circle" size={14} color="#888" />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
 
               {/* Date + Time row */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalSectionTitle}>{t('date_ymd') || 'Date'}</Text>
+                  <Text style={styles.modalSectionTitle}>{t('date') || t('date_ymd') || 'Date'}</Text>
                   <View style={styles.inputWrap}>
                     <Ionicons name="calendar-outline" size={16} color={PRIMARY} />
-                    <TextInput style={styles.modalInput} value={editForm.date}
-                      onChangeText={v => setEditForm(p => ({ ...p, date: v }))}
-                      placeholder="YYYY-MM-DD" placeholderTextColor="#555" />
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="date"
+                        value={editForm.date}
+                        onChange={(e: any) => setEditForm(p => ({ ...p, date: e.target.value }))}
+                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontFamily: 'Urbanist_500Medium', fontSize: 14, padding: '8px 4px' } as any}
+                      />
+                    ) : (
+                      <TextInput style={styles.modalInput} value={editForm.date}
+                        onChangeText={v => setEditForm(p => ({ ...p, date: v }))}
+                        placeholder="YYYY-MM-DD" placeholderTextColor="#555" />
+                    )}
                   </View>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalSectionTitle}>{t('time_hm') || 'Time'}</Text>
+                  <Text style={styles.modalSectionTitle}>{t('time') || t('time_hm') || 'Time'}</Text>
                   <View style={styles.inputWrap}>
                     <Ionicons name="time-outline" size={16} color={PRIMARY} />
-                    <TextInput style={styles.modalInput} value={editForm.time}
-                      onChangeText={v => setEditForm(p => ({ ...p, time: v }))}
-                      placeholder="HH:MM" placeholderTextColor="#555" />
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="time"
+                        value={editForm.time}
+                        onChange={(e: any) => setEditForm(p => ({ ...p, time: e.target.value }))}
+                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontFamily: 'Urbanist_500Medium', fontSize: 14, padding: '8px 4px' } as any}
+                      />
+                    ) : (
+                      <TextInput style={styles.modalInput} value={editForm.time}
+                        onChangeText={v => setEditForm(p => ({ ...p, time: v }))}
+                        placeholder="HH:MM" placeholderTextColor="#555" />
+                    )}
                   </View>
                 </View>
               </View>
@@ -944,21 +996,39 @@ export default function SalonAppointments() {
               {/* Date + Time row */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalSectionTitle}>{t('date_ymd') || 'Date'} *</Text>
+                  <Text style={styles.modalSectionTitle}>{t('date') || t('date_ymd') || 'Date'} *</Text>
                   <View style={styles.inputWrap}>
                     <Ionicons name="calendar-outline" size={16} color={PRIMARY} />
-                    <TextInput style={styles.modalInput} value={addForm.date}
-                      onChangeText={v => setAddForm(p => ({ ...p, date: v }))}
-                      placeholder="YYYY-MM-DD" placeholderTextColor="#555" />
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="date"
+                        value={addForm.date}
+                        onChange={(e: any) => setAddForm(p => ({ ...p, date: e.target.value }))}
+                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontFamily: 'Urbanist_500Medium', fontSize: 14, padding: '8px 4px' } as any}
+                      />
+                    ) : (
+                      <TextInput style={styles.modalInput} value={addForm.date}
+                        onChangeText={v => setAddForm(p => ({ ...p, date: v }))}
+                        placeholder="YYYY-MM-DD" placeholderTextColor="#555" />
+                    )}
                   </View>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalSectionTitle}>{t('time_hm') || 'Time'} *</Text>
+                  <Text style={styles.modalSectionTitle}>{t('time') || t('time_hm') || 'Time'} *</Text>
                   <View style={styles.inputWrap}>
                     <Ionicons name="time-outline" size={16} color={PRIMARY} />
-                    <TextInput style={styles.modalInput} value={addForm.time}
-                      onChangeText={v => setAddForm(p => ({ ...p, time: v }))}
-                      placeholder="HH:MM" placeholderTextColor="#555" />
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="time"
+                        value={addForm.time}
+                        onChange={(e: any) => setAddForm(p => ({ ...p, time: e.target.value }))}
+                        style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontFamily: 'Urbanist_500Medium', fontSize: 14, padding: '8px 4px' } as any}
+                      />
+                    ) : (
+                      <TextInput style={styles.modalInput} value={addForm.time}
+                        onChangeText={v => setAddForm(p => ({ ...p, time: v }))}
+                        placeholder="HH:MM" placeholderTextColor="#555" />
+                    )}
                   </View>
                 </View>
               </View>
@@ -1046,47 +1116,48 @@ const styles = StyleSheet.create({
   pageTitle: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 28 },
   subtitle: { color: '#666', fontFamily: 'Urbanist_400Regular', fontSize: 14, marginTop: 2 },
 
-  // Stats
-  statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 16 },
+  // Stats — compact
+  statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 10 },
   statCard: {
-    flex: 1, backgroundColor: CARD, borderRadius: 14, padding: 12,
+    flex: 1, flexDirection: 'row', backgroundColor: CARD, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8,
     borderWidth: 1, borderColor: BORDER, borderLeftWidth: 3,
-    alignItems: 'center', gap: 4,
+    alignItems: 'center', gap: 8,
   },
-  statValue: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 20 },
-  statLabel: { color: '#888', fontFamily: 'Urbanist_400Regular', fontSize: 11 },
+  statValue: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 16 },
+  statLabel: { color: '#888', fontFamily: 'Urbanist_400Regular', fontSize: 10 },
 
-  // Search
+  // Search — compact
   searchContainer: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: CARD,
-    borderRadius: 14, borderWidth: 1, borderColor: BORDER,
-    marginHorizontal: 20, paddingHorizontal: 16, height: 56, gap: 12, marginBottom: 16,
+    borderRadius: 12, borderWidth: 1, borderColor: BORDER,
+    marginHorizontal: 20, paddingHorizontal: 12, height: 40, gap: 8, marginBottom: 10,
   },
-  searchIconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(244,164,96,0.12)', alignItems: 'center', justifyContent: 'center' },
-  searchInput: { flex: 1, color: '#fff', fontFamily: 'Urbanist_500Medium', fontSize: 14, height: '100%', paddingVertical: 0 },
-  searchClearBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#13151B', alignItems: 'center', justifyContent: 'center' },
+  searchIconWrap: { width: 24, height: 24, borderRadius: 8, backgroundColor: 'rgba(244,164,96,0.12)', alignItems: 'center', justifyContent: 'center' },
+  searchInput: { flex: 1, color: '#fff', fontFamily: 'Urbanist_500Medium', fontSize: 13, height: '100%', paddingVertical: 0 },
+  searchClearBtn: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#13151B', alignItems: 'center', justifyContent: 'center' },
 
-  // Filters
-  filterScrollWrap: { paddingVertical: 4, marginBottom: 16 },
-  filterRow: { paddingHorizontal: 20, gap: 10, paddingVertical: 4 },
+  // Filters — compact
+  filterScrollWrap: { paddingVertical: 2, marginBottom: 10 },
+  filterRow: { paddingHorizontal: 20, gap: 6, paddingVertical: 2 },
   filterBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderRadius: 14, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD,
-    minHeight: 44,
+    flexShrink: 0,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 12, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD,
+    minHeight: 40,
   },
-  filterText: { color: '#ccc', fontFamily: 'Urbanist_700Bold', fontSize: 13 },
+  filterText: { color: '#ccc', fontFamily: 'Urbanist_700Bold', fontSize: 12 },
   filterTextActive: { color: '#fff' },
   countBadge: {
-    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10,
-    paddingHorizontal: 8, paddingVertical: 3, minWidth: 26, alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 8,
+    paddingHorizontal: 6, paddingVertical: 1, minWidth: 20, alignItems: 'center',
   },
-  countText: { color: '#aaa', fontFamily: 'Urbanist_700Bold', fontSize: 11 },
+  countText: { color: '#aaa', fontFamily: 'Urbanist_700Bold', fontSize: 10 },
 
-  // Header badge
-  headerBadge: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(244,164,96,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(244,164,96,0.3)' },
+  // Header badge — compact
+  headerBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(244,164,96,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(244,164,96,0.3)' },
   addBookingBtn: {
-    width: 46, height: 46, borderRadius: 14, backgroundColor: PRIMARY,
+    width: 38, height: 38, borderRadius: 12, backgroundColor: PRIMARY,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: PRIMARY, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 5,
   },

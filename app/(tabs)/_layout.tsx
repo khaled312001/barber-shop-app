@@ -8,6 +8,7 @@ import React, { useEffect } from "react";
 import Colors from "@/constants/colors";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useApp } from "@/contexts/AppContext";
+import { useNotifications } from "@/contexts/NotificationContext";
 import { Href } from "expo-router";
 
 function NativeTabLayout() {
@@ -43,6 +44,7 @@ function ClassicTabLayout() {
   const isDark = colorScheme === "dark";
   const colors = isDark ? Colors.dark : Colors.light;
   const { t } = useLanguage();
+  const { unreadCount } = useNotifications();
 
   return (
     <Tabs
@@ -92,6 +94,15 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="reels"
+        options={{
+          title: t('reels') || 'Reels',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "play-circle" : "play-circle-outline"} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="bookings"
         options={{
           title: t('tab_bookings'),
@@ -122,6 +133,8 @@ function ClassicTabLayout() {
         name="inbox"
         options={{
           title: t('tab_inbox'),
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#EF4444', color: '#fff', fontSize: 10, fontWeight: '700', minWidth: 18, height: 18 },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"} size={24} color={color} />
           ),

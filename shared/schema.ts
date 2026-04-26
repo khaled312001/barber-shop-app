@@ -220,6 +220,9 @@ export const messages = mysqlTable("messages", {
   content: text("content").notNull(),
   sender: text("sender").notNull().default("salon"),
   senderName: text("sender_name").default(""),
+  senderRole: text("sender_role").default(""),
+  // Specific salon-side recipient (staff or admin user id) — when set, isolates the thread
+  recipientUserId: varchar("recipient_user_id", { length: 255 }).default(""),
   isRead: int("is_read").default(0),
   messageType: text("message_type").default("text"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -273,6 +276,44 @@ export const products = mysqlTable("products", {
   category: text("category").default("general"),
   stock: int("stock").default(0),
   isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Reels: short customer videos for salons (TikTok-style)
+export const reels = mysqlTable("reels", {
+  id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  userName: text("user_name").default(""),
+  userAvatar: text("user_avatar").default(""),
+  salonId: varchar("salon_id", { length: 255 }).notNull(),
+  salonName: text("salon_name").default(""),
+  bookingId: varchar("booking_id", { length: 255 }).default(""),
+  videoUrl: text("video_url").notNull(),
+  thumbnailUrl: text("thumbnail_url").default(""),
+  caption: text("caption").default(""),
+  rating: int("rating").default(5),
+  status: text("status").notNull().default("pending"), // pending | approved | rejected
+  rejectionReason: text("rejection_reason").default(""),
+  views: int("views").default(0),
+  likes: int("likes").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+});
+
+export const reelComments = mysqlTable("reel_comments", {
+  id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  reelId: varchar("reel_id", { length: 255 }).notNull(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  userName: text("user_name").default(""),
+  userAvatar: text("user_avatar").default(""),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const reelLikes = mysqlTable("reel_likes", {
+  id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+  reelId: varchar("reel_id", { length: 255 }).notNull(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

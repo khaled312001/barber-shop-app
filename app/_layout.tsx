@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AppProvider } from "@/contexts/AppContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 import {
   useFonts,
@@ -33,6 +34,8 @@ function RootLayoutNav() {
       <Stack.Screen name="booking/[id]" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="bookmarks" />
+      <Stack.Screen name="my-orders" />
+      <Stack.Screen name="staff-profile" />
       <Stack.Screen name="search" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="edit-profile" />
@@ -76,7 +79,9 @@ export default function RootLayout() {
           <KeyboardProvider>
             <AppProvider>
               <LanguageProvider>
-                <RootLayoutNav />
+                <NotificationProvider>
+                  <RootLayoutNav />
+                </NotificationProvider>
               </LanguageProvider>
             </AppProvider>
 
