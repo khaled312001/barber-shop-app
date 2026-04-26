@@ -150,7 +150,7 @@ export default function SalonProducts() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.catRow}
-        style={{ flexGrow: 0, maxHeight: 70 }}
+        style={{ flexGrow: 0, maxHeight: 64, marginBottom: 16 }}
       >
         {['all', ...CATEGORIES].map(c => {
           const isActive = filter === c;
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: CARD, borderRadius: 14, borderWidth: 1, borderColor: BORDER, marginHorizontal: 20, paddingHorizontal: 14, height: 46, gap: 10, marginBottom: 12 },
   searchInput: { flex: 1, color: '#fff', fontFamily: 'Urbanist_400Regular', fontSize: 14, height: '100%' },
 
-  catRow: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 18, gap: 8, alignItems: 'center' },
+  catRow: { paddingHorizontal: 20, paddingTop: 2, paddingBottom: 4, gap: 8, alignItems: 'center' },
   catChip: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: BORDER, backgroundColor: CARD, minHeight: 50 },
   catChipActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
   catChipIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

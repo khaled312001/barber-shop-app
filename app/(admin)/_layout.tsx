@@ -7,7 +7,7 @@ import { useApp } from '@/contexts/AppContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AdminLayout() {
-    const { user } = useApp();
+    const { user, authLoading, isLoggedIn } = useApp();
     const { t, isRTL } = useLanguage();
     const router = useRouter();
     const pathname = usePathname();
@@ -16,23 +16,22 @@ export default function AdminLayout() {
     const colors = isDark ? Colors.dark : Colors.light;
 
     useEffect(() => {
-        // Basic redirect if not admin
-        // Note: If user data is fully parsed and role exists, check here.
-        if (!user) {
+        if (authLoading) return; // wait for auth check before redirecting
+        if (!isLoggedIn || !user) {
             router.replace('/signin');
-        } else if ((user as any).role !== 'admin') {
+        } else if ((user as any).role !== 'admin' && (user as any).role !== 'super_admin') {
             router.replace('/home');
         }
-    }, [user]);
+    }, [user, authLoading, isLoggedIn]);
 
     const navItems = [
-        { name: t('dashboard'), route: '/(admin)', icon: 'grid-outline' },
-        { name: t('users'), route: '/(admin)/users', icon: 'people-outline' },
-        { name: t('salons'), route: '/(admin)/salons', icon: 'business-outline' },
-        { name: t('tab_bookings'), route: '/(admin)/bookings', icon: 'calendar-outline' },
-        { name: t('services'), route: '/(admin)/services', icon: 'cut-outline' },
-        { name: t('staff_title'), route: '/(admin)/staff', icon: 'id-card-outline' },
-        { name: t('exit_admin'), route: '/(tabs)', icon: 'exit-outline' },
+        { name: t('dashboard'), route: '/admin', icon: 'grid-outline' },
+        { name: t('users'), route: '/admin/users', icon: 'people-outline' },
+        { name: t('salons'), route: '/admin/salons', icon: 'business-outline' },
+        { name: t('tab_bookings'), route: '/admin/bookings', icon: 'calendar-outline' },
+        { name: t('services'), route: '/admin/services', icon: 'cut-outline' },
+        { name: t('staff_title'), route: '/admin/staff', icon: 'id-card-outline' },
+        { name: t('exit_admin'), route: '/home', icon: 'exit-outline' },
     ];
 
     return (
@@ -47,7 +46,7 @@ export default function AdminLayout() {
 
                     <ScrollView style={styles.navConfig}>
                         {navItems.map((item) => {
-                            const isActive = item.route === '/(admin)' ? pathname === '/(admin)' || pathname === '/(admin)/' : pathname.startsWith(item.route);
+                            const isActive = item.route === '/admin' ? pathname === '/admin' || pathname === '/admin/' : pathname.startsWith(item.route);
                             return (
                                 <Pressable
                                     key={item.name}

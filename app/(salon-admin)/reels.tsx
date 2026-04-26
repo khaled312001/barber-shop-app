@@ -108,6 +108,16 @@ export default function SalonReelsScreen() {
     },
   });
 
+  // Separate query for the full set used for tab counts (independent of current tab filter)
+  const { data: allReels = [] } = useQuery<Reel[]>({
+    queryKey: ['/api/salon/reels', 'all-for-counts'],
+    queryFn: async () => {
+      const r = await apiRequest('GET', '/api/salon/reels');
+      if (!r.ok) return [];
+      return r.json();
+    },
+  });
+
   const approve = useMutation({
     mutationFn: async (id: string) => {
       const r = await apiRequest('POST', `/api/salon/reels/${id}/approve`);
@@ -137,13 +147,13 @@ export default function SalonReelsScreen() {
   });
 
   const counts = useMemo(() => {
-    const all = Array.isArray(reels) ? reels : [];
+    const all = Array.isArray(allReels) ? allReels : [];
     return {
       pending: all.filter(r => r.status === 'pending').length,
       approved: all.filter(r => r.status === 'approved').length,
       rejected: all.filter(r => r.status === 'rejected').length,
     };
-  }, [reels]);
+  }, [allReels]);
 
   const tabs: { key: Status; label: string; color: string }[] = [
     { key: 'pending', label: t('pending') || 'Pending', color: '#FBBF24' },

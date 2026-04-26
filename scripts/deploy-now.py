@@ -1,12 +1,27 @@
-"""Deploy current build to barber.barmagly.tech."""
+"""Deploy current build to barber.barmagly.tech.
+
+THIS IS THE ONLY DEPLOY SCRIPT THAT IS CURRENT.
+- Host: 147.93.54.132 (Hostinger). DO NOT change this.
+- Public root: /home/u492425110/domains/barmagly.tech/public_html/barber
+  (the subdomain barber.barmagly.tech is mapped to this folder, not to
+  /home/u492425110/domains/barber.barmagly.tech/public_html/)
+- Node app dir: /home/u492425110/barber-app (managed by Hostinger Node Selector;
+  Passenger respawns on `tmp/restart.txt` touch)
+"""
 import paramiko
 import os
 import time
+import sys
 import stat as stat_mod
 
 HOST, PORT, USER, PASS = "147.93.54.132", 65002, "u492425110", "support@Passord123"
 REMOTE_PUBLIC = "/home/u492425110/domains/barmagly.tech/public_html/barber"
 REMOTE_BASE = "/home/u492425110/barber-app"
+
+# Sanity guard: refuse to run with a wrong host
+if HOST != "147.93.54.132":
+    print("ERROR: HOST is locked to 147.93.54.132 — refusing to deploy elsewhere.")
+    sys.exit(1)
 
 
 def sftp_mkdir_p(sftp, d):

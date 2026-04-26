@@ -113,7 +113,12 @@ export default function SalonOrders() {
       </View>
 
       {/* Filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+        style={{ flexGrow: 0, maxHeight: 64, marginBottom: 12 }}
+      >
         {['all', ...STATUS_FLOW].map(f => {
           const isActive = filter === f;
           const meta = f === 'all' ? { color: PRIMARY, bg: PRIMARY + '20', icon: 'apps' } : STATUS_META[f];

@@ -24,7 +24,7 @@ const { width } = Dimensions.get('window');
 export function routeByRole(role?: string) {
   if (role === 'salon_admin') return router.replace('/dashboard');
   if (role === 'staff') return router.replace('/schedule');
-  if (role === 'admin' || role === 'super_admin') return router.replace('/(admin)' as Href);
+  if (role === 'admin' || role === 'super_admin') return router.replace('/admin' as Href);
   return router.replace('/home');
 }
 

@@ -25,6 +25,7 @@ type Toast = {
 
 type Ctx = {
   unreadCount: number;
+  unreadMessages: number;
   notifications: ServerNotification[];
   refresh: () => Promise<void>;
   showToast: (t: Omit<Toast, 'id'>) => void;
@@ -89,6 +90,7 @@ function playBeep() {
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { isLoggedIn, user } = useApp();
   const [notifications, setNotifications] = useState<ServerNotification[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const seenIdsRef = useRef<Set<string>>(new Set());
@@ -167,6 +169,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         if (!r.ok) return;
         const list = await r.json();
         if (!Array.isArray(list) || cancelled) return;
+        // Total unread messages across all conversations
+        const totalUnread = list.reduce((sum: number, c: any) => sum + (Number(c.unread || c.unreadCount) || 0), 0);
+        setUnreadMessages(totalUnread);
         // Find newest unread
         const unread = list.filter((c: any) => (c.unread > 0 || c.unreadCount > 0));
         if (!firstRun && unread.length > 0) {
@@ -193,12 +198,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({
     unreadCount,
+    unreadMessages,
     notifications,
     refresh: fetchNotifications,
     showToast,
     setSoundEnabled,
     soundEnabled,
-  }), [unreadCount, notifications, fetchNotifications, showToast, setSoundEnabled, soundEnabled]);
+  }), [unreadCount, unreadMessages, notifications, fetchNotifications, showToast, setSoundEnabled, soundEnabled]);
 
   return (
     <NotificationContext.Provider value={value}>

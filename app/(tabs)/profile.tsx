@@ -186,7 +186,7 @@ export default function ProfileScreen() {
         {(user as any)?.role === 'admin' && (
           <View style={[styles.menuSection, { backgroundColor: theme.card }]}>
             <Pressable
-              onPress={() => router.push('/(admin)' as any)}
+              onPress={() => router.push('/admin' as any)}
               style={({ pressed }) => [
                 styles.menuItem,
                 { opacity: pressed ? 0.7 : 1, flexDirection: isRTL ? 'row-reverse' : 'row' },

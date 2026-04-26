@@ -13,7 +13,7 @@ const CARD = '#1F222A';
 const BORDER = '#35383F';
 const SIDEBAR_WIDTH = 240;
 const SIDEBAR_COLLAPSED_WIDTH = 72;
-const COLLAPSED_KEY = 'salonAdmin.sidebarCollapsed';
+const COLLAPSED_KEY = 'salonAdmin.sidebarCollapsed.v2';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';

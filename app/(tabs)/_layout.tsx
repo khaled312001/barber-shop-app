@@ -44,7 +44,8 @@ function ClassicTabLayout() {
   const isDark = colorScheme === "dark";
   const colors = isDark ? Colors.dark : Colors.light;
   const { t } = useLanguage();
-  const { unreadCount } = useNotifications();
+  const { unreadMessages } = useNotifications();
+  const unreadCount = unreadMessages;
 
   return (
     <Tabs

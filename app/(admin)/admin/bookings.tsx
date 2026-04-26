@@ -6,15 +6,19 @@ import Colors from '@/constants/colors';
 import { apiRequest } from '@/lib/query-client';
 import { Booking } from '@shared/schema';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useApp } from '@/contexts/AppContext';
 
 export default function AdminBookings() {
     const { t, isRTL } = useLanguage();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
     const colors = isDark ? Colors.dark : Colors.light;
+    const { user } = useApp();
+    const isSuperAdmin = user?.role === 'super_admin' || user?.role === 'admin';
 
     const { data: bookings, isLoading } = useQuery<Booking[]>({
         queryKey: ['admin-bookings'],
+        enabled: isSuperAdmin,
         queryFn: async () => {
             const res = await apiRequest('GET', '/api/admin/bookings');
             return res.json();

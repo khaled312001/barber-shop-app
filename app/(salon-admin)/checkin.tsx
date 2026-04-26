@@ -65,8 +65,9 @@ export default function SalonCheckinScreen() {
       Alert.alert(t('coming_soon') || 'Coming soon', 'Camera scanning available on mobile soon');
       return;
     }
-    // Web: try to use BarcodeDetector API if available
-    if ('BarcodeDetector' in window) {
+    // Try camera first
+    const hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    if (hasCamera && 'BarcodeDetector' in window) {
       try {
         setScanning(true);
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
@@ -85,24 +86,58 @@ export default function SalonCheckinScreen() {
               stream.getTracks().forEach(t => t.stop());
               setScanning(false);
               setBookingCode(codes[0].rawValue);
-              // Auto-submit
               setTimeout(() => submitCode(), 100);
             }
           } catch { }
         }, 500);
-        // Auto-stop after 30s
         setTimeout(() => {
           clearInterval(detectInterval);
           stream.getTracks().forEach(t => t.stop());
           setScanning(false);
         }, 30000);
+        return;
       } catch (e) {
         setScanning(false);
-        alert(t('camera_access_denied') || 'Camera access denied');
+        // Fall through to image upload
       }
-    } else {
-      alert(t('qr_not_supported') || 'QR scanning not supported in this browser. Please enter the booking ID manually.');
     }
+    // Desktop fallback: upload an image and decode it with BarcodeDetector
+    handleUploadImage();
+  };
+
+  const handleUploadImage = () => {
+    if (Platform.OS !== 'web') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setScanning(true);
+      try {
+        if ('BarcodeDetector' in window) {
+          // Decode via BarcodeDetector + ImageBitmap
+          const bitmap = await (window as any).createImageBitmap(file);
+          // @ts-ignore
+          const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+          const codes = await detector.detect(bitmap);
+          if (codes.length > 0) {
+            setBookingCode(codes[0].rawValue);
+            setTimeout(() => submitCode(), 100);
+          } else {
+            alert(t('qr_not_found') || 'No QR code found in this image');
+          }
+        } else {
+          // Browser doesn't support BarcodeDetector at all — graceful message
+          alert(t('qr_not_supported') || 'QR detection not supported in this browser. Please use the latest Chrome/Edge or enter the booking ID manually.');
+        }
+      } catch (err: any) {
+        alert(t('qr_decode_failed') || 'Failed to read QR code from image');
+      } finally {
+        setScanning(false);
+      }
+    };
+    input.click();
   };
 
   return (
@@ -145,19 +180,29 @@ export default function SalonCheckinScreen() {
           <Text style={styles.scanTitle}>{t('scan_customer_qr') || 'Scan Customer QR'}</Text>
           <Text style={styles.scanSub}>{t('scan_qr_desc') || 'Use camera to scan or enter booking ID below'}</Text>
 
-          <Pressable onPress={handleScanFromCamera} disabled={scanning} style={styles.scanBtn}>
-            {scanning ? (
-              <>
-                <ActivityIndicator color="#181A20" />
-                <Text style={styles.scanBtnText}>{t('scanning') || 'Scanning...'}</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="scan" size={18} color="#181A20" />
-                <Text style={styles.scanBtnText}>{t('open_camera') || 'Open Camera'}</Text>
-              </>
-            )}
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
+            <Pressable onPress={handleScanFromCamera} disabled={scanning} style={[styles.scanBtn, { flex: 1 }]}>
+              {scanning ? (
+                <>
+                  <ActivityIndicator color="#181A20" />
+                  <Text style={styles.scanBtnText}>{t('scanning') || 'Scanning...'}</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="scan" size={18} color="#181A20" />
+                  <Text style={styles.scanBtnText}>{t('open_camera') || 'Open Camera'}</Text>
+                </>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={handleUploadImage}
+              disabled={scanning}
+              style={[styles.scanBtn, { flex: 1, backgroundColor: 'transparent', borderWidth: 1.5, borderColor: PRIMARY }]}
+            >
+              <Ionicons name="image" size={18} color={PRIMARY} />
+              <Text style={[styles.scanBtnText, { color: PRIMARY }]}>{t('upload_image') || 'Upload Image'}</Text>
+            </Pressable>
+          </View>
 
           <Text style={styles.orText}>{t('or') || 'OR'}</Text>
 

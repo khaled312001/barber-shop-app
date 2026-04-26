@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, Dimensions, Platform, ActivityIndicator, Modal, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, Dimensions, Platform, ActivityIndicator, Modal, TextInput, ScrollView, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,8 +37,34 @@ export default function ReelsFeedScreen() {
   const { user } = useApp();
   const [activeIndex, setActiveIndex] = useState(0);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  // Start muted (browser autoplay policy), but unmute on the first user interaction.
   const [muted, setMuted] = useState(true);
   const [commentsFor, setCommentsFor] = useState<Reel | null>(null);
+
+  // Auto-unmute after first user gesture (click/touch/scroll) so users hear sound naturally.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    let triggered = false;
+    const unmuteOnGesture = () => {
+      if (triggered) return;
+      triggered = true;
+      setMuted(false);
+      window.removeEventListener('pointerdown', unmuteOnGesture);
+      window.removeEventListener('touchstart', unmuteOnGesture);
+      window.removeEventListener('keydown', unmuteOnGesture);
+      window.removeEventListener('wheel', unmuteOnGesture);
+    };
+    window.addEventListener('pointerdown', unmuteOnGesture, { once: true });
+    window.addEventListener('touchstart', unmuteOnGesture, { once: true });
+    window.addEventListener('keydown', unmuteOnGesture, { once: true });
+    window.addEventListener('wheel', unmuteOnGesture, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unmuteOnGesture);
+      window.removeEventListener('touchstart', unmuteOnGesture);
+      window.removeEventListener('keydown', unmuteOnGesture);
+      window.removeEventListener('wheel', unmuteOnGesture);
+    };
+  }, []);
 
   const { data: reels, isLoading, refetch } = useQuery<Reel[]>({
     queryKey: ['/api/reels'],
@@ -50,7 +76,9 @@ export default function ReelsFeedScreen() {
   });
 
   const list = useMemo(() => Array.isArray(reels) ? reels : [], [reels]);
-  const reelHeight = SCREEN_H - (Platform.OS === 'web' ? 72 : 80);
+  const { height: WIN_H } = useWindowDimensions();
+  // Bottom tab bar height: 72 on web, 80 on native (matches (tabs)/_layout)
+  const reelHeight = WIN_H - (Platform.OS === 'web' ? 72 : 80);
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems && viewableItems.length > 0) {
@@ -65,6 +93,16 @@ export default function ReelsFeedScreen() {
       fetch(`/api/reels/${r.id}/view`, { method: 'POST', credentials: 'include' }).catch(() => {});
     }
   }, [activeIndex, list]);
+
+  // When the reels page itself unmounts (user navigates away), pause every video on the page
+  useEffect(() => {
+    return () => {
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const vids = document.querySelectorAll('video');
+        vids.forEach((v: any) => { try { v.pause(); v.muted = true; } catch { } });
+      }
+    };
+  }, []);
 
   const handleLike = async (reel: Reel) => {
     try {
@@ -109,16 +147,26 @@ export default function ReelsFeedScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: '#000' }]}>
+    <View style={[styles.container, { backgroundColor: '#000', height: reelHeight, overflow: 'hidden' }]}>
       <FlatList
         data={list}
         keyExtractor={(item) => item.id}
         pagingEnabled
         snapToInterval={reelHeight}
+        snapToAlignment="start"
         decelerationRate="fast"
+        disableIntervalMomentum
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 70 }}
+        viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+        onMomentumScrollEnd={(e) => {
+          const offsetY = e.nativeEvent.contentOffset.y;
+          const idx = Math.round(offsetY / reelHeight);
+          if (idx !== activeIndex && idx >= 0 && idx < list.length) {
+            setActiveIndex(idx);
+          }
+        }}
+        getItemLayout={(_, index) => ({ length: reelHeight, offset: reelHeight * index, index })}
         renderItem={({ item, index }) => (
           <ReelItem
             reel={item}
@@ -259,29 +307,56 @@ function ReelItem({
 
   useEffect(() => {
     if (Platform.OS !== 'web' || !videoRef.current) return;
+    const v = videoRef.current;
     if (active) {
-      videoRef.current.play().catch(() => {});
+      v.muted = muted;
+      v.currentTime = 0;
+      const p = v.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
     } else {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
+      v.pause();
+      try { v.currentTime = 0; } catch { }
     }
-  }, [active]);
+  }, [active, muted]);
+
+  // When this reel item unmounts (e.g., user leaves /reels), stop and unload the video
+  useEffect(() => {
+    return () => {
+      if (videoRef.current) {
+        try {
+          videoRef.current.pause();
+          videoRef.current.removeAttribute('src');
+          videoRef.current.load();
+        } catch { }
+      }
+    };
+  }, []);
 
   return (
     <View style={[styles.reelCard, { height }]}>
       {Platform.OS === 'web' ? (
-        <video
-          ref={videoRef as any}
-          src={reel.videoUrl}
-          poster={reel.thumbnailUrl || undefined}
-          muted={muted}
-          loop
-          playsInline
-          preload="auto"
-          autoPlay={active}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#000' } as any}
-          onClick={onToggleMute}
-        />
+        <View style={{ width: '100%', height: '100%', backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+          <video
+            ref={videoRef as any}
+            src={reel.videoUrl}
+            poster={reel.thumbnailUrl || undefined}
+            muted={muted}
+            loop
+            playsInline
+            preload="auto"
+            autoPlay={active}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              width: 'auto',
+              height: '100%',
+              aspectRatio: '9/16',
+              objectFit: 'contain',
+              backgroundColor: '#000',
+            } as any}
+            onClick={onToggleMute}
+          />
+        </View>
       ) : (
         // Native fallback: show a thumbnail with a play badge — full video player can be added later
         <View style={{ width: '100%', height: '100%', backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
@@ -384,7 +459,7 @@ const styles = StyleSheet.create({
   topTitle: { color: '#fff', fontFamily: 'Urbanist_700Bold', fontSize: 22, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6 },
   topAction: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 
-  reelCard: { width: SCREEN_W, position: 'relative', backgroundColor: '#000' },
+  reelCard: { width: '100%', position: 'relative', backgroundColor: '#000', overflow: 'hidden' },
   playBadge: { position: 'absolute', width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
 
   bottomGradient: {
